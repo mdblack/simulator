@@ -8,7 +8,7 @@ import java.util.ArrayList;
 
 public class Trace 
 {
-	public static final int MAXTRACESIZE=10000;
+	public static final int MAXTRACESIZE=1000;
 	public static final String[] REGISTERNAMES=new String[]{"EIP","EAX","EBX","ECX","EDX","ESI","EDI","ESP","EBP","CR0","CR2","CR3","CR4"};
 	public static final String[] SEGREGNAMES=new String[]{"CS","SS","DS","ES","FS","GS","IDTR","GDTR","LDTR","TSS"};
 	public static final String[] FLAGNAMES=new String[]{"CARRY","PARITY","AUXCARRY","ZERO","SIGN","TRAP","INTERRUPTENABLE","DIRECTION","OVERFLOW","IOPRIVILEGE0","IOPRIVILEGE1","NESTEDTASK","ALIGNMENTCHECK","IDFLAG"};
@@ -128,7 +128,7 @@ public class Trace
 	}
 	
 	public void printTraceEntry(int icount)
-	{
+	{ if (0==0) return;
 		for (TraceEntry entry:tracebase)
 		{
 			if (entry==null) continue;

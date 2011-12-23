@@ -10,55 +10,58 @@ import java.net.*;
 public class PhysicalMemory
 {
 	//total amount of physical memory after FFFFF
-	public static int EXTENDED_RAM_SIZE=0xf80000;
+	public static int EXTENDED_RAM_SIZE=0x1000000;
 
 	//total physical memory
 	public static int TOTAL_RAM_SIZE=EXTENDED_RAM_SIZE+0x100000;
 
 	//memory is handled in units of BLOCK_SIZE
-	public static int BLOCK_SIZE=0x1000;
-	public static int BLOCK_SIZE_BITS=12;
-	public static int BLOCK_SIZE_OFFSET_MASK=0xfff;
+	public static int BASE_BLOCK_SIZE=0x1000;
+	public static int EXTENDED_BLOCK_SIZE=0x10000;
+	public static int BASE_BLOCK_SIZE_BITS=12;
+	public static int EXTENDED_BLOCK_SIZE_BITS=16;
+	public static int BASE_BLOCK_SIZE_OFFSET_MASK=0xfff;
+	public static int EXTENDED_BLOCK_SIZE_OFFSET_MASK=0xffff;
 
+	public static int BASE_BLOCKS=0x100;
+	public static int EXTENDED_BLOCKS=0x10000-0x10;	//enough to populate all 4G addressable RAM
+	
 	//this is the memory!
 	//pointers to memory blocks
-	private MemoryBlock[] memoryBlock;
+	private MemoryBlock[] baseMemoryBlock;
+	private MemoryBlock[] extendedMemoryBlock;
 
-	//for debugging, keep a record of recent stores
-	public long storeRecord=0;
-	public long loadRecord=0;
-	public long addressRecord=0;
 	private Computer computer;
 	
 	public PhysicalMemory(Computer computer)
 	{
 		this.computer=computer;
 		//initialize memory array
-		memoryBlock=new MemoryBlock[TOTAL_RAM_SIZE/BLOCK_SIZE];
-		for (int i=0; i<TOTAL_RAM_SIZE/BLOCK_SIZE; i++)
-			memoryBlock[i]=new MemoryBlock();
-
-		//initialize extended RAM
-		for (int i=0x100000; i<TOTAL_RAM_SIZE; i+=BLOCK_SIZE)
+		baseMemoryBlock=new MemoryBlock[BASE_BLOCKS];
+		for (int i=0; i<BASE_BLOCKS; i++)
+			baseMemoryBlock[i]=new MemoryBlock(BASE_BLOCK_SIZE);
+			
+		extendedMemoryBlock=new MemoryBlock[EXTENDED_BLOCKS];
+		for (int i=0; i<EXTENDED_BLOCKS; i++)
 		{
-			memoryBlock[i/BLOCK_SIZE].initialize();
-			memoryBlock[i/BLOCK_SIZE].writeable=true;
+			extendedMemoryBlock[i]=new MemoryBlock(EXTENDED_BLOCK_SIZE);
+			extendedMemoryBlock[i].writeable=true;
 		}
 
 		//initialize base RAM
-		for (int i=0; i<0xd0000; i+=BLOCK_SIZE)
+		for (int i=0; i<0xd0000/BASE_BLOCK_SIZE; i++)
 		{
-			memoryBlock[i/BLOCK_SIZE].initialize();
-			memoryBlock[i/BLOCK_SIZE].writeable=true;
+			baseMemoryBlock[i].initialize();
+			baseMemoryBlock[i].writeable=true;
 		}
 	}
 
 	public void loadBIOS(URL BIOS_image, int start, int stop) throws IOException
 	{
-		for (int i=start; i<=stop; i+=BLOCK_SIZE)
+		for (int i=start; i<=stop; i+=BASE_BLOCK_SIZE)
 		{
-			memoryBlock[i/BLOCK_SIZE].initialize();
-			memoryBlock[i/BLOCK_SIZE].writeable=true;
+			baseMemoryBlock[i/BASE_BLOCK_SIZE].initialize();
+			baseMemoryBlock[i/BASE_BLOCK_SIZE].writeable=true;
 		}			
 
 		InputStream in=null;
@@ -78,18 +81,18 @@ public class PhysicalMemory
 				in.close();
 		}
 
-		for (int i=start; i<=stop; i+=BLOCK_SIZE)
+		for (int i=start; i<=stop; i+=BASE_BLOCK_SIZE)
 		{
-			memoryBlock[i/BLOCK_SIZE].writeable=false;
+			baseMemoryBlock[i/BASE_BLOCK_SIZE].writeable=false;
 		}
 	}
 
 	public void loadBIOS(String path_to_BIOS_image, int start, int stop) throws IOException
 	{
-		for (int i=start; i<=stop; i+=BLOCK_SIZE)
+		for (int i=start; i<=stop; i+=BASE_BLOCK_SIZE)
 		{
-			memoryBlock[i/BLOCK_SIZE].initialize();
-			memoryBlock[i/BLOCK_SIZE].writeable=true;
+			baseMemoryBlock[i/BASE_BLOCK_SIZE].initialize();
+			baseMemoryBlock[i/BASE_BLOCK_SIZE].writeable=true;
 		}			
 
 		FileInputStream in=null;
@@ -109,48 +112,33 @@ public class PhysicalMemory
 				in.close();
 		}
 
-		for (int i=start; i<=stop; i+=BLOCK_SIZE)
+		for (int i=start; i<=stop; i+=BASE_BLOCK_SIZE)
 		{
-			memoryBlock[i/BLOCK_SIZE].writeable=false;
+			baseMemoryBlock[i/BASE_BLOCK_SIZE].writeable=false;
 		}
 	}
 
 	public byte getByte(int address)
 	{
-		address = address & 0xffffff;
-
-//		System.out.printf("Getting from address %x: %x\n",address,memoryBlock[address/BLOCK_SIZE].getByte(address%BLOCK_SIZE));
-		byte value;
-//		try
-//		{
-			value = memoryBlock[address>>>BLOCK_SIZE_BITS].getByte(address&BLOCK_SIZE_OFFSET_MASK);
-//		}
-//		catch(ArrayIndexOutOfBoundsException e)
-//		{
-//			return (byte)(-1);
-//		}
-
-
-		loadRecord=((loadRecord<<8)&~0xff)|(0xff&value);
-		addressRecord=((addressRecord<<20)&~0xfffff)|(0xfffff&address);
-
-		if(computer.video!=null)
-			computer.video.updateVideoRead(address);
-
-		return value;
+		if (address>=0 && address<0x100000)
+		{
+			if(computer.video!=null)
+				computer.video.updateVideoRead(address);
+			return baseMemoryBlock[address>>>BASE_BLOCK_SIZE_BITS].getByte(address&BASE_BLOCK_SIZE_OFFSET_MASK);
+		}
+		else
+			return extendedMemoryBlock[((address>>>EXTENDED_BLOCK_SIZE_BITS)&0xffff)-0x10].getByte(address&EXTENDED_BLOCK_SIZE_OFFSET_MASK);
 	}
 	public void setByte(int address, byte value)
 	{
-		address = address & 0xffffff;
-
-//		System.out.printf("Setting address %x to %x\n",address,value);
-		memoryBlock[address>>>BLOCK_SIZE_BITS].setByte(address&BLOCK_SIZE_OFFSET_MASK,value);
-
-		if(computer.video!=null)
-			computer.video.updateVideoWrite(address,value);
-
-		storeRecord=((storeRecord<<8)&~0xff)|(0xff&value);
-		addressRecord=((addressRecord<<24)&~0xffffff)|(0xffffff&address);
+		if (address>=0 && address<0x100000)
+		{
+			baseMemoryBlock[address>>>BASE_BLOCK_SIZE_BITS].setByte(address&BASE_BLOCK_SIZE_OFFSET_MASK,value);
+			if(computer.video!=null)
+				computer.video.updateVideoWrite(address,value);
+		}
+		else
+			extendedMemoryBlock[((address>>>EXTENDED_BLOCK_SIZE_BITS)&0xffff)-0x10].setByte(address&EXTENDED_BLOCK_SIZE_OFFSET_MASK,value);
 	}
 
 	public short getWord(int address)
@@ -191,9 +179,10 @@ public class PhysicalMemory
 
 	public boolean isInitialized(int address)
 	{
-		if ((address>>>BLOCK_SIZE_BITS)>=memoryBlock.length)
-			return false;
-		return memoryBlock[address>>>BLOCK_SIZE_BITS].initialized;
+		if (address>=0 && address<0x100000)
+			return baseMemoryBlock[address>>>BASE_BLOCK_SIZE_BITS].initialized;
+		else
+			return extendedMemoryBlock[((address>>>EXTENDED_BLOCK_SIZE_BITS)&0xffff)-0x10].initialized;
 	}
 
 	public void dumpMemory(int address, int quantity)
@@ -212,8 +201,11 @@ public class PhysicalMemory
 		boolean initialized=false;
 		boolean writeable=false;
 
-		public MemoryBlock()
+		int BLOCK_SIZE;
+		
+		public MemoryBlock(int BLOCK_SIZE)
 		{
+			this.BLOCK_SIZE=BLOCK_SIZE;
 		}
 
 		//make the block active
@@ -228,14 +220,16 @@ public class PhysicalMemory
 		public byte getByte(int offset)
 		{
 			if(!initialized)
-				return (byte)(-1);
-			else
-				return rambyte[offset];
+//				return (byte)(-1);
+				initialize();
+			return rambyte[offset];
 		}
 		public void setByte(int offset, byte value)
 		{
-			if(initialized && writeable)
-				rambyte[offset]=value;
+			if (!writeable) return;
+			if (!initialized)
+				initialize();
+			rambyte[offset]=value;
 		}
 	}
 }

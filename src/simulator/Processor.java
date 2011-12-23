@@ -3754,7 +3754,6 @@ private void rep_movs(Segment seg, int b, boolean addr32)
 		esi.setValue(outaddr);
 		edi.setValue(inaddr);
 	}
-
 }
 
 private void stos(int data, int b, boolean addr32)
