@@ -1891,7 +1891,7 @@ private void handleInterrupt(int vector)
 		int dpl=(int)((descriptor>>45)&0x3);
 		newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
 		newSegment = (int)((descriptor>>16)&0xffff);
-		int stackAddress=dpl*8+4;
+/*		int stackAddress=dpl*8+4;
 		int newSS=0xffff&(tss.loadWord(stackAddress+4));
 		int newSP=tss.loadDoubleWord(stackAddress);
 		int oldSS=ss.getValue();
@@ -1900,13 +1900,14 @@ private void handleInterrupt(int vector)
 		esp.setValue(newSP);
 
 		//save SS:ESP on the stack
-		int sesp = esp.getValue();
-		sesp-=4;
-		ss.storeDoubleWord(sesp, oldSS);
-		sesp-=4;
-		ss.storeDoubleWord(sesp, oldSP);
-		esp.setValue(sesp);
+		int sesp1 = esp.getValue();
+		sesp1-=4;
+		ss.storeDoubleWord(sesp1, oldSS);
+		sesp1-=4;
+		ss.storeDoubleWord(sesp1, oldSP);
+		esp.setValue(sesp1);*/
 		//save the flags on the stack
+		int sesp=esp.getValue();
 		int eflags = getFlags();
 		ss.storeDoubleWord(sesp, eflags);
 			//disable interrupts
@@ -3509,19 +3510,19 @@ private void intr_protected(int vector,boolean op32, boolean addr32)
 	System.out.println("newSP "+newSP);
 	System.out.println("newIP "+newIP);
 	System.out.println("newCS "+newCS);
-	computer.debugMode=true;
+/*	computer.debugMode=true;
 	
 	int oldSS=ss.getValue();
 	int oldSP=esp.getValue();
 	ss.setValue(newSS);
-	esp.setValue(newSP);
+	esp.setValue(newSP);*/
 
 	//save SS:ESP on the stack
 	int sesp = esp.getValue();
-	sesp-=4;
+/*	sesp-=4;
 	ss.storeDoubleWord(sesp, oldSS);
 	sesp-=4;
-	ss.storeDoubleWord(sesp, oldSP);
+	ss.storeDoubleWord(sesp, oldSP);*/
 	
 	//save the flags on the stack
 	sesp-=4;
@@ -3603,11 +3604,11 @@ private int iret_protected(boolean op32, boolean addr32)
 	flags=(ss.loadDoubleWord(esp.getValue()));
 	esp.setValue(esp.getValue()+4);
 	
-	int newSP=ss.loadDoubleWord(esp.getValue());
+/*	int newSP=ss.loadDoubleWord(esp.getValue());
 	esp.setValue(esp.getValue()+4);
 	int newSS=ss.loadDoubleWord(esp.getValue());
 	esp.setValue(newSP);
-	ss.setValue(newSS);
+	ss.setValue(newSS);*/
 	
 	return flags;
 }
