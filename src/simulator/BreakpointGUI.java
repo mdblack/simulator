@@ -9,8 +9,8 @@ public class BreakpointGUI extends AbstractGUI
 {
 	public static final int BREAKPOINT_NUMBER=10;
 	public static final int ROWHEIGHT=20;
-	public static final int BUTTONWIDTH=170;
-	public static final int FIELDWIDTH=150;
+	public static final int BUTTONWIDTH=120;
+	public static final int FIELDWIDTH=100;
 
 	JList[] typeBox, entityBox, comparisonBox;
 	JTextField[] entityField, numberField;
@@ -18,23 +18,23 @@ public class BreakpointGUI extends AbstractGUI
 
 	String equation="";
 
-	static final String[] TYPES = new String[] {"register","flag","memory","port","interrupt","instruction count","instruction"};
-	static final String[][] ENTITIES = new String[][] { new String[]{"EIP","EAX","EBX","ECX","EDX","ESP","EBP","ESI","EDI","CS","SS","DS","ES","FS","GS","CR0","CR2","CR3"},
-new String[]{"carry","zero","sign","parity","overflow","auxiliary carry","direction","interrupt"},new String[]{},new String[]{},new String[]{},new String[]{}};
+	static final String[] TYPES = new String[] {"inst count","register","flag","memory","port","interrupt"};
+	static final String[][] ENTITIES = new String[][] {new String[]{},new String[]{"EIP","EAX","EBX","ECX","EDX","ESP","EBP","ESI","EDI","CS","SS","DS","ES","FS","GS","CR0","CR2","CR3","IDTR","GDTR","LDTR","TSS"},
+new String[]{"carry","zero","sign","parity","overflow","auxcarry","direction","interrupt"},new String[]{},new String[]{},new String[]{}};
 
 	static final String[][] COMPARISONS = new String[][] {
-new String[]{"==","!=","<",">",">=","<=","changed"},
-new String[]{"set","clear","changed"},
-new String[]{"==","!=","<",">",">=","<=","changed"},
-new String[]{"==","!=","<",">",">=","<=","changed"},
-new String[]{},
 new String[]{"==","<",">",">=","<="},
+new String[]{"changed","==","!=","<",">",">=","<="},
+new String[]{"changed","set","clear"},
+new String[]{"changed","==","!=","<",">",">=","<="},
+new String[]{"changed","==","!=","<",">",">=","<="},
+new String[]{},
 new String[]{"==","<",">",">=","<="}};
 
-	static final boolean[] ENTITYLISTPRESENT = new boolean[] {true,true,false,false,false,false,true};
-	static final boolean[] ENTITYFIELDPRESENT = new boolean[] {false,false,true,true,true,false,false};
-	static final boolean[] COMPARISONLISTPRESENT = new boolean[] {true,true,true,true,false,true,true};
-	static final boolean[] NUMBERFIELDPRESENT = new boolean[] {true,false,true,true,false,true,true};
+	static final boolean[] ENTITYLISTPRESENT = new boolean[] {false,true,true,false,false,false};
+	static final boolean[] ENTITYFIELDPRESENT = new boolean[] {false,false,false,true,true,true};
+	static final boolean[] COMPARISONLISTPRESENT = new boolean[] {true,true,true,true,true,false};
+	static final boolean[] NUMBERFIELDPRESENT = new boolean[] {true,true,false,true,true,false};
 
 	JScrollPane[][] listpane;
 
@@ -101,9 +101,9 @@ new String[]{"==","<",">",">=","<="}};
 
 	public void constructGUI(AbstractGUI.GUIComponent guicomponent)
 	{
-		JButton setButton=new JButton("Set Breakpoint");
-		JButton clearButton=new JButton("Clear Breakpoints");
-		JButton editButton=new JButton("Edit Equation");
+		JButton setButton=new JButton("Set");
+		JButton clearButton=new JButton("Clear");
+		JButton editButton=new JButton("Equation");
 		JButton closeButton=new JButton("Close");
 		setButton.setBounds(10,(BREAKPOINT_NUMBER+1)*ROWHEIGHT+1,BUTTONWIDTH,ROWHEIGHT-2);
 		clearButton.setBounds(10+BUTTONWIDTH+10,(BREAKPOINT_NUMBER+1)*ROWHEIGHT+1,BUTTONWIDTH,ROWHEIGHT-2);
@@ -188,24 +188,24 @@ new String[]{"==","<",">",">=","<="}};
 				if (typeBox[i].getSelectedValue().equals("flag") && entityBox[i].getSelectedValue()!=null)
 				{
 					boolean v = readFlag((String)entityBox[i].getSelectedValue());
-					comparisonBox[i].setSelectedIndex(v?1:0);
+					comparisonBox[i].setSelectedIndex(v?2:1);
 				}
 				else if (typeBox[i].getSelectedValue().equals("register") && entityBox[i].getSelectedValue()!=null)
 				{
 					int v = readRegister((String)entityBox[i].getSelectedValue());
-					comparisonBox[i].setSelectedIndex(1);
+					comparisonBox[i].setSelectedIndex(2);
 					numberField[i].setText(Integer.toHexString(v));
 				}
 				else if (typeBox[i].getSelectedValue().equals("memory") && !entityField[i].getText().equals(""))
 				{
 					int v = computer.physicalMemory.getByte(Integer.parseInt(entityField[i].getText(),16));
-					comparisonBox[i].setSelectedIndex(1);
+					comparisonBox[i].setSelectedIndex(2);
 					numberField[i].setText(Integer.toHexString(v));
 				}
 				else if (typeBox[i].getSelectedValue().equals("port") && !entityField[i].getText().equals(""))
 				{
 					int v = computer.processor.ioports.ioPortReadByte(Integer.parseInt(entityField[i].getText(),16));
-					comparisonBox[i].setSelectedIndex(1);
+					comparisonBox[i].setSelectedIndex(2);
 					numberField[i].setText(Integer.toHexString(v));
 				}
 			}
@@ -262,7 +262,7 @@ new String[]{"==","<",">",">=","<="}};
 				}
 				newequation+="interrupt "+entityField[i].getText()+" ";
 			}
-			else if(typeBox[i].getSelectedValue().equals("instruction count"))
+			else if(typeBox[i].getSelectedValue().equals("inst count"))
 			{
 				if(comparisonBox[i].getSelectedValue()==null||numberField[i].getText().equals(""))
 				{
@@ -416,13 +416,17 @@ new String[]{"==","<",">",">=","<="}};
 		else if (register.equals("ES")) return computer.processor.es.getValue();
 		else if (register.equals("FS")) return computer.processor.fs.getValue();
 		else if (register.equals("GS")) return computer.processor.gs.getValue();
+		else if (register.equals("IDTR")) return computer.processor.idtr.getValue();
+		else if (register.equals("GDTR")) return computer.processor.gdtr.getValue();
+		else if (register.equals("LDTR")) return computer.processor.ldtr.getValue();
+		else if (register.equals("TSS")) return computer.processor.tss.getValue();
 		else return 0;
 	}
 
 	private boolean readFlag(String flag)
 	{
 		if (flag.equals("carry")) return computer.processor.carry.read();
-		else if (flag.equals("auxiliarycarry")) return computer.processor.auxiliaryCarry.read();
+		else if (flag.equals("auxcarry")) return computer.processor.auxiliaryCarry.read();
 		else if (flag.equals("sign")) return computer.processor.sign.read();
 		else if (flag.equals("parity")) return computer.processor.parity.read();
 		else if (flag.equals("zero")) return computer.processor.zero.read();
@@ -449,6 +453,7 @@ new String[]{"==","<",">",">=","<="}};
 		}
 		public void valueChanged(ListSelectionEvent e)
 		{
+			activeBox[row].setSelected(true);
 			int selection=typeBox[row].getSelectedIndex();
 			if(selection==-1) return;
 			entityBox[row].setListData(ENTITIES[selection]);
@@ -458,6 +463,11 @@ new String[]{"==","<",">",">=","<="}};
 			entityField[row].setVisible(ENTITYFIELDPRESENT[selection]);
 			listpane[row][2].setVisible(COMPARISONLISTPRESENT[selection]);
 			numberField[row].setVisible(NUMBERFIELDPRESENT[selection]);
+			
+			entityBox[row].setSelectedIndex(0);
+			comparisonBox[row].setSelectedIndex(0);
+			numberField[row].setText("0");
+			entityField[row].setText("0");
 		}
 	}
 
@@ -465,11 +475,11 @@ new String[]{"==","<",">",">=","<="}};
 	{
 		public void actionPerformed(ActionEvent e)
 		{
-			if (e.getActionCommand().equals("Set Breakpoint"))
+			if (e.getActionCommand().equals("Set"))
 				set();
-			else if (e.getActionCommand().equals("Clear Breakpoints"))
+			else if (e.getActionCommand().equals("Clear"))
 				clear();
-			else if (e.getActionCommand().equals("Edit Equation"))
+			else if (e.getActionCommand().equals("Equation"))
 				editEquation();
 			else if (e.getActionCommand().equals("Close"))
 				close();

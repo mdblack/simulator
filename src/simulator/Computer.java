@@ -129,7 +129,6 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 	public void initializeGUIs()
 	{
 		clock = new Clock();
-		trace = new Trace(this);
 
 		if (bootgui.diskGUI[0]) diskGUI[0]=new DiskGUI(computer,0);
 		if (bootgui.diskGUI[1]) diskGUI[1]=new DiskGUI(computer,1);
@@ -186,7 +185,7 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 
 		//handle keyboard
 		//this only pertains the the terminal keyboard.  the gui calls keyboard directly
-		if (updateGUIOnPlay)
+		if (trace!=null)
 			trace.newTraceEntry(icount);
 		if (debugMode)
 			System.out.printf("Cycle count %x:\n",icount);
@@ -212,17 +211,12 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 				processor.printRegisters();
 		}
 
-		if (updateGUIOnPlay)
+		if (trace!=null)
 		{
 			trace.addRegisters(processor);
 			trace.closeTraceEntry();
 		}
 		
-		if (debugMode)
-		{
-			trace.printTraceEntry(icount);
-		}
-
 		icount++;
 		
 		controlGUI.instructionCount();

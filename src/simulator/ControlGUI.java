@@ -44,14 +44,17 @@ public class ControlGUI extends AbstractGUI
 		menuConstruct.add(customprocessor);
 
 		JMenuItem breakpoint = new JMenuItem("Set Breakpoints");
+		JMenuItem trace = new JMenuItem("Instruction Trace");
 		JMenuItem reboot = new JMenuItem("Reboot");
 		JMenuItem mt = new JMenuItem("Memory Transfer");
 		JMenuItem exit = new JMenuItem("Exit");
 		breakpoint.addActionListener(new MenuListener());
+		trace.addActionListener(new MenuListener());
 		reboot.addActionListener(new MenuListener());
 		exit.addActionListener(new MenuListener());
 		mt.addActionListener(new MenuListener());
 		menuControl.add(breakpoint);
+		menuControl.add(trace);
 		menuControl.add(reboot);
 		menuControl.add(mt);
 		menuControl.add(exit);
@@ -261,6 +264,11 @@ public class ControlGUI extends AbstractGUI
 			else if (e.getActionCommand().equals("Set Breakpoints"))
 			{
 				computer.breakpointGUI=new BreakpointGUI(computer);
+			}
+			else if (e.getActionCommand().equals("Instruction Trace"))
+			{
+				if (!computer.debugMode) computer.cycleEndLock.lockWait();
+				computer.trace=new Trace(computer);
 			}
 			else if (e.getActionCommand().equals("Exit"))
 			{

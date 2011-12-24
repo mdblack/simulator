@@ -25,7 +25,7 @@ public class MemoryBlockGUI extends AbstractGUI implements AdjustmentListener
 
 	public MemoryBlockGUI(Computer computer, int type, int address)
 	{
-		super(computer,"Memory Contents",400,300,true,false,true,false);
+		super(computer,"Memory Contents",500,300,true,false,true,false);
 		this.address=address;
 		this.type=type;
 
@@ -315,11 +315,11 @@ public class MemoryBlockGUI extends AbstractGUI implements AdjustmentListener
 		{
 			if (address == computer.processor.cs.address(computer.processor.eip.getValue()))
 				return new Color(100,100,250);
-			else if (computer.memoryGUI.codeFrame!=null && address == computer.memoryGUI.codeFrame.lastIP)
+			else if (computer.memoryGUI!=null && computer.memoryGUI.codeFrame!=null && address == computer.memoryGUI.codeFrame.lastIP)
 				return new Color(200,200,250);
-			else if (address==computer.memoryGUI.lastCodeWrite)
+			else if (computer.memoryGUI!=null && address==computer.memoryGUI.lastCodeWrite)
 				return new Color(250,100,100);
-			else if (address==computer.memoryGUI.lastCodeRead)
+			else if (computer.memoryGUI!=null && address==computer.memoryGUI.lastCodeRead)
 				return new Color(100,250,100);
 
 			return Color.WHITE;

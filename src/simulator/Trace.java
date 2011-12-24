@@ -4,30 +4,97 @@
 
 package simulator;
 
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 
-public class Trace 
+public class Trace extends AbstractGUI
 {
-	public static final int MAXTRACESIZE=1000;
+	public static final int MAXTRACESIZE=10000;
 	public static final String[] REGISTERNAMES=new String[]{"EIP","EAX","EBX","ECX","EDX","ESI","EDI","ESP","EBP","CR0","CR2","CR3","CR4"};
 	public static final String[] SEGREGNAMES=new String[]{"CS","SS","DS","ES","FS","GS","IDTR","GDTR","LDTR","TSS"};
 	public static final String[] FLAGNAMES=new String[]{"CARRY","PARITY","AUXCARRY","ZERO","SIGN","TRAP","INTERRUPTENABLE","DIRECTION","OVERFLOW","IOPRIVILEGE0","IOPRIVILEGE1","NESTEDTASK","ALIGNMENTCHECK","IDFLAG"};
 	public static final int REGISTERCOUNT=REGISTERNAMES.length;
 	public static final int SEGREGCOUNT=SEGREGNAMES.length;
 	
-	Computer computer;
 	ArrayList<TraceEntry> tracebase;
 	TraceEntry currentEntry=null;
 	
+	public static final int W=500,H=400,LINEHEIGHT=18;
+	
 	public Trace(Computer computer)
 	{
-		this.computer=computer;
+		super(computer,"Trace",W,H,true,true,true,false);
 		tracebase=new ArrayList<TraceEntry>();
+		refresh();
+	}
+	
+	public void closeGUI()
+	{
+		computer.trace=null;
+	}
+	
+	public int height()
+	{
+		return LINEHEIGHT*MAXTRACESIZE;
+	}
+	
+	public void mouseClick(MouseEvent e)
+	{
+		int x=e.getX();
+		int y=e.getY();
+		if (x<0 || x>=width())
+			return;
+		if (y<0 || y>=height())
+			return;
+
+		int row=tracebase.size()-y/LINEHEIGHT-1;
+		if (row<0) return;
+		
+		if (e.getButton()==MouseEvent.BUTTON3)
+		{
+			new MemoryBlockGUI(computer,MemoryBlockGUI.CODE,tracebase.get(row).instruction_address);
+			dumpTrace();
+		}
+		else
+		{
+			String label="";
+			TraceEntry entry=tracebase.get(row);
+			for (int r=0; r<entry.registers.length; r++)
+				label+=REGISTERNAMES[r]+": "+Integer.toHexString(entry.registers[r])+" ";
+			for (int r=0; r<entry.segreg_values.length; r++)
+				label+=SEGREGNAMES[r]+": "+Integer.toHexString(entry.segreg_values[r])+" "+Integer.toHexString(entry.segreg_bases[r])+" "+Integer.toHexString(entry.segreg_limits[r])+" ";
+			label+="Flags: "+Integer.toBinaryString(entry.flags);
+
+			setStatusLabel(label);
+			dumpTrace(tracebase.get(row));
+		}
+	}
+	
+	public void doPaint(Graphics g)
+	{
+		int j=0;
+		for (int i=tracebase.size()-1; i>=0; i--)
+		{
+			if (tracebase.get(i)==null) continue;
+			if (i%2==0)
+				g.setColor(new Color(200,200,255));
+			else
+				g.setColor(Color.WHITE);
+			g.fillRect(0, j*LINEHEIGHT, canvasX, LINEHEIGHT);
+			g.setColor(Color.BLACK);
+			g.drawString(""+tracebase.get(i).instruction_count, 10, (j+1)*LINEHEIGHT-3);
+			g.drawString(Integer.toHexString(tracebase.get(i).instruction_address), 90, (j+1)*LINEHEIGHT-3);
+			g.drawString(""+tracebase.get(i).instruction_name, 150, (j+1)*LINEHEIGHT-3);
+			j++;
+		}
 	}
 	
 	public class TraceEntry
 	{
 		int instruction_count;
+		int instruction_address;
 		String instruction_name;
 		ArrayList<Processor.GUICODE> processorCode;
 		ArrayList<String> processorCodeName;
@@ -62,6 +129,7 @@ public class Trace
 	public void addRegisters(Processor processor)
 	{
 		if (currentEntry==null) return;
+		currentEntry.instruction_address=processor.cs.address(processor.eip.getValue());
 		currentEntry.registers[0]=processor.eip.getValue();
 		currentEntry.registers[1]=processor.eax.getValue();
 		currentEntry.registers[2]=processor.ebx.getValue();
@@ -115,10 +183,14 @@ public class Trace
 	public void closeTraceEntry()
 	{
 		if (currentEntry==null) return;
+		if (currentEntry.instruction_name==null) return;
+		if (currentEntry.instruction_name.equals("null")) return;
 		tracebase.add(currentEntry);
 		
 		if (tracebase.size()>MAXTRACESIZE)
 			tracebase.remove(0);
+		
+		repaint();
 	}
 	
 	public void postInstructionByte(byte instbyte)
@@ -127,12 +199,18 @@ public class Trace
 		currentEntry.instructionBytes.add(Integer.toHexString(instbyte&0xff));
 	}
 	
-	public void printTraceEntry(int icount)
-	{ if (0==0) return;
+	public void dumpTrace()
+	{
 		for (TraceEntry entry:tracebase)
-		{
-			if (entry==null) continue;
-			if (entry.instruction_count!=icount) continue;
+			dumpTrace(entry);
+	}
+	
+	public void dumpTrace(TraceEntry entry)
+	{ 
+//		for (TraceEntry entry:tracebase)
+//		{
+			if (entry==null) return;
+//			if (entry.instruction_count!=icount) continue;
 			
 			System.out.print("InstructionNumber: "+entry.instruction_count+" ");
 			System.out.print("Instruction: "+entry.instruction_name+" ");
@@ -166,6 +244,6 @@ public class Trace
 				System.out.print(entry.processorCodeValue.get(i)+" ");
 			
 			System.out.println();
-		}
+//		}
 	}
 }

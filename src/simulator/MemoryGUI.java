@@ -7,6 +7,8 @@ import java.awt.event.*;
 public class MemoryGUI extends AbstractGUI
 {
 	private static final int BLOCKSIZE=0x100;		//256 bytes/block
+//	private static final int TOTAL_BLOCKS=(int)(0x100000000l/BLOCKSIZE);
+	private static final int TOTAL_BLOCKS=(int)(PhysicalMemory.TOTAL_RAM_SIZE/BLOCKSIZE);
 
 	public int lastCodeRead=-1,lastCodeWrite=-1,lastDataRead=-1,lastDataWrite=-1,lastStackRead=-1,lastStackWrite=-1,lastExtraRead=-1,lastExtraWrite=-1,lastInterruptRead=-1,lastInterruptWrite=-1;
 
@@ -37,7 +39,7 @@ public class MemoryGUI extends AbstractGUI
 
 	public int height()
 	{
-		int numBlocks=PhysicalMemory.TOTAL_RAM_SIZE / BLOCKSIZE;
+		int numBlocks=TOTAL_BLOCKS;
 		return BLOCKHEIGHT*(numBlocks/(width()/BLOCKWIDTH)+1);
 	}
 
@@ -53,14 +55,14 @@ public class MemoryGUI extends AbstractGUI
 			if (y<visibleStart-5 || y>visibleEnd+5)
 				continue;
 
-			if(y*xblocks>=PhysicalMemory.TOTAL_RAM_SIZE / BLOCKSIZE)
+			if(y*xblocks>=TOTAL_BLOCKS)
 				break;
 
 			for (int x=0; x<xblocks; x++)
 			{
 				//don't depict non-existent blocks
 				int blockNumber=y*xblocks+x;
-				if(blockNumber>=PhysicalMemory.TOTAL_RAM_SIZE / BLOCKSIZE)
+				if(blockNumber>=TOTAL_BLOCKS)
 					break;
 
 				g.setColor(overlay.addressColor(blockNumber*BLOCKSIZE));
@@ -81,7 +83,7 @@ public class MemoryGUI extends AbstractGUI
 		int blockx=x/BLOCKWIDTH;
 		int blocky=y/BLOCKHEIGHT;
 		int block=blocky*(width()/BLOCKWIDTH)+blockx;
-		if (block>=PhysicalMemory.TOTAL_RAM_SIZE / BLOCKSIZE)
+		if (block>=TOTAL_BLOCKS)
 			return;
 		repaint();
 		String label = overlay.addressLabel(block*BLOCKSIZE);
@@ -112,7 +114,7 @@ public class MemoryGUI extends AbstractGUI
 		int blockx=x/BLOCKWIDTH;
 		int blocky=y/BLOCKHEIGHT;
 		int block=blocky*(width()/BLOCKWIDTH)+blockx;
-		if (block>=PhysicalMemory.TOTAL_RAM_SIZE / BLOCKSIZE)
+		if (block>=TOTAL_BLOCKS)
 			return;
 
 		if (overlay.addressType(block*BLOCKSIZE)==4)
@@ -234,6 +236,10 @@ public class MemoryGUI extends AbstractGUI
 			if (address>=computer.processor.ds.getBase() && address<computer.processor.ds.getBase()+computer.processor.ds.getLimit())
 				return 5;	//data segment
 			if (address>=computer.processor.es.getBase() && address<computer.processor.es.getBase()+computer.processor.es.getLimit())
+				return 9;	//extra segment
+			if (address>=computer.processor.fs.getBase() && address<computer.processor.fs.getBase()+computer.processor.es.getLimit())
+				return 9;	//extra segment
+			if (address>=computer.processor.gs.getBase() && address<computer.processor.gs.getBase()+computer.processor.es.getLimit())
 				return 9;	//extra segment
 			if (address/BLOCKSIZE==computer.processor.idtr.getBase()/BLOCKSIZE)
 				return 11;	//interrupt table

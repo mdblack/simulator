@@ -1168,7 +1168,7 @@ public void executeAnInstruction()
 	processorGUICode=null;
 //	if (computer.processorGUI!=null || computer.memoryGUI!=null || computer.registerGUI!=null)
 //	{
-		if (computer.debugMode || computer.updateGUIOnPlay)
+		if (computer.debugMode || computer.updateGUIOnPlay || computer.trace!=null)
 			processorGUICode=new ProcessorGUICode();
 //	}
 
@@ -1187,7 +1187,7 @@ public void executeAnInstruction()
 
 	if(processorGUICode!=null) 
 	{
-		computer.trace.addProcessorCode(processorGUICode);
+		if (computer.trace!=null) computer.trace.addProcessorCode(processorGUICode);
 		processorGUICode.updateMemoryGUI();
 		processorGUICode.updateGUI();
 	}
@@ -1859,44 +1859,72 @@ private void handleInterrupt(int vector)
 		vector=vector*4;
 		newIP = 0xffff & idtr.loadWord(vector);
 		newSegment = 0xffff & idtr.loadWord(vector+2);		
+		//save the flags on the stack
+		short sesp = (short) esp.getValue();
+		sesp-=2;
+		int eflags = getFlags() & 0xffff;
+		ss.storeWord(sesp & 0xffff, (short)eflags);
+			//disable interrupts
+		interruptEnable.clear();
+		interruptEnableSoon.clear();
+			//save CS:IP on the stack
+		sesp-=2;
+		ss.storeWord(sesp&0xffff, (short)cs.getValue());
+		sesp-=2;
+		ss.storeWord(sesp&0xffff, (short)eip.getValue());
+		esp.setValue((0xffff0000 & esp.getValue()) | (sesp & 0xffff));
+			//change CS and IP to the ISR's values
+		cs.setValue(newSegment);
+		eip.setValue(newIP);
 	}
 	else
 	{
 		//get the new CS:EIP from the IDT
 		vector=vector*8;
 		descriptor=idtr.loadQuadWord(vector);
+		int segIndex=(int)((descriptor>>16)&0xffff);
+		if ((segIndex&4)!=0)
+			descriptor=ldtr.loadQuadWord(segIndex&0xfff8);
+		else
+			descriptor=gdtr.loadQuadWord(segIndex&0xfff8);
+		
+		int dpl=(int)((descriptor>>45)&0x3);
 		newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
+		newSegment = (int)((descriptor>>16)&0xffff);
+		int stackAddress=dpl*8+4;
+		int newSS=0xffff&(tss.loadWord(stackAddress+4));
+		int newSP=tss.loadDoubleWord(stackAddress);
+		int oldSS=ss.getValue();
+		int oldSP=esp.getValue();
+		ss.setValue(newSS);
+		esp.setValue(newSP);
+
+		//save SS:ESP on the stack
+		int sesp = esp.getValue();
+		sesp-=4;
+		ss.storeDoubleWord(sesp, oldSS);
+		sesp-=4;
+		ss.storeDoubleWord(sesp, oldSP);
+		esp.setValue(sesp);
+		//save the flags on the stack
+		int eflags = getFlags();
+		ss.storeDoubleWord(sesp, eflags);
+			//disable interrupts
+		interruptEnable.clear();
+		interruptEnableSoon.clear();
+			//save CS:IP on the stack
+		sesp-=4;
+		ss.storeDoubleWord(sesp, cs.getValue());
+		sesp-=4;
+		ss.storeDoubleWord(sesp, eip.getValue());
+		esp.setValue(sesp);
+			//change CS and IP to the ISR's values
+		cs.setProtectedValue(newSegment,descriptor);
+		eip.setValue(newIP);
 	}
 
 	if(processorGUICode!=null) processorGUICode.push(GUICODE.HARDWARE_INTERRUPT,vector);
 	//System.out.printf("Hardware interrupt happened %x\n",vector);
-
-	//save the flags on the stack
-	short sesp = (short) esp.getValue();
-	sesp-=2;
-	int eflags = getFlags() & 0xffff;
-	ss.storeWord(sesp & 0xffff, (short)eflags);
-		//disable interrupts
-	interruptEnable.clear();
-	interruptEnableSoon.clear();
-		//save CS:IP on the stack
-	sesp-=2;
-	ss.storeWord(sesp&0xffff, (short)cs.getValue());
-	sesp-=2;
-	ss.storeWord(sesp&0xffff, (short)eip.getValue());
-	esp.setValue((0xffff0000 & esp.getValue()) | (sesp & 0xffff));
-		//change CS and IP to the ISR's values
-
-	if (isModeReal())
-	{
-		cs.setValue(newSegment);
-		eip.setValue(newIP);
-	}
-	else
-	{
-		cs.setProtectedValue((int)((descriptor>>16)&0xffff),descriptor);
-		eip.setValue(newIP);
-	}
 }
 
 public FetchQueue fetchQueue;
@@ -1967,7 +1995,7 @@ public class FetchQueue
 	}
 	public void advance(int i)
 	{
-		if (computer.updateGUIOnPlay)
+		if (computer.trace!=null)
 		{
 			for (int j=0; j<i; j++)
 				computer.trace.postInstructionByte(bytearray[counter+j]);
@@ -3374,6 +3402,12 @@ private void intr(int vector, boolean op32, boolean addr32)
 	if (((esp.getValue()&0xffff)<6)&&((esp.getValue()&0xffff)>0))
 		panic("No room on stack for interrupt");
 
+	if (!isModeReal())
+	{
+		intr_protected(vector,op32,addr32);
+		return;
+	}
+	
 	if (!op32 && !addr32)
 	{
 		esp.setValue((esp.getValue() & 0xffff0000) | (0xffff & (esp.getValue() - 2)));
@@ -3439,8 +3473,83 @@ private void intr(int vector, boolean op32, boolean addr32)
 	if(processorGUICode!=null) processorGUICode.push(GUICODE.SOFTWARE_INTERRUPT,vector);
 }
 
+
+private void intr_protected(int vector,boolean op32, boolean addr32)
+{
+	int newIP=0, newCS=0;
+	int dpl;
+	long descriptor=0;
+
+	if (!op32 || !addr32)
+		panic("Only handling 32 bit mode protected interrupts");
+	
+	//get the new CS:EIP from the IDT
+	vector=vector*8;
+	descriptor=idtr.loadQuadWord(vector);
+	int segIndex=(int)((descriptor>>16)&0xffff);
+	long newSegmentDescriptor=0;
+	if ((segIndex&4)!=0)
+		newSegmentDescriptor=ldtr.loadQuadWord(segIndex&0xfff8);
+	else
+		newSegmentDescriptor=gdtr.loadQuadWord(segIndex&0xfff8);
+	
+	dpl=(int)((newSegmentDescriptor>>45)&0x3);
+	newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
+	newCS = (int)((descriptor>>16)&0xffff);
+
+	//calculate new stack segment
+	int stackAddress=dpl*8+4;
+	int newSS=0xffff&(tss.loadWord(stackAddress+4));
+	int newSP=tss.loadDoubleWord(stackAddress);
+	
+	System.out.println("stackAddress "+stackAddress);
+	System.out.println("dpl "+dpl);
+	System.out.println("tss "+tss.getValue());
+	System.out.println("newSS "+newSS);
+	System.out.println("newSP "+newSP);
+	System.out.println("newIP "+newIP);
+	System.out.println("newCS "+newCS);
+	computer.debugMode=true;
+	
+	int oldSS=ss.getValue();
+	int oldSP=esp.getValue();
+	ss.setValue(newSS);
+	esp.setValue(newSP);
+
+	//save SS:ESP on the stack
+	int sesp = esp.getValue();
+	sesp-=4;
+	ss.storeDoubleWord(sesp, oldSS);
+	sesp-=4;
+	ss.storeDoubleWord(sesp, oldSP);
+	
+	//save the flags on the stack
+	sesp-=4;
+    int flags = getFlags();
+    ss.storeDoubleWord(esp.getValue(), flags);
+		//disable interrupts
+	interruptEnable.clear();
+	interruptEnableSoon.clear();
+		//save CS:IP on the stack
+	sesp-=4;
+	ss.storeDoubleWord(sesp, cs.getValue());
+	sesp-=4;
+	ss.storeDoubleWord(sesp, eip.getValue());
+	esp.setValue(sesp);
+		//change CS and IP to the ISR's values
+	
+	cs.setProtectedValue(newCS,descriptor);
+	eip.setValue(newIP);
+}
+
+
 private int iret(boolean op32, boolean addr32)
 {
+	if (!isModeReal())
+	{
+		return iret_protected(op32,addr32);
+	}
+	
 	int flags=0;
 	if (!op32 && !addr32)
 	{
@@ -3480,6 +3589,26 @@ private int iret(boolean op32, boolean addr32)
 	}
 
 //	System.out.println("Returning from interrupt");
+	return flags;
+}
+
+private int iret_protected(boolean op32, boolean addr32)
+{
+	int flags=0;
+	
+	eip.setValue(ss.loadDoubleWord(esp.getValue()));
+	esp.setValue(esp.getValue()+4);
+	cs.setValue(ss.loadDoubleWord(esp.getValue())&0xffff);
+	esp.setValue(esp.getValue()+4);
+	flags=(ss.loadDoubleWord(esp.getValue()));
+	esp.setValue(esp.getValue()+4);
+	
+	int newSP=ss.loadDoubleWord(esp.getValue());
+	esp.setValue(esp.getValue()+4);
+	int newSS=ss.loadDoubleWord(esp.getValue());
+	esp.setValue(newSP);
+	ss.setValue(newSS);
+	
 	return flags;
 }
 
