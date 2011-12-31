@@ -8,6 +8,8 @@ Computer builds the PC, starts it running
 
 package simulator;
 import java.io.*;
+import java.util.ArrayList;
+import java.util.Scanner;
 import java.awt.*;
 
 import javax.swing.JOptionPane;
@@ -67,7 +69,32 @@ public class Computer
 
 	public Computer computer;
 	public ComputerApplet applet=null;
-
+	
+	public String saveState()
+	{
+		String state="";
+		state+=bootgui.saveState()+"@";
+		state+=physicalMemory.saveState()+"@";
+		state+=processor.saveState()+"@";
+		if (bootgui.includeDevice("CMOS")) state+=cmos.saveState()+"@";
+		state+=icount;
+		return state;
+	}
+	
+	public void loadState(String state)
+	{
+		int s=0;
+		System.out.println("loading state");
+		String[] states=state.split("@");
+		System.out.println("loading state");
+		bootgui.loadState(states[s++]);
+		if (bootgui.includeDevice("Memory")) { physicalMemory=new PhysicalMemory(this); physicalMemory.loadState(states[s++]); }
+		if (bootgui.includeDevice("Processor")) { processor=new Processor(this); processor.loadState(states[s++]); }
+		if (bootgui.includeDevice("CMOS")) { cmos=new CMOS(this); cmos.loadState(states[s++]); }
+		Scanner loader=new Scanner(states[s++]);
+		icount=loader.nextInt();
+	}
+	
 	public Computer(ComputerApplet applet)
 	{
 		this.applet=applet;
@@ -205,12 +232,12 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 		if (registerGUI!=null)
 			registerGUI.readRegisters();
 
-		if (registerGUI!=null)
+/*		if (registerGUI!=null)
 		{
 			if (debugMode || updateGUIOnPlay)
 				processor.printRegisters();
 		}
-
+*/
 		if (trace!=null)
 		{
 			trace.addRegisters(processor);
@@ -219,8 +246,7 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 		
 		icount++;
 		
-		controlGUI.instructionCount();
-
+		controlGUI.instructionCount();		
 		cycleEndLock.lockResume();
 
 	}

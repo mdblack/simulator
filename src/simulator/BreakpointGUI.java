@@ -306,7 +306,8 @@ new String[]{"==","<",">",">=","<="}};
 				String comparison=getNextEquationElement();
 				String number=getNextEquationElement();
 				int number1=readRegister(register);
-				int number2=Integer.parseInt(number,16);
+				int number2=(int)(Long.parseLong(number,16)&0xffffffff);
+//				int number2=Integer.parseInt(number,16);
 				if (doComparison(comparison,number1,number2)) return true;
 				element=getNextEquationElement();
 			}

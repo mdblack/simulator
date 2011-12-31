@@ -43,102 +43,24 @@ public class ControlGUI extends AbstractGUI
 		customprocessor.addActionListener(new MenuListener());
 		menuConstruct.add(customprocessor);
 
-		JMenuItem breakpoint = new JMenuItem("Set Breakpoints");
-		JMenuItem trace = new JMenuItem("Instruction Trace");
-		JMenuItem reboot = new JMenuItem("Reboot");
-		JMenuItem mt = new JMenuItem("Memory Transfer");
-		JMenuItem exit = new JMenuItem("Exit");
-		breakpoint.addActionListener(new MenuListener());
-		trace.addActionListener(new MenuListener());
-		reboot.addActionListener(new MenuListener());
-		exit.addActionListener(new MenuListener());
-		mt.addActionListener(new MenuListener());
-		menuControl.add(breakpoint);
-		menuControl.add(trace);
-		menuControl.add(reboot);
-		menuControl.add(mt);
-		menuControl.add(exit);
-
-		JMenuItem item;
-		item = new JMenuItem("Processor");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Registers");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Memory");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Instruction Memory");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Stack");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("I/O Ports");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Timer");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Serial Port");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Keyboard");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Video");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Disk A:");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Disk B:");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Disk C:");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Disk D:");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Sectors A:");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Sectors B:");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Sectors C:");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-		item = new JMenuItem("Sectors D:");
-		item.addActionListener(new MenuListener());
-		menuGUI.add(item);
-
-		JMenuItem importitem = new JMenuItem("Import File");
-		JMenuItem exportitem = new JMenuItem("Export File");
-		JMenuItem deleteitem = new JMenuItem("Delete File");
-		JMenuItem compileitem = new JMenuItem("Compile Program");
-		JMenuItem runitem = new JMenuItem("Run Program");
-		importitem.addActionListener(new MenuListener());
-		exportitem.addActionListener(new MenuListener());
-		deleteitem.addActionListener(new MenuListener());
-		compileitem.addActionListener(new MenuListener());
-		runitem.addActionListener(new MenuListener());
-		menuDisk.add(importitem);
-		menuDisk.add(exportitem);
-		menuDisk.add(deleteitem);
-		menuDisk.add(compileitem);
-		menuDisk.add(runitem);
-		JMenuItem floppya = new JMenuItem("Change Floppy A:");
-		JMenuItem floppyb = new JMenuItem("Change Floppy B:");
-		floppya.addActionListener(new MenuListener());
-		floppyb.addActionListener(new MenuListener());
-		menuDisk.add(floppya);
-		menuDisk.add(floppyb);
-		JMenuItem makedisk = new JMenuItem("Make Disk Image");
-		makedisk.addActionListener(new MenuListener());
-		menuDisk.add(makedisk);
+		for (String s:new String[]{"Set Breakpoints","Instruction Trace","Reboot","Memory Transfer","Save Snapshot","Load Snapshot","Exit"})
+		{
+			JMenuItem item=new JMenuItem(s);
+			item.addActionListener(new MenuListener());
+			menuControl.add(item);
+		}
+		for (String s:new String[]{"Processor","Registers","Memory","Instruction Memory","Stack","I/O Ports","Timer","Serial Port","Keyboard","Video","Disk A:","Disk B:","Disk C:","Disk D:","Sectors A:","Sectors B:","Sectors C:","Sectors D:"})
+		{
+			JMenuItem item=new JMenuItem(s);
+			item.addActionListener(new MenuListener());
+			menuGUI.add(item);
+		}
+		for (String s:new String[]{"Import File","Export File","Delete File","Compile Program","Run Program","Change Floppy A:","Change Floppy B:","Make Disk Image"})
+		{
+			JMenuItem item=new JMenuItem(s);
+			item.addActionListener(new MenuListener());
+			menuDisk.add(item);
+		}
 
 		menubar.add(menuControl);
 		menubar.add(menuGUI);
@@ -461,6 +383,42 @@ public class ControlGUI extends AbstractGUI
 			{
 				if (computer.datapathBuilder!=null && computer.controlBuilder!=null)
 					computer.customProcessor=new CustomProcessor(computer);
+			}
+			
+			else if (e.getActionCommand().equals("Save Snapshot"))
+			{
+				if (!computer.debugMode) computer.cycleEndLock.lockWait();
+				
+				String state=computer.saveState();
+				
+				try
+				{
+					PrintWriter p=new PrintWriter("state.txt");
+					p.print(state);
+					p.close();
+				}
+				catch(Exception ex)
+				{
+					System.out.println("Couldn't save to state.txt");
+				}
+			}
+			else if (e.getActionCommand().equals("Load Snapshot"))
+			{
+				if (!computer.debugMode) computer.cycleEndLock.lockWait();
+
+				try
+				{
+					byte[] buffer=new byte[(int)new File("state.txt").length()];
+					BufferedInputStream f=new BufferedInputStream(new FileInputStream("state.txt"));
+					f.read(buffer);
+					f.close();
+					computer.loadState(new String(buffer));
+				}
+				catch(Exception ex)
+				{
+					ex.printStackTrace();
+					System.out.println("Couldn't load from state.txt");
+				}
 			}
 		}
 	}

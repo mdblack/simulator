@@ -6,12 +6,30 @@ Simulates the CMOS and Real Time Clock
 */
 package simulator;
 
+import java.util.Scanner;
+
 public class CMOS extends IODevice
 {
 	private byte[] cmosdata;
 	private byte cmosindex=0;
 
 	private Computer computer;
+	
+	public void loadState(String state)
+	{
+		Scanner loader=new Scanner(state);
+		for (int i=0; i<cmosdata.length; i++)
+			cmosdata[i]=loader.nextByte();
+		cmosindex=loader.nextByte();
+	}
+	public String saveState()
+	{
+		String state="";
+		for (int i=0; i<cmosdata.length; i++)
+			state+=cmosdata[i]+" ";
+		state+=cmosindex;
+		return state;
+	}
 	
 	public CMOS(Computer computer)
 	{

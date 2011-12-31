@@ -2,6 +2,8 @@ package simulator;
 
 import java.awt.*;
 import javax.swing.*;
+import javax.swing.event.ChangeListener;
+
 import java.awt.event.*;
 
 public class RegisterGUI extends AbstractGUI
@@ -9,7 +11,7 @@ public class RegisterGUI extends AbstractGUI
 	public static final int NAMEWIDTH=70,FIELDWIDTH=70,COMMENTWIDTH=300,ROWHEIGHT=20;
 
 	public static final int EIP=0,EAX=1,EBX=2,ECX=3,EDX=4,ESP=5,EBP=6,ESI=7,EDI=8,CS=9,SS=10,DS=11,ES=12,FS=13,GS=14,CR0=15,CR2=16,CR3=17,IDTR=18,GDTR=19,LDTR=20,TSS=21;
-	public static final int C=0,P=1,AC=2,Z=3,S=3,T=4,I=5,D=6,O=7;
+	public static final int C=0,P=1,AC=2,Z=3,S=4,T=5,I=6,D=7,O=8;
 
 	public static final String[] register_name = new String[] {
 "EIP","EAX","EBX","ECX","EDX","ESP","EBP","ESI","EDI","CS","SS","DS","ES","FS","GS","CR0","CR2","CR3","IDTR","GDTR","LDTR","TSS"};
@@ -20,6 +22,9 @@ public class RegisterGUI extends AbstractGUI
 	private JLabel[] regComment,regName,flagName;
 	private JCheckBox[] flagBox;
 	private JLabel inst;
+	private JTextField intText;
+	
+	private String[] oldValues;
 
 	public RegisterGUI(Computer computer)
 	{
@@ -30,6 +35,7 @@ public class RegisterGUI extends AbstractGUI
 		regComment=new JLabel[22];
 		flagBox=new JCheckBox[9];
 		flagName=new JLabel[9];
+		oldValues=new String[22];
 
 		for (int i=0; i<22; i++)
 		{
@@ -39,6 +45,8 @@ public class RegisterGUI extends AbstractGUI
 
 			regName[i].setText(register_name[i]);
 			regComment[i].setText("");
+			final int r=i;
+			regField[i].addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){writeRegister(r);}});
 		}
 		for (int i=0; i<9; i++)
 		{
@@ -46,6 +54,8 @@ public class RegisterGUI extends AbstractGUI
 			flagName[i]=new JLabel();
 			flagBox[i].setSelected(false);
 			flagName[i].setText(flag_name[i]);
+			final int r=i;
+			flagBox[i].addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){writeFlag(r);}});
 		}
 		inst=new JLabel();
 
@@ -67,40 +77,48 @@ public class RegisterGUI extends AbstractGUI
 		return ROWHEIGHT*(22+2+4);
 	}
 
-	public void writeRegisters()
+	public void writeRegister(int i)
 	{
-		computer.processor.eip.setValue((int)Long.parseLong(regField[EIP].getText(),16));
-		computer.processor.eax.setValue((int)Long.parseLong(regField[EAX].getText(),16));
-		computer.processor.ebx.setValue((int)Long.parseLong(regField[EBX].getText(),16));
-		computer.processor.ecx.setValue((int)Long.parseLong(regField[ECX].getText(),16));
-		computer.processor.edx.setValue((int)Long.parseLong(regField[EDX].getText(),16));
-		computer.processor.esi.setValue((int)Long.parseLong(regField[ESI].getText(),16));
-		computer.processor.edi.setValue((int)Long.parseLong(regField[EDI].getText(),16));
-		computer.processor.esp.setValue((int)Long.parseLong(regField[ESP].getText(),16));
-		computer.processor.ebp.setValue((int)Long.parseLong(regField[EBP].getText(),16));
-		computer.processor.cr0.setValue((int)Long.parseLong(regField[CR0].getText(),16));
-		computer.processor.cr2.setValue((int)Long.parseLong(regField[CR2].getText(),16));
-		computer.processor.cr3.setValue((int)Long.parseLong(regField[CR3].getText(),16));
-		computer.processor.cs.setDescriptorValue((int)Long.parseLong(regField[CS].getText(),16));
-		computer.processor.ss.setDescriptorValue((int)Long.parseLong(regField[SS].getText(),16));
-		computer.processor.ds.setDescriptorValue((int)Long.parseLong(regField[DS].getText(),16));
-		computer.processor.es.setDescriptorValue((int)Long.parseLong(regField[ES].getText(),16));
-		computer.processor.fs.setDescriptorValue((int)Long.parseLong(regField[FS].getText(),16));
-		computer.processor.gs.setDescriptorValue((int)Long.parseLong(regField[GS].getText(),16));
-		if (computer.processor.idtr!=null) computer.processor.idtr.setDescriptorValue((int)Long.parseLong(regField[IDTR].getText(),16));
-		if (computer.processor.gdtr!=null) computer.processor.gdtr.setDescriptorValue((int)Long.parseLong(regField[GDTR].getText(),16));
-		if (computer.processor.ldtr!=null) computer.processor.ldtr.setDescriptorValue((int)Long.parseLong(regField[LDTR].getText(),16));
-		if (computer.processor.tss!=null) computer.processor.tss.setDescriptorValue((int)Long.parseLong(regField[TSS].getText(),16));
-
-		computer.processor.carry.set(flagBox[C].isSelected());
-		computer.processor.parity.set(flagBox[P].isSelected());
-		computer.processor.auxiliaryCarry.set(flagBox[AC].isSelected());
-		computer.processor.zero.set(flagBox[Z].isSelected());
-		computer.processor.sign.set(flagBox[S].isSelected());
-		computer.processor.trap.set(flagBox[T].isSelected());
-		computer.processor.interruptEnable.set(flagBox[I].isSelected());
-		computer.processor.direction.set(flagBox[D].isSelected());
-		computer.processor.overflow.set(flagBox[O].isSelected());
+		switch(i)
+		{
+		case(EIP): computer.processor.eip.setValue((int)Long.parseLong(regField[EIP].getText(),16)); break;
+		case(EAX): computer.processor.eax.setValue((int)Long.parseLong(regField[EAX].getText(),16)); break;
+		case(EBX): computer.processor.ebx.setValue((int)Long.parseLong(regField[EBX].getText(),16)); break;
+		case(ECX): computer.processor.ecx.setValue((int)Long.parseLong(regField[ECX].getText(),16)); break;
+		case(EDX): computer.processor.edx.setValue((int)Long.parseLong(regField[EDX].getText(),16)); break;
+		case(ESI): computer.processor.esi.setValue((int)Long.parseLong(regField[ESI].getText(),16)); break;
+		case(EDI): computer.processor.edi.setValue((int)Long.parseLong(regField[EDI].getText(),16)); break;
+		case(ESP): computer.processor.esp.setValue((int)Long.parseLong(regField[ESP].getText(),16)); break;
+		case(EBP): computer.processor.ebp.setValue((int)Long.parseLong(regField[EBP].getText(),16)); break;
+		case(CR0): computer.processor.setCR0((int)Long.parseLong(regField[CR0].getText(),16)); break;
+		case(CR2): computer.processor.setCR2((int)Long.parseLong(regField[CR2].getText(),16)); break;
+		case(CR3): computer.processor.setCR3((int)Long.parseLong(regField[CR3].getText(),16)); break;
+		case(CS): computer.processor.cs.setDescriptorValue((int)Long.parseLong(regField[CS].getText(),16)); break;
+		case(SS): computer.processor.ss.setDescriptorValue((int)Long.parseLong(regField[SS].getText(),16)); break;
+		case(DS): computer.processor.ds.setDescriptorValue((int)Long.parseLong(regField[DS].getText(),16)); break;
+		case(ES): computer.processor.es.setDescriptorValue((int)Long.parseLong(regField[ES].getText(),16)); break;
+		case(FS): computer.processor.fs.setDescriptorValue((int)Long.parseLong(regField[FS].getText(),16)); break;
+		case(GS): computer.processor.gs.setDescriptorValue((int)Long.parseLong(regField[GS].getText(),16)); break;
+		case(IDTR): if (computer.processor.idtr!=null) computer.processor.idtr.setDescriptorValue((int)Long.parseLong(regField[IDTR].getText(),16)); break;
+		case(GDTR): if (computer.processor.gdtr!=null) computer.processor.gdtr.setDescriptorValue((int)Long.parseLong(regField[GDTR].getText(),16)); break;
+		case(LDTR): if (computer.processor.ldtr!=null) computer.processor.ldtr.setDescriptorValue((int)Long.parseLong(regField[LDTR].getText(),16)); break;
+		case(TSS): if (computer.processor.tss!=null) computer.processor.tss.setDescriptorValue((int)Long.parseLong(regField[TSS].getText(),16)); break;
+		}
+	}
+	public void writeFlag(int i)
+	{
+		switch(i)
+		{
+		case(C): computer.processor.carry.set(flagBox[C].isSelected()); break;
+		case(P): computer.processor.parity.set(flagBox[P].isSelected()); break;
+		case(AC): computer.processor.auxiliaryCarry.set(flagBox[AC].isSelected()); break;
+		case(Z): computer.processor.zero.set(flagBox[Z].isSelected()); break;
+		case(S): computer.processor.sign.set(flagBox[S].isSelected()); break;
+		case(T): computer.processor.trap.set(flagBox[T].isSelected()); break;
+		case(I): computer.processor.interruptEnable.set(flagBox[I].isSelected()); break;
+		case(D): computer.processor.direction.set(flagBox[D].isSelected()); break;
+		case(O): computer.processor.overflow.set(flagBox[O].isSelected()); break;
+		}
 	}
 
 	public void readRegisters()
@@ -129,6 +147,9 @@ public class RegisterGUI extends AbstractGUI
 		if (computer.processor.gdtr!=null) regField[GDTR].setText(""+Integer.toHexString(computer.processor.gdtr.getValue()));
 		if (computer.processor.tss!=null) regField[TSS].setText(""+Integer.toHexString(computer.processor.tss.getValue()));
 		if (computer.processor.ldtr!=null) regField[LDTR].setText(""+Integer.toHexString(computer.processor.ldtr.getValue()));
+		
+		for (int r=0; r<regField.length; r++)
+			oldValues[r]=regField[r].getText();
 
 		int csbase=computer.processor.cs.getBase();
 		int cslimit=computer.processor.cs.getLimit();
@@ -192,10 +213,36 @@ public class RegisterGUI extends AbstractGUI
 			guicomponent.add(flagBox[i]);
 		}
 		JButton change = new JButton("Change values");
-		change.setBounds(canvasX/2-75,ROWHEIGHT*26,150,ROWHEIGHT);
+		change.setBounds(canvasX/2-90,ROWHEIGHT*26,180,ROWHEIGHT);
 		change.addActionListener(new ButtonListener());
 		guicomponent.add(change);
 
+
+		JButton intr=new JButton("Interrupt");
+		intr.setBounds(canvasX/4-90,ROWHEIGHT*28,180,ROWHEIGHT);
+		intr.addActionListener(new ButtonListener());
+		guicomponent.add(intr);
+
+		intr=new JButton("Push Regs");
+		intr.setBounds(canvasX/4-90,ROWHEIGHT*29,180,ROWHEIGHT);
+		intr.addActionListener(new ButtonListener());
+		guicomponent.add(intr);
+		
+		intText=new JTextField("0");
+		intText.setBounds(2*canvasX/4-20,ROWHEIGHT*28,40,ROWHEIGHT);
+		guicomponent.add(intText);
+
+		JButton intrr=new JButton("Interrupt Return");
+		intrr.setBounds(3*canvasX/4-90,ROWHEIGHT*28,180,ROWHEIGHT);
+		intrr.addActionListener(new ButtonListener());
+		guicomponent.add(intrr);
+
+		intrr=new JButton("Pop Regs");
+		intrr.setBounds(3*canvasX/4-90,ROWHEIGHT*29,180,ROWHEIGHT);
+		intrr.addActionListener(new ButtonListener());
+		guicomponent.add(intrr);
+
+		
 		readRegisters();
 	}
 
@@ -213,7 +260,38 @@ public class RegisterGUI extends AbstractGUI
 	{
 		public void actionPerformed(ActionEvent e)
 		{
-			writeRegisters();
+			if (e.getActionCommand().equals("Change values"))
+			{
+				for (int i=0; i<oldValues.length; i++)
+				{
+					if (!oldValues[i].equals(regField[i].getText()))
+						writeRegister(i);
+				}
+				for (int i=0; i<flagBox.length; i++)
+					writeFlag(i);
+				readRegisters();
+			}
+			else if (e.getActionCommand().equals("Interrupt"))
+			{
+				int interrupt=Integer.parseInt(intText.getText(),16);
+				computer.processor.handleInterrupt(interrupt);
+				readRegisters();
+			}
+			else if (e.getActionCommand().equals("Interrupt Return"))
+			{
+				computer.processor.iret(!computer.processor.isModeReal(),!computer.processor.isModeReal());
+				readRegisters();
+			}
+			else if (e.getActionCommand().equals("Push Regs"))
+			{
+				computer.processor.pushad();
+				readRegisters();
+			}
+			else if (e.getActionCommand().equals("Pop Regs"))
+			{
+				computer.processor.popad();
+				readRegisters();
+			}
 		}
 	}
 }

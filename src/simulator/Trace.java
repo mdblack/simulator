@@ -7,11 +7,15 @@ package simulator;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.event.MouseEvent;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.util.ArrayList;
+
+import javax.xml.stream.events.StartDocument;
 
 public class Trace extends AbstractGUI
 {
-	public static final int MAXTRACESIZE=10000;
+	public static final int MAXTRACESIZE=1000;
 	public static final String[] REGISTERNAMES=new String[]{"EIP","EAX","EBX","ECX","EDX","ESI","EDI","ESP","EBP","CR0","CR2","CR3","CR4"};
 	public static final String[] SEGREGNAMES=new String[]{"CS","SS","DS","ES","FS","GS","IDTR","GDTR","LDTR","TSS"};
 	public static final String[] FLAGNAMES=new String[]{"CARRY","PARITY","AUXCARRY","ZERO","SIGN","TRAP","INTERRUPTENABLE","DIRECTION","OVERFLOW","IOPRIVILEGE0","IOPRIVILEGE1","NESTEDTASK","ALIGNMENTCHECK","IDFLAG"};
@@ -20,6 +24,7 @@ public class Trace extends AbstractGUI
 	
 	ArrayList<TraceEntry> tracebase;
 	TraceEntry currentEntry=null;
+	int dumpcount=0;
 	
 	public static final int W=500,H=400,LINEHEIGHT=18;
 	
@@ -27,11 +32,13 @@ public class Trace extends AbstractGUI
 	{
 		super(computer,"Trace",W,H,true,true,true,false);
 		tracebase=new ArrayList<TraceEntry>();
+		try{new BufferedWriter(new FileWriter("dump.txt",false)).close();}catch(Exception e){}
 		refresh();
 	}
 	
 	public void closeGUI()
 	{
+		dumpTraceToFile();
 		computer.trace=null;
 	}
 	
@@ -77,17 +84,21 @@ public class Trace extends AbstractGUI
 		int j=0;
 		for (int i=tracebase.size()-1; i>=0; i--)
 		{
-			if (tracebase.get(i)==null) continue;
+			TraceEntry entry=null;
+			try{entry=tracebase.get(i);}catch(IndexOutOfBoundsException e){ continue; }
+			if (entry==null) continue;
+				
 			if (i%2==0)
 				g.setColor(new Color(200,200,255));
 			else
 				g.setColor(Color.WHITE);
 			g.fillRect(0, j*LINEHEIGHT, canvasX, LINEHEIGHT);
 			g.setColor(Color.BLACK);
-			g.drawString(""+tracebase.get(i).instruction_count, 10, (j+1)*LINEHEIGHT-3);
-			g.drawString(Integer.toHexString(tracebase.get(i).instruction_address), 90, (j+1)*LINEHEIGHT-3);
-			g.drawString(""+tracebase.get(i).instruction_name, 150, (j+1)*LINEHEIGHT-3);
+			g.drawString(""+entry.instruction_count, 10, (j+1)*LINEHEIGHT-3);
+			g.drawString(Integer.toHexString(entry.instruction_address), 90, (j+1)*LINEHEIGHT-3);
+			g.drawString(""+entry.instruction_name, 150, (j+1)*LINEHEIGHT-3);
 			j++;
+			
 		}
 	}
 	
@@ -185,6 +196,14 @@ public class Trace extends AbstractGUI
 		if (currentEntry==null) return;
 		if (currentEntry.instruction_name==null) return;
 		if (currentEntry.instruction_name.equals("null")) return;
+		
+		dumpcount++;
+		if (dumpcount==MAXTRACESIZE)
+		{
+			dumpcount=0;
+			dumpTraceToFile();
+		}
+		
 		tracebase.add(currentEntry);
 		
 		if (tracebase.size()>MAXTRACESIZE)
@@ -205,45 +224,89 @@ public class Trace extends AbstractGUI
 			dumpTrace(entry);
 	}
 	
+	public synchronized void dumpTraceToFile()
+	{
+		BufferedWriter bw=null;
+		try
+		{
+			bw=new BufferedWriter(new FileWriter("dump.txt",true));
+			bw.append("Count: "+tracebase.get(0).instruction_count+"\n");
+			for (TraceEntry entry:tracebase)
+				bw.append(dumpTraceToStringShort(entry)+"\n");
+			bw.flush();
+		}
+		catch(Exception e)
+		{
+			System.out.println("Couldn't dump to dump.txt");
+			e.printStackTrace();
+		}
+		finally
+		{
+			if (bw!=null) try { bw.close(); } catch(Exception e){}
+		}
+	}
+	
 	public void dumpTrace(TraceEntry entry)
+	{
+		System.out.println(dumpTraceToString(entry));
+	}
+	
+	public String dumpTraceToStringShort(TraceEntry entry)
+	{
+		if (entry==null) return "";
+		String dump="";
+		for (int r=0; r<entry.registers.length; r++)
+			dump+=(Integer.toHexString(entry.registers[r])+" ");
+		for (int r=0; r<entry.segreg_values.length; r++)
+			dump+=(Integer.toHexString(entry.segreg_values[r])+" ");
+		dump+=Integer.toBinaryString(entry.flags)+" ";
+		for (String b:entry.instructionBytes)
+			dump+=(b+" ");
+		return dump;
+	}
+	
+	public String dumpTraceToString(TraceEntry entry)
 	{ 
 //		for (TraceEntry entry:tracebase)
 //		{
-			if (entry==null) return;
+			if (entry==null) return "";
 //			if (entry.instruction_count!=icount) continue;
 			
-			System.out.print("InstructionNumber: "+entry.instruction_count+" ");
-			System.out.print("Instruction: "+entry.instruction_name+" ");
+			String dump="";
+			
+			dump+=entry.instruction_count+" ";
+			dump+=entry.instruction_name+" ";
 			for (int r=0; r<entry.registers.length; r++)
-				System.out.print(REGISTERNAMES[r]+": "+Integer.toHexString(entry.registers[r])+" ");
+				dump+=(REGISTERNAMES[r]+": "+Integer.toHexString(entry.registers[r])+" ");
 			for (int r=0; r<entry.segreg_values.length; r++)
-				System.out.print(SEGREGNAMES[r]+": "+Integer.toHexString(entry.segreg_values[r])+" "+Integer.toHexString(entry.segreg_bases[r])+" "+Integer.toHexString(entry.segreg_limits[r])+" ");
+				dump+=(SEGREGNAMES[r]+": "+Integer.toHexString(entry.segreg_values[r])+" "+Integer.toHexString(entry.segreg_bases[r])+" "+Integer.toHexString(entry.segreg_limits[r])+" ");
+//			dump+="Flags: "+Integer.toBinaryString(entry.flags)+" ";
 
-			System.out.print(FLAGNAMES[0]+": "+((entry.flags&1)>>0)+" ");
-			System.out.print(FLAGNAMES[1]+": "+((entry.flags&4)>>2)+" ");
-			System.out.print(FLAGNAMES[2]+": "+((entry.flags&0x10)>>4)+" ");
-			System.out.print(FLAGNAMES[3]+": "+((entry.flags&0x40)>>6)+" ");
-			System.out.print(FLAGNAMES[4]+": "+((entry.flags&0x80)>>7)+" ");
-			System.out.print(FLAGNAMES[5]+": "+((entry.flags&0x100)>>8)+" ");
-			System.out.print(FLAGNAMES[6]+": "+((entry.flags&0x200)>>9)+" ");
-			System.out.print(FLAGNAMES[7]+": "+((entry.flags&0x400)>>10)+" ");
-			System.out.print(FLAGNAMES[8]+": "+((entry.flags&0x800)>>11)+" ");
-			System.out.print(FLAGNAMES[9]+": "+((entry.flags&0x1000)>>12)+" ");
-			System.out.print(FLAGNAMES[10]+": "+((entry.flags&0x2000)>>13)+" ");
-			System.out.print(FLAGNAMES[11]+": "+((entry.flags&0x4000)>>14)+" ");
-			System.out.print(FLAGNAMES[12]+": "+((entry.flags&0x40000)>>18)+" ");
-			System.out.print(FLAGNAMES[13]+": "+((entry.flags&0x200000)>>21)+" ");
-			
-			System.out.print("Instruction bytes: ");
+			dump+=(FLAGNAMES[0]+": "+((entry.flags&1)>>0)+" ");
+			dump+=(FLAGNAMES[1]+": "+((entry.flags&4)>>2)+" ");
+			dump+=(FLAGNAMES[2]+": "+((entry.flags&0x10)>>4)+" ");
+			dump+=(FLAGNAMES[3]+": "+((entry.flags&0x40)>>6)+" ");
+			dump+=(FLAGNAMES[4]+": "+((entry.flags&0x80)>>7)+" ");
+			dump+=(FLAGNAMES[5]+": "+((entry.flags&0x100)>>8)+" ");
+			dump+=(FLAGNAMES[6]+": "+((entry.flags&0x200)>>9)+" ");
+			dump+=(FLAGNAMES[7]+": "+((entry.flags&0x400)>>10)+" ");
+			dump+=(FLAGNAMES[8]+": "+((entry.flags&0x800)>>11)+" ");
+			dump+=(FLAGNAMES[9]+": "+((entry.flags&0x1000)>>12)+" ");
+			dump+=(FLAGNAMES[10]+": "+((entry.flags&0x2000)>>13)+" ");
+			dump+=(FLAGNAMES[11]+": "+((entry.flags&0x4000)>>14)+" ");
+			dump+=(FLAGNAMES[12]+": "+((entry.flags&0x40000)>>18)+" ");
+			dump+=(FLAGNAMES[13]+": "+((entry.flags&0x200000)>>21)+" ");
+
+			dump+="Instruction bytes: ";
 			for (String b:entry.instructionBytes)
-				System.out.print(b+" ");
-			System.out.print("Instruction codes: ");
+				dump+=(b+" ");
+/*			dump+=("Instruction codes: ");
 			for (int i=0; i<entry.processorCodeName.size() && i<10; i++)
-				System.out.print(entry.processorCodeName.get(i)+" ");
+				dump+=(entry.processorCodeName.get(i)+" ");
 			for (int i=0; i<entry.processorCodeValue.size() && i<10; i++)
-				System.out.print(entry.processorCodeValue.get(i)+" ");
+				dump+=(entry.processorCodeValue.get(i)+" ");*/
 			
-			System.out.println();
+			return dump;
 //		}
 	}
 }

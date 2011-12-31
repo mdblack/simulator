@@ -7,7 +7,8 @@ Simulates the physical address space
 package simulator;
 import java.io.*;
 import java.net.*;
-public class PhysicalMemory
+import java.util.Scanner;
+public class PhysicalMemory implements MemoryDevice
 {
 	//total amount of physical memory after FFFFF
 	public static int EXTENDED_RAM_SIZE=0x1000000;
@@ -32,6 +33,63 @@ public class PhysicalMemory
 	private MemoryBlock[] extendedMemoryBlock;
 
 	private Computer computer;
+	
+	public String saveState()
+	{
+		String state="";
+		
+		for (int i=0; i<baseMemoryBlock.length; i++)
+		{
+			if (baseMemoryBlock[i].initialized)
+			{
+				String s="";
+				s+=i+" "+(baseMemoryBlock[i].writeable?1:0)+" ";
+				for (int j=0; j<baseMemoryBlock[i].rambyte.length; j++)
+					s+=baseMemoryBlock[i].rambyte[j]+" ";
+				state+=s;
+				System.out.println("saving block "+i);
+			}
+		}
+		state+=":";
+		for (int i=0; i<extendedMemoryBlock.length; i++)
+		{
+			if (extendedMemoryBlock[i].initialized)
+			{
+				String s="";
+				s+=i+" "+(extendedMemoryBlock[i].writeable?1:0)+" ";
+				for (int j=0; j<extendedMemoryBlock[i].rambyte.length; j++)
+					s+=extendedMemoryBlock[i].rambyte[j]+" ";
+				state+=s;
+				System.out.println("saving block "+i);
+			}
+		}		
+		return state;
+	}
+	
+	public void loadState(String state)
+	{
+		String[] states=state.split(":");
+		Scanner loader=new Scanner(states[0]);
+		while(loader.hasNextInt())
+		{
+			int index=loader.nextInt();
+			baseMemoryBlock[index].writeable=loader.nextInt()==1;
+			baseMemoryBlock[index].initialize();
+			for (int j=0; j<baseMemoryBlock[index].rambyte.length; j++)
+				baseMemoryBlock[index].rambyte[j]=loader.nextByte();
+			System.out.println("loaded block "+index);
+		}
+		loader=new Scanner(states[1]);
+		while(loader.hasNextInt())
+		{
+			int index=loader.nextInt();
+			extendedMemoryBlock[index].writeable=loader.nextInt()==1;
+			extendedMemoryBlock[index].initialize();
+			for (int j=0; j<extendedMemoryBlock[index].rambyte.length; j++)
+				extendedMemoryBlock[index].rambyte[j]=loader.nextByte();
+			System.out.println("loaded block "+index);
+		}
+	}
 	
 	public PhysicalMemory(Computer computer)
 	{

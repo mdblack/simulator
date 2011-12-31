@@ -3,6 +3,7 @@ package simulator;
 import java.awt.*;
 import javax.swing.*;
 import java.awt.event.*;
+import java.util.Scanner;
 
 public class BootGUI extends AbstractGUI
 {
@@ -46,6 +47,50 @@ public class BootGUI extends AbstractGUI
 
 	boolean bootFromFloppy;
 	BootGUI bootgui;
+	
+	public void loadState(String state)
+	{
+		Scanner loader=new Scanner(state);
+		for (int i=0; i<deviceIncluded.length; i++)
+			deviceIncluded[i]=loader.nextInt()==1;
+		for (int i=0; i<diskIncluded.length; i++)
+			diskIncluded[i]=loader.nextInt()==1;
+		for (int i=0; i<isCD.length; i++)
+			isCD[i]=loader.nextInt()==1;
+		for (int i=0; i<diskImage.length; i++)
+			diskImage[i]=loader.next();
+		for (int i=0; i<cylinders.length; i++)
+			cylinders[i]=loader.nextInt();
+		for (int i=0; i<heads.length; i++)
+			heads[i]=loader.nextInt();
+		for (int i=0; i<sectors.length; i++)
+			sectors[i]=loader.nextInt();
+		bootFromFloppy=loader.nextInt()==1;
+		bootImageName=loader.next();
+		System.out.println("loaded bootgui");
+	}
+	
+	public String saveState()
+	{
+		String state="";
+		for (int i=0; i<deviceIncluded.length; i++)
+			state+=(deviceIncluded[i]?1:0)+" ";
+		for (int i=0; i<diskIncluded.length; i++)
+			state+=(diskIncluded[i]?1:0)+" ";
+		for (int i=0; i<isCD.length; i++)
+			state+=(isCD[i]?1:0)+" ";
+		for (int i=0; i<diskImage.length; i++)
+			state+=diskImage[i]+" ";
+		for (int i=0; i<cylinders.length; i++)
+			state+=cylinders[i]+" ";
+		for (int i=0; i<heads.length; i++)
+			state+=heads[i]+" ";
+		for (int i=0; i<sectors.length; i++)
+			state+=sectors[i]+" ";
+		state+=(bootFromFloppy?1:0)+" "+bootImageName;
+
+		return state;
+	}
 
 
 	public BootGUI(Computer computer, String[] devices, boolean[] canInclude, boolean[] hasGUI)

@@ -7,1022 +7,14 @@ Simulates the x86 processor
 package simulator;
 
 import java.util.ArrayList;
+import java.util.Scanner;
 
 public class Processor
 {
-
-enum GUICODE
-{
-//processor action codes
-FETCH, DECODE_PREFIX, DECODE_INSTRUCTION, DECODE_OPCODE, DECODE_MODRM, DECODE_SIB, DECODE_INPUT_OPERAND_0, DECODE_INPUT_OPERAND_1, DECODE_OUTPUT_OPERAND_0, DECODE_OUTPUT_OPERAND_1, DECODE_IMMEDIATE, DECODE_DISPLACEMENT, HARDWARE_INTERRUPT, SOFTWARE_INTERRUPT, EXCEPTION, DECODE_MEMORY_ADDRESS, DECODE_SEGMENT_ADDRESS,
-
-EXECUTE_JUMP, EXECUTE_JUMP_ABSOLUTE, EXECUTE_RETURN, EXECUTE_CALL_STACK, EXECUTE_CONDITION, EXECUTE_PORT_READ, EXECUTE_PORT_WRITE, EXECUTE_INTERRUPT, EXECUTE_INTERRUPT_RETURN, EXECUTE_ARITHMETIC_1_1, EXECUTE_ARITHMETIC_2_1, EXECUTE_MEMORY_COMPARE, EXECUTE_MEMORY_TRANSFER, EXECUTE_FLAG, EXECUTE_TRANSFER, EXECUTE_PUSH, EXECUTE_POP, EXECUTE_HALT,
-
-//mode codes
-MODE_REAL, MODE_PROTECTED,
-
-//storage codes
-FLAG_SET, FLAG_CLEAR, FLAG_READ, REGISTER_READ, REGISTER_WRITE, PORT_READ, PORT_WRITE, CS_MEMORY_READ, CS_MEMORY_WRITE, SS_MEMORY_READ, SS_MEMORY_WRITE, DS_MEMORY_READ, DS_MEMORY_WRITE, ES_MEMORY_READ, ES_MEMORY_WRITE, FS_MEMORY_READ, FS_MEMORY_WRITE, GS_MEMORY_READ, GS_MEMORY_WRITE, IDTR_MEMORY_READ, IDTR_MEMORY_WRITE, GDTR_MEMORY_READ, GDTR_MEMORY_WRITE, LDTR_MEMORY_READ, LDTR_MEMORY_WRITE, TSS_MEMORY_READ, TSS_MEMORY_WRITE,
-};
-
 public ProcessorGUICode processorGUICode;
 private int instructionCount=0;
 private Computer computer;
 
-public void constructProcessorGUICode()
-{
-	processorGUICode=new ProcessorGUICode();
-}
-
-public class ProcessorGUICode
-{
-	private String addressString;
-
-	ArrayList<GUICODE> code;
-	ArrayList<String> name;
-	ArrayList<String> value;
-	
-	int instructionNumber;
-	int displacement;
-
-	public ProcessorGUICode()
-	{
-		code=new ArrayList<GUICODE>();
-		name=new ArrayList<String>();
-		value=new ArrayList<String>();
-		
-		addressString="";
-		instructionNumber=instructionCount++;
-	}
-
-	public void updateMemoryGUI()
-	{
-		if (computer.memoryGUI==null) return;
-
-		for (int i=0; i<code.size(); i++)
-		{
-			int j;
-			if (code.get(i)==null) return;
-			switch(code.get(i))
-			{
-				case CS_MEMORY_READ:	computer.memoryGUI.codeRead(Integer.parseInt(name.get(i),16)); break;
-				case CS_MEMORY_WRITE:	computer.memoryGUI.codeWrite(Integer.parseInt(name.get(i),16)); break;
-				case SS_MEMORY_READ:	computer.memoryGUI.stackRead(Integer.parseInt(name.get(i),16)); break;
-				case SS_MEMORY_WRITE:
-					for (j=0; j<i; j++)
-						if (code.get(j)==GUICODE.DECODE_INPUT_OPERAND_0)
-							break;
-					if (j<i)
-					{
-						int size=1;
-						if (!name.equals("") && name.get(j).charAt(0)=='e') size=4;
-						else if (name.get(j).equals("ax")||name.get(j).equals("bx")||name.get(j).equals("cx")||name.get(j).equals("dx")||name.get(j).equals("sp")||name.get(j).equals("bp")||name.get(j).equals("si")||name.get(j).equals("di")||name.get(j).equals("cs")||name.get(j).equals("ss")||name.get(j).equals("ds")||name.get(j).equals("es")||name.get(j).equals("fs")||name.get(j).equals("gs")||name.get(j).equals("ip")) size=2;
-						computer.memoryGUI.stackWrite(Integer.parseInt(name.get(i),16),name.get(j),size); break;
-					}
-					computer.memoryGUI.stackWrite(Integer.parseInt(name.get(i),16)); break;
-				case DS_MEMORY_READ:	computer.memoryGUI.dataRead(Integer.parseInt(name.get(i),16)); break;
-				case DS_MEMORY_WRITE:	computer.memoryGUI.dataWrite(Integer.parseInt(name.get(i),16)); break;
-				case ES_MEMORY_READ: case FS_MEMORY_READ: case GS_MEMORY_READ:
-					computer.memoryGUI.extraRead(Integer.parseInt(name.get(i),16)); break;
-				case ES_MEMORY_WRITE: case FS_MEMORY_WRITE: case GS_MEMORY_WRITE:
-					computer.memoryGUI.extraWrite(Integer.parseInt(name.get(i),16)); break;
-				case IDTR_MEMORY_READ:	computer.memoryGUI.interruptRead(Integer.parseInt(name.get(i),16)); break;
-				case IDTR_MEMORY_WRITE:	computer.memoryGUI.interruptWrite(Integer.parseInt(name.get(i),16)); break;
-			}
-		}
-		computer.memoryGUI.updateIP(cs.address(eip.getValue()));
-	}
-
-	public void updateGUI()
-	{
-		if (computer.processorGUI==null) return;
-		if (!computer.debugMode && !computer.updateGUIOnPlay) return;
-
-		System.out.println("Instruction "+instructionNumber+":");
-
-		for (int i=0; i<code.size(); i++)
-		{
-			if (computer.processorGUI!=null) computer.processorGUI.applyCode(code.get(i),name.get(i),value.get(i));
-
-			System.out.print(code.get(i));
-			System.out.print(" ");
-			if (!name.get(i).equals(""))
-				System.out.print(name.get(i)+" ");
-			if (!value.get(i).equals(""))
-				System.out.print(value.get(i));
-			System.out.println();
-
-		}
-
-	}
-
-	public String constructName()
-	{
-		boolean o0=false, i0=false;
-		String n="";
-		for (int i=0; i<code.size(); i++)
-		{
-			if (code.get(i)==null) {System.out.println("error"); System.exit(0); return n; }
-
-			if (code.get(i)==GUICODE.DECODE_INSTRUCTION)
-			{
-				n=name.get(i);
-				break;
-			}
-		}
-		for (int i=0; i<code.size(); i++)
-		{
-			if (code.get(i)==null) {System.out.println("error"); System.exit(0); return n; }
-
-			if (code.get(i)==GUICODE.DECODE_OUTPUT_OPERAND_0)
-			{
-				n=n+" "+name.get(i);
-				o0=true;
-				break;
-			}
-		}
-		for (int i=0; i<code.size(); i++)
-		{
-			if (code.get(i)==null) {System.out.println("error"); System.exit(0); return n; }
-
-			if (code.get(i)==GUICODE.DECODE_INPUT_OPERAND_0)
-			{
-				i0=true;
-				if(o0)
-					n=n+" =";
-				if (name.get(i).equals("immediate"))
-					n=n+" "+Integer.toHexString(getLastiCode());
-				else
-					n=n+" "+name.get(i);
-				break;
-			}
-		}
-		for (int i=0; i<code.size(); i++)
-		{
-			if (code.get(i)==null) {System.out.println("error"); System.exit(0); return n; }
-
-			if (code.get(i)==GUICODE.DECODE_INPUT_OPERAND_1)
-			{
-				if(i0)
-					n=n+",";
-				else if (o0)
-					n=n+" =";
-
-				if (name.get(i).equals("immediate"))
-					n=n+" "+Integer.toHexString(getLastiCode());
-				else
-					n=n+" "+name.get(i);
-				break;
-			}
-		}
-		return n;
-	}
-
-	public void push(GUICODE guicode)
-	{
-		code.add(guicode);
-		name.add("");
-		value.add("");
-	}
-	public void push(GUICODE guicode, String name)
-	{
-		code.add(guicode);
-		this.name.add(name);
-		value.add("");
-	}
-	public void push(GUICODE guicode, String name, int value)
-	{
-		code.add(guicode);
-		this.name.add(name);
-		this.value.add(Integer.toHexString(value));
-	}
-	public void push(GUICODE guicode, int name, int value)
-	{
-		code.add(guicode);
-		this.name.add(Integer.toHexString(name));
-		this.value.add(Integer.toHexString(value));
-	}
-	public void push(GUICODE guicode, int name)
-	{
-		code.add(guicode);
-		this.name.add(Integer.toHexString(name));
-		this.value.add("");
-	}
-	public void pushFetch(int ip)
-	{
-		push(GUICODE.FETCH,ip);
-	}
-	public void pushFlag(int type, int value)
-	{
-		String name="";
-		switch(type)
-		{
-			case Flag.AUXILIARYCARRY: name="auxiliary carry"; break;
-			case Flag.CARRY: name="carry"; break;
-			case Flag.SIGN: name="sign"; break;
-			case Flag.PARITY: name="parity"; break;
-			case Flag.ZERO: name="zero"; break;
-			case Flag.OVERFLOW: name="overflow"; break;
-			default: name="other"; break;
-		}
-		if (value==0)
-			push(GUICODE.FLAG_CLEAR,name);
-		else if (value==1)
-			push(GUICODE.FLAG_SET,name);
-//		else
-//			push(GUICODE.FLAG_READ,name);
-	}
-
-	public void pushRegister(int id, int access, int value)
-	{
-		String name="";
-		switch(id)
-		{
-			case Register.EAX: name="eax"; break;
-			case Register.EBX: name="ebx"; break;
-			case Register.ECX: name="ecx"; break;
-			case Register.EDX: name="edx"; break;
-			case Register.ESI: name="esi"; break;
-			case Register.EDI: name="edi"; break;
-			case Register.ESP: name="esp"; break;
-			case Register.EBP: name="ebp"; break;
-			case Register.EIP: name="eip"; break;
-			case Register.CR0: name="cr0"; break;
-			case Register.CR2: name="cr2"; break;
-			case Register.CR3: name="cr3"; break;
-			case Register.CR4: name="cr4"; break;
-		}
-		if (access!=0)
-			push(GUICODE.REGISTER_WRITE,name,value);
-//		else
-//			push(GUICODE.REGISTER_READ,name,value);
-	}
-
-	public void pushSegment(int id, int access, int value)
-	{
-		String name="";
-		switch(id)
-		{
-			case Segment.CS: name="cs"; break;
-			case Segment.SS: name="ss"; break;
-			case Segment.DS: name="ds"; break;
-			case Segment.ES: name="es"; break;
-			case Segment.FS: name="fs"; break;
-			case Segment.GS: name="gs"; break;
-			case Segment.IDTR: name="idtr"; break;
-			case Segment.GDTR: name="gdtr"; break;
-			case Segment.LDTR: name="ldtr"; break;
-			case Segment.TSS: name="tss"; break;
-		}
-		if (access!=0)
-			push(GUICODE.REGISTER_WRITE,name,value);
-//		else
-//			push(GUICODE.REGISTER_READ,name,value);
-	}
-
-	public void pushMemory(int segid, int segvalue, int access, int address, short value)
-	{
-		pushMemory(segid,segvalue,access,address,(byte)(value));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>8));
-	}
-
-	public void pushMemory(int segid, int segvalue, int access, int address, int value)
-	{
-		pushMemory(segid,segvalue,access,address,(byte)(value));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>8));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>16));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>24));
-	}
-
-	public void pushMemory(int segid, int segvalue, int access, int address, long value)
-	{
-		pushMemory(segid,segvalue,access,address,(byte)(value));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>8));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>16));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>24));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>32));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>40));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>48));
-		pushMemory(segid,segvalue,access,address,(byte)(value>>>56));
-	}
-
-	public void pushMemory(int segid, int segvalue, int access, int address, byte value)
-	{
-		pushSegment(segid,0,segvalue);
-		if(access==0)
-		{
-			switch(segid)
-			{
-				case Segment.CS: push(GUICODE.CS_MEMORY_READ,address,value); break;
-				case Segment.SS: push(GUICODE.SS_MEMORY_READ,address,value); break;
-				case Segment.DS: push(GUICODE.DS_MEMORY_READ,address,value); break;
-				case Segment.ES: push(GUICODE.ES_MEMORY_READ,address,value); break;
-				case Segment.FS: push(GUICODE.FS_MEMORY_READ,address,value); break;
-				case Segment.GS: push(GUICODE.GS_MEMORY_READ,address,value); break;
-				case Segment.IDTR: push(GUICODE.IDTR_MEMORY_READ,address,value); break;
-				case Segment.GDTR: push(GUICODE.GDTR_MEMORY_READ,address,value); break;
-				case Segment.LDTR: push(GUICODE.LDTR_MEMORY_READ,address,value); break;
-				case Segment.TSS: push(GUICODE.TSS_MEMORY_READ,address,value); break;
-			}
-		}
-		else
-		{
-			switch(segid)
-			{
-				case Segment.CS: push(GUICODE.CS_MEMORY_WRITE,address,value); break;
-				case Segment.SS: push(GUICODE.SS_MEMORY_WRITE,address,value); break;
-				case Segment.DS: push(GUICODE.DS_MEMORY_WRITE,address,value); break;
-				case Segment.ES: push(GUICODE.ES_MEMORY_WRITE,address,value); break;
-				case Segment.FS: push(GUICODE.FS_MEMORY_WRITE,address,value); break;
-				case Segment.GS: push(GUICODE.GS_MEMORY_WRITE,address,value); break;
-				case Segment.IDTR: push(GUICODE.IDTR_MEMORY_WRITE,address,value); break;
-				case Segment.GDTR: push(GUICODE.GDTR_MEMORY_WRITE,address,value); break;
-				case Segment.LDTR: push(GUICODE.LDTR_MEMORY_WRITE,address,value); break;
-				case Segment.TSS: push(GUICODE.TSS_MEMORY_WRITE,address,value); break;
-			}
-		}
-	}
-
-	public void pushInstruction(MICROCODE microcode, int opcode)
-	{
-		String name="";
-
-		switch(microcode)
-		{
-			case OP_MOV: name="mov"; break;
-			case OP_JMP_FAR: name="jmp far"; break;
-			case OP_JMP_ABS: name="jmp abs"; break;
-			case OP_JMP_08:  name="jmp"; break;
-			case OP_JMP_16_32:  name="jmp"; break;
-			case OP_CALL_FAR: name="call far"; break;
-			case OP_CALL_ABS: name="call abs"; break;
-			case OP_CALL: name="call"; break;
-			case OP_RET: name="ret"; break;
-			case OP_RET_IW: name="ret iw"; break;
-			case OP_RET_FAR: name="ret far"; break;
-			case OP_RET_FAR_IW: name="ret far iw"; break;
-			case OP_JO: name="jo"; break;
-			case OP_JO_16_32: name="jo"; break;
-			case OP_JNO: name="jno"; break;
-			case OP_JNO_16_32: name="jno"; break;
-			case OP_JC: name="jc"; break;
-			case OP_JC_16_32: name="jc"; break;
-			case OP_JNC: name="jnc"; break;
-			case OP_JNC_16_32: name="jnc"; break;
-			case OP_JS: name="js"; break;
-			case OP_JS_16_32: name="js"; break;
-			case OP_JNS: name="jns"; break;
-			case OP_JNS_16_32: name="jns"; break;
-			case OP_JZ: name="jz"; break;
-			case OP_JZ_16_32: name="jz"; break;
-			case OP_JNZ: name="jnz"; break;
-			case OP_JNZ_16_32: name="jnz"; break;
-			case OP_JP: name="jp"; break;
-			case OP_JP_16_32: name="jp"; break;
-			case OP_JNP: name="jnp"; break;
-			case OP_JNP_16_32: name="jnp"; break;
-			case OP_JA: name="ja"; break;
-			case OP_JA_16_32: name="ja"; break;
-			case OP_JNA: name="jna"; break;
-			case OP_JNA_16_32: name="jna"; break;
-			case OP_JL: name="jl"; break;
-			case OP_JL_16_32: name="jl"; break;
-			case OP_JNL: name="jnl"; break;
-			case OP_JNL_16_32: name="jnl"; break;
-			case OP_JG: name="jg"; break;
-			case OP_JG_16_32: name="jg"; break;
-			case OP_JNG: name="jng"; break;
-			case OP_JNG_16_32: name="jng"; break;
-			case OP_LOOP_CX:  name="loop cx"; break;
-			case OP_LOOPZ_CX:  name="loopz cx"; break;
-			case OP_LOOPNZ_CX: name="loopnz cx"; break;
-			case OP_JCXZ: name="jcxz"; break;
-			case OP_IN_08: name="in"; break;
-			case OP_IN_16_32: name="in"; break;
-			case OP_INSB: name="insb"; break;
-			case OP_INSW: name="insw"; break;
-			case OP_REP_INSB: name="rep insb"; break;
-			case OP_REP_INSW: name="rep insw"; break;
-			case OP_OUT_08: name="out"; break;
-			case OP_OUT_16_32: name="out"; break;
-			case OP_OUTSB: name="outsb"; break;
-			case OP_OUTSW: name="outsw"; break;
-			case OP_REP_OUTSB: name="rep outsb"; break;
-			case OP_REP_OUTSW: name="rep outsw"; break;
-			case OP_INT: name="int"; break;
-			case OP_INT3: name="int"; break;
-			case OP_IRET: name="iret"; break;
-			case OP_INC: name="inc"; break;
-			case OP_DEC: name="dec"; break;
-			case OP_ADD: name="add"; break;
-			case OP_ADC: name="adc"; break;
-			case OP_SUB: name="sub"; break;
-			case OP_CMP: name="cmp"; break;
-			case OP_SBB: name="sbb"; break;
-			case OP_AND: name="and"; break;
-			case OP_TEST: name="test"; break;
-			case OP_OR: name="or"; break;
-			case OP_XOR: name="xor"; break;
-			case OP_ROL_08: name="rol"; break;
-			case OP_ROL_16_32: name="rol"; break;
-			case OP_ROR_08: name="ror"; break;
-			case OP_ROR_16_32: name="ror"; break;
-			case OP_RCL_08: name="rcl"; break;
-			case OP_RCL_16_32: name="rcl"; break;
-			case OP_RCR_08: name="rcr"; break;
-			case OP_RCR_16_32: name="rcr"; break;
-			case OP_SHL: name="shl"; break;
-			case OP_SHR: name="shr"; break;
-			case OP_SAR_08: name="sar"; break;
-			case OP_SAR_16_32: name="sar"; break;
-			case OP_NOT: name="not"; break;
-			case OP_NEG: name="neg"; break;
-			case OP_MUL_08: name="mul"; break;
-			case OP_MUL_16_32: name="mul"; break;
-			case OP_IMULA_08: name="imula"; break;
-			case OP_IMULA_16_32: name="imula"; break;
-			case OP_IMUL_16_32: name="imul"; break;
-			case OP_DIV_08: name="div"; break;
-			case OP_DIV_16_32: name="div"; break;
-			case OP_IDIV_08: name="idiv"; break;
-			case OP_IDIV_16_32: name="idiv"; break;
-			case OP_BT_MEM: name="bt mem"; break;
-			case OP_BTS_MEM: name="bts mem"; break;
-			case OP_BTR_MEM: name="btr mem"; break;
-			case OP_BTC_MEM: name="btc mem"; break;
-			case OP_BT_16_32: name="bt"; break;
-			case OP_BTS_16_32: name="bts"; break;
-			case OP_BTR_16_32: name="btr"; break;
-			case OP_BTC_16_32: name="btc"; break;
-			case OP_SHLD_16_32: name="shld"; break;
-			case OP_SHRD_16_32: name="shrd"; break;
-			case OP_AAA: name="aaa"; break;
-			case OP_AAD: name="aad"; break;
-			case OP_AAM: name="aam"; break;
-			case OP_AAS: name="aas"; break;
-			case OP_CWD: name="cwd"; break;
-			case OP_DAA: name="daa"; break;
-			case OP_DAS: name="das"; break;
-			case OP_BOUND: name="bound"; break;
-			case OP_SIGN_EXTEND: name="cdw"; break;
-			case OP_SIGN_EXTEND_8_16: name="cdw"; break;
-			case OP_SIGN_EXTEND_8_32: name="cdw"; break;
-			case OP_SIGN_EXTEND_16_32: name="cdw"; break;
-			case OP_SCASB: name="scasb"; break;
-			case OP_SCASW: name="scasw"; break;
-			case OP_REPNE_SCASB: name="repne scasb"; break;
-			case OP_REPE_SCASB: name="repe scasb"; break;
-			case OP_REPNE_SCASW: name="repne scasw"; break;
-			case OP_REPE_SCASW: name="repe scasw"; break;
-			case OP_CMPSB: name="cmpsb"; break;
-			case OP_CMPSW: name="cmpsw"; break;
-			case OP_REPNE_CMPSB: name="repne cmpsb"; break;
-			case OP_REPE_CMPSB: name="repe cmpsb"; break;
-			case OP_REPNE_CMPSW: name="repne cmpsw"; break;
-			case OP_REPE_CMPSW: name="repe cmpsw"; break;
-			case OP_LODSB: name="lodsb"; break;
-			case OP_LODSW: name="lodsw"; break;
-			case OP_REP_LODSB: name="rep lodsb"; break;
-			case OP_REP_LODSW: name="rep lodsw"; break;
-			case OP_STOSB: name="stosb"; break;
-			case OP_STOSW: name="stosw"; break;
-			case OP_REP_STOSB: name="rep stosb"; break;
-			case OP_REP_STOSW: name="rep stosw"; break;
-			case OP_MOVSB: name="movsb"; break;
-			case OP_MOVSW: name="movsw"; break;
-			case OP_REP_MOVSB: name="rep movsb"; break;
-			case OP_REP_MOVSW: name="rep movsw"; break;
-			case OP_CLC: name="clc"; break;
-			case OP_STC: name="stc"; break;
-			case OP_CLI: name="cli"; break;
-			case OP_STI: name="sti"; break;
-			case OP_CLD: name="cld"; break;
-			case OP_STD: name="std"; break;
-			case OP_CMC: name="cmc"; break;
-			case OP_SETO: name="seto"; break;
-			case OP_SETNO: name="setno"; break;
-			case OP_SETC: name="setc"; break;
-			case OP_SETNC: name="setnc"; break;
-			case OP_SETZ: name="setz"; break;
-			case OP_SETNZ: name="setnz"; break;
-			case OP_SETA: name="seta"; break;
-			case OP_SETNA: name="setna"; break;
-			case OP_SETL: name="setl"; break;
-			case OP_SETNL: name="setnl"; break;
-			case OP_SETG: name="setg"; break;
-			case OP_SETNG: name="setng"; break;
-			case OP_SETS: name="sets"; break;
-			case OP_SETNS: name="setns"; break;
-			case OP_SETP: name="setp"; break;
-			case OP_SETNP: name="setnp"; break;
-			case OP_SALC: name="salc"; break;
-			case OP_LAHF: name="lahf"; break;
-			case OP_SAHF: name="sahf"; break;
-			case OP_CMOVO: name="cmovo"; break;
-			case OP_CMOVNO: name="cmovno"; break;
-			case OP_CMOVC: name="cmovc"; break;
-			case OP_CMOVNC: name="cmovnc"; break;
-			case OP_CMOVZ: name="cmovz"; break;
-			case OP_CMOVNZ: name="cmovnz"; break;
-			case OP_CMOVP: name="cmovp"; break;
-			case OP_CMOVNP: name="cmovnp"; break;
-			case OP_CMOVS: name="cmovs"; break;
-			case OP_CMOVNS: name="cmovns"; break;
-			case OP_CMOVL: name="cmovl"; break;
-			case OP_CMOVNL: name="cmovnl"; break;
-			case OP_CMOVG: name="cmovg"; break;
-			case OP_CMOVNG: name="cmovng"; break;
-			case OP_CMOVA: name="cmova"; break;
-			case OP_CMOVNA: name="cmovna"; break;
-			case OP_POP: name="pop"; break;
-			case OP_POPF: name="popf"; break;
-			case OP_POPA: name="popa"; break;
-			case OP_LEAVE: name="leave"; break;
-			case OP_PUSH: name="push"; break;
-			case OP_PUSHF: name="pushf"; break;
-			case OP_PUSHA: name="pusha"; break;
-			case OP_ENTER: name="enter"; break;
-			case OP_LGDT: name="lgdt"; break;
-			case OP_LIDT: name="lidt"; break;
-			case OP_LLDT: name="lldt"; break;
-			case OP_LMSW: name="lmsw"; break;
-			case OP_LTR: name="ltr"; break;
-			case OP_SGDT: name="sgdt"; break;
-			case OP_SIDT: name="sidt"; break;
-			case OP_SLDT: name="sldt"; break;
-			case OP_SMSW: name="smsw"; break;
-			case OP_STR: name="str"; break;
-			case OP_CLTS: name="clts"; break;
-			case OP_CPUID: name="cpuid"; break;
-			case OP_HALT: name="halt"; break;
-			case OP_RDTSC: name="rdtsc"; break;
-			default: name="nop"; break;
-		}
-
-		push(GUICODE.DECODE_INSTRUCTION, name);
-	}
-
-	public void pushMicrocode(MICROCODE microcode, int reg0, int reg1, int addr, boolean condition)
-	{
-		String name="";
-		switch(microcode)
-		{
-			case LOAD_SEG_CS: addressString="cs:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"cs"); break;
-			case LOAD_SEG_SS: addressString="ss:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"ss"); break;
-			case LOAD_SEG_DS: addressString="ds:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"ds"); break;
-			case LOAD_SEG_ES: addressString="es:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"es"); break;
-			case LOAD_SEG_FS: addressString="fs:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"fs"); break;
-			case LOAD_SEG_GS: addressString="gs:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"gs"); break;
-
-			case ADDR_AX: addressString+="ax+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"ax"); break;
-			case ADDR_BX: addressString+="bx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bx"); break;
-			case ADDR_CX: addressString+="cx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"cx"); break;
-			case ADDR_DX: addressString+="dx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"dx"); break;
-			case ADDR_SP: addressString+="sp+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"sp"); break;
-			case ADDR_BP: addressString+="bp+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bp"); break;
-			case ADDR_SI: addressString+="si+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"si"); break;
-			case ADDR_DI: addressString+="di+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"di"); break;
-			case ADDR_EAX: addressString+="eax+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"ax"); break;
-			case ADDR_EBX: addressString+="ebx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bx"); break;
-			case ADDR_ECX: addressString+="ecx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"cx"); break;
-			case ADDR_EDX: addressString+="edx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"dx"); break;
-			case ADDR_ESP: addressString+="esp+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"sp"); break;
-			case ADDR_EBP: addressString+="ebp+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bp"); break;
-			case ADDR_ESI: addressString+="esi+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"si"); break;
-			case ADDR_EDI: addressString+="edi+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"di"); break;
-			case ADDR_2EAX: addressString+="eax*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"ax"); break;
-			case ADDR_2EBX: addressString+="ebx*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bx"); break;
-			case ADDR_2ECX: addressString+="ecx*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"cx"); break;
-			case ADDR_2EDX: addressString+="edx*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"dx"); break;
-			case ADDR_2EBP: addressString+="ebp*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bp"); break;
-			case ADDR_2ESI: addressString+="esi*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"si"); break;
-			case ADDR_2EDI: addressString+="edi*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"di"); break;
-			case ADDR_4EAX: addressString+="eax*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"ax"); break;
-			case ADDR_4EBX: addressString+="ebx*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bx"); break;
-			case ADDR_4ECX: addressString+="ecx*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"cx"); break;
-			case ADDR_4EDX: addressString+="edx*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"dx"); break;
-			case ADDR_4EBP: addressString+="ebp*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bp"); break;
-			case ADDR_4ESI: addressString+="esi*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"si"); break;
-			case ADDR_4EDI: addressString+="edi*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"di"); break;
-			case ADDR_8EAX: addressString+="eax*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"ax"); break;
-			case ADDR_8EBX: addressString+="ebx*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bx"); break;
-			case ADDR_8ECX: addressString+="ecx*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"cx"); break;
-			case ADDR_8EDX: addressString+="edx*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"dx"); break;
-			case ADDR_8EBP: addressString+="ebp*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bp"); break;
-			case ADDR_8ESI: addressString+="esi*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"si"); break;
-			case ADDR_8EDI: addressString+="edi*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"di"); break;
-			case ADDR_IB: addressString+=Integer.toHexString(displacement)+"+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"displacement",displacement); break;
-			case ADDR_IW: addressString+=Integer.toHexString(displacement)+"+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"displacement",displacement); break;
-			case ADDR_ID: addressString+=Integer.toHexString(displacement)+"+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"displacement",displacement); break;
-
-			case LOAD0_AX: name="ax"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_EAX: name="eax"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_AL: name="al"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_AH: name="ah"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_BX: name="bx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_EBX: name="ebx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_BL: name="bl"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_BH: name="bh"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_CX: name="cx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_ECX: name="ecx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_CL: name="cl"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_CH: name="ch"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_DX: name="dx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_EDX: name="edx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_DL: name="dl"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_DH: name="dh"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_SI: name="si"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_ESI: name="esi"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_DI: name="di"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_EDI: name="edi"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_SP: name="sp"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_ESP: name="esp"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_BP: name="bp"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_EBP: name="ebp"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_CS: name="cs"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_DS: name="ds"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_SS: name="ss"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_ES: name="es"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_FS: name="fs"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_GS: name="gs"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_FLAGS: case LOAD0_EFLAGS: name="flags"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_ADDR: name="["+addressString.substring(0,addressString.length()-1)+"]"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_IB: case LOAD0_IW: case LOAD0_ID: name="immediate"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_CR0: name="cr0"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_CR2: name="cr2"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_CR3: name="cr3"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_CR4: name="cr4"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD0_MEM_BYTE: case LOAD0_MEM_WORD: case LOAD0_MEM_DOUBLE: name="memory["+addressString.substring(0,addressString.length()-1)+"]"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
-			case LOAD1_AX: name="ax"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_EAX: name="eax"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_AL: name="al"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_AH: name="ah"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_BX: name="bx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_EBX: name="ebx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_BL: name="bl"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_BH: name="bh"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_CX: name="cx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_ECX: name="ecx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_CL: name="cl"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_CH: name="ch"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_DX: name="dx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_EDX: name="edx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_DL: name="dl"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_DH: name="dh"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_SI: name="si"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_ESI: name="esi"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_DI: name="di"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_EDI: name="edi"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_SP: name="sp"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_ESP: name="esp"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_BP: name="bp"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_EBP: name="ebp"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_CS: name="cs"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_DS: name="ds"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_SS: name="ss"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_ES: name="es"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_FS: name="fs"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_GS: name="gs"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_FLAGS: case LOAD1_EFLAGS: name="flags"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_IB: case LOAD1_IW: case LOAD1_ID: name="immediate"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-			case LOAD1_MEM_BYTE: case LOAD1_MEM_WORD: case LOAD1_MEM_DOUBLE: name="memory["+addressString.substring(0,addressString.length()-1)+"]"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
-
-			case STORE0_AX: name="ax"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_EAX: name="eax"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_AL: name="al"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_AH: name="ah"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_BX: name="bx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_EBX: name="ebx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_BL: name="bl"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_BH: name="bh"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_CX: name="cx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_ECX: name="ecx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_CL: name="cl"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_CH: name="ch"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_DX: name="dx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_EDX: name="edx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_DL: name="dl"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_DH: name="dh"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_SI: name="si"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_ESI: name="esi"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_DI: name="di"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_EDI: name="edi"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_SP: name="sp"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_ESP: name="esp"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_BP: name="bp"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_EBP: name="ebp"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_CS: name="cs"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_DS: name="ds"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_SS: name="ss"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_ES: name="es"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_FS: name="fs"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_GS: name="gs"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_FLAGS: case STORE0_EFLAGS: name="flags"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_CR0: name="cr0"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_CR2: name="cr2"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_CR3: name="cr3"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_CR4: name="cr4"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			case STORE0_MEM_BYTE: case STORE0_MEM_WORD: case STORE0_MEM_DOUBLE: name="memory["+addressString.substring(0,addressString.length()-1)+"]"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
-			
-			case STORE1_AX: name="ax"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_EAX: name="eax"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_AL: name="al"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_AH: name="ah"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_BX: name="bx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_EBX: name="ebx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_BL: name="bl"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_BH: name="bh"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_CX: name="cx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_ECX: name="ecx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_CL: name="cl"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_CH: name="ch"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_DX: name="dx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_EDX: name="edx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_DL: name="dl"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_DH: name="dh"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_SI: name="si"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_ESI: name="esi"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_DI: name="di"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_EDI: name="edi"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_SP: name="sp"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_ESP: name="esp"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_BP: name="bp"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_EBP: name="ebp"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_CS: name="cs"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_DS: name="ds"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_SS: name="ss"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_ES: name="es"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_FS: name="fs"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_GS: name="gs"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_FLAGS: case STORE1_EFLAGS: name="flags"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-			case STORE1_MEM_BYTE: case STORE1_MEM_WORD: case STORE1_MEM_DOUBLE: name="memory["+addressString.substring(0,addressString.length()-1)+"]"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
-
-
-			case OP_JMP_FAR: 
-			case OP_JMP_ABS:
-				push(GUICODE.EXECUTE_JUMP_ABSOLUTE,reg0); break;
-			case OP_JMP_08: 
-			case OP_JMP_16_32: 
-				push(GUICODE.EXECUTE_JUMP,reg0); break;
-			case OP_CALL_FAR:
-			case OP_CALL_ABS:
-				push(GUICODE.EXECUTE_CALL_STACK,reg0); push(GUICODE.EXECUTE_JUMP_ABSOLUTE,reg0); break;
-			case OP_CALL:
-				push(GUICODE.EXECUTE_CALL_STACK,reg0); push(GUICODE.EXECUTE_JUMP,reg0); break;
-			case OP_RET:
-			case OP_RET_IW:
-			case OP_RET_FAR:
-			case OP_RET_FAR_IW:
-				push(GUICODE.EXECUTE_RETURN); break;
-
-			case OP_JO:
-			case OP_JO_16_32:
-			case OP_JNO:
-			case OP_JNO_16_32:
-			case OP_JC:
-			case OP_JC_16_32:
-			case OP_JNC:
-			case OP_JNC_16_32:
-			case OP_JS:
-			case OP_JS_16_32:
-			case OP_JNS:
-			case OP_JNS_16_32:
-			case OP_JZ:
-			case OP_JZ_16_32:
-			case OP_JNZ:
-			case OP_JNZ_16_32:
-			case OP_JP:
-			case OP_JP_16_32:
-			case OP_JNP:
-			case OP_JNP_16_32:
-			case OP_JA:
-			case OP_JA_16_32:
-			case OP_JNA:
-			case OP_JNA_16_32:
-			case OP_JL:
-			case OP_JL_16_32:
-			case OP_JNL:
-			case OP_JNL_16_32:
-			case OP_JG:
-			case OP_JG_16_32:
-			case OP_JNG:
-			case OP_JNG_16_32:
-			case OP_LOOP_CX: 
-			case OP_LOOPZ_CX: 
-			case OP_LOOPNZ_CX:
-			case OP_JCXZ:
- 
-				push(GUICODE.EXECUTE_CONDITION);
-				if(condition)
-					push(GUICODE.EXECUTE_JUMP,reg0);
-				break;
-
-			case OP_IN_08:
-			case OP_IN_16_32:
-			case OP_INSB:
-			case OP_INSW:
-			case OP_REP_INSB:
-			case OP_REP_INSW:
-				push(GUICODE.EXECUTE_PORT_READ); break;
-			case OP_OUT_08:
-			case OP_OUT_16_32:
-			case OP_OUTSB:
-			case OP_OUTSW:
-			case OP_REP_OUTSB:
-			case OP_REP_OUTSW:
-				push(GUICODE.EXECUTE_PORT_WRITE); break;
-
-			case OP_INT:
-			case OP_INT3:
-				push(GUICODE.EXECUTE_INTERRUPT,reg0); break;
-
-			case OP_IRET:
-				push(GUICODE.EXECUTE_INTERRUPT_RETURN); break;
-
-			case OP_INC:
-			case OP_DEC:
-			case OP_NOT:
-			case OP_NEG:
-			case OP_SHRD_16_32:
-			case OP_AAA:
-			case OP_AAD:
-			case OP_AAM:
-			case OP_AAS:
-			case OP_CWD:
-			case OP_DAA:
-			case OP_DAS:
-			case OP_BOUND:
-			case OP_SIGN_EXTEND:
-			case OP_SIGN_EXTEND_8_16:
-			case OP_SIGN_EXTEND_8_32:
-			case OP_SIGN_EXTEND_16_32:
-				push(GUICODE.EXECUTE_ARITHMETIC_1_1); push(GUICODE.EXECUTE_FLAG); break;
-
-			case OP_ADD:
-			case OP_ADC:
-			case OP_SUB:
-			case OP_CMP:
-			case OP_SBB:
-			case OP_AND:
-			case OP_TEST:
-			case OP_OR:
-			case OP_XOR:
-			case OP_ROL_08:
-			case OP_ROL_16_32:
-			case OP_ROR_08:
-			case OP_ROR_16_32:
-			case OP_RCL_08:
-			case OP_RCL_16_32:
-			case OP_RCR_08:
-			case OP_RCR_16_32:
-			case OP_SHL:
-			case OP_SHR:
-			case OP_SAR_08:
-			case OP_SAR_16_32:
-			case OP_MUL_08:
-			case OP_MUL_16_32:
-			case OP_IMULA_08:
-			case OP_IMULA_16_32:
-			case OP_IMUL_16_32:
-			case OP_DIV_08:
-			case OP_DIV_16_32:
-			case OP_IDIV_08:
-			case OP_IDIV_16_32:
-			case OP_SHLD_16_32:
-			case OP_BT_MEM:
-			case OP_BTS_MEM:
-			case OP_BTR_MEM:
-			case OP_BTC_MEM:
-			case OP_BT_16_32:
-			case OP_BTS_16_32:
-			case OP_BTR_16_32:
-			case OP_BTC_16_32:
-				push(GUICODE.EXECUTE_ARITHMETIC_2_1); push(GUICODE.EXECUTE_FLAG); break;
-
-			case OP_SCASB:
-			case OP_SCASW:
-			case OP_REPNE_SCASB:
-			case OP_REPE_SCASB:
-			case OP_REPNE_SCASW:
-			case OP_REPE_SCASW:
-			case OP_CMPSB:
-			case OP_CMPSW:
-			case OP_REPNE_CMPSB:
-			case OP_REPE_CMPSB:
-			case OP_REPNE_CMPSW:
-			case OP_REPE_CMPSW:
-				push(GUICODE.EXECUTE_MEMORY_COMPARE); break;
-
-			case OP_LODSB:
-			case OP_LODSW:
-			case OP_REP_LODSB:
-			case OP_REP_LODSW:
-			case OP_STOSB:
-			case OP_STOSW:
-			case OP_REP_STOSB:
-			case OP_REP_STOSW:
-			case OP_MOVSB:
-			case OP_MOVSW:
-			case OP_REP_MOVSB:
-			case OP_REP_MOVSW:
-				push(GUICODE.EXECUTE_MEMORY_TRANSFER); break;
-
-			case OP_CLC:
-			case OP_STC:
-			case OP_CLI:
-			case OP_STI:
-			case OP_CLD:
-			case OP_STD:
-			case OP_CMC:
-			case OP_SETO:
-			case OP_SETNO:
-			case OP_SETC:
-			case OP_SETNC:
-			case OP_SETZ:
-			case OP_SETNZ:
-			case OP_SETA:
-			case OP_SETNA:
-			case OP_SETL:
-			case OP_SETNL:
-			case OP_SETG:
-			case OP_SETNG:
-			case OP_SETS:
-			case OP_SETNS:
-			case OP_SETP:
-			case OP_SETNP:
-			case OP_SALC:
-			case OP_LAHF:
-			case OP_SAHF:
-				push(GUICODE.EXECUTE_FLAG); break;
-
-			case OP_CMOVO:
-			case OP_CMOVNO:
-			case OP_CMOVC:
-			case OP_CMOVNC:
-			case OP_CMOVZ:
-			case OP_CMOVNZ:
-			case OP_CMOVP:
-			case OP_CMOVNP:
-			case OP_CMOVS:
-			case OP_CMOVNS:
-			case OP_CMOVL:
-			case OP_CMOVNL:
-			case OP_CMOVG:
-			case OP_CMOVNG:
-			case OP_CMOVA:
-			case OP_CMOVNA:
-				push(GUICODE.EXECUTE_CONDITION);
-				if(condition)
-					push(GUICODE.EXECUTE_TRANSFER);
-				break;
-
-			case OP_POP:
-			case OP_POPF:
-			case OP_POPA:
-			case OP_LEAVE:
-				push(GUICODE.EXECUTE_POP);
-				break;
-			case OP_PUSH:
-			case OP_PUSHF:
-			case OP_PUSHA:
-			case OP_ENTER:
-				push(GUICODE.EXECUTE_PUSH);
-				break;
-
-			case OP_LGDT:
-			case OP_LIDT:
-			case OP_LLDT:
-			case OP_LMSW:
-			case OP_LTR:
-			case OP_SGDT:
-			case OP_SIDT:
-			case OP_SLDT:
-			case OP_SMSW:
-			case OP_STR:
-			case OP_CPUID:
-			case OP_RDTSC:
-				push(GUICODE.EXECUTE_TRANSFER);
-				break;
-
-			case OP_HALT:
-				push(GUICODE.EXECUTE_HALT);
-				break;
-		}
-	}
-}
-
-enum MICROCODE 
-{
-PREFIX_LOCK, PREFIX_REPNE, PREFIX_REPE, PREFIX_CS, PREFIX_SS, PREFIX_DS, PREFIX_ES, PREFIX_FS, PREFIX_GS, PREFIX_OPCODE_32BIT, PREFIX_ADDRESS_32BIT,
-
-LOAD0_AX, LOAD0_AL, LOAD0_AH, LOAD0_BX, LOAD0_BL, LOAD0_BH, LOAD0_CX, LOAD0_CL, LOAD0_CH, LOAD0_DX, LOAD0_DL, LOAD0_DH, LOAD0_SP, LOAD0_BP, LOAD0_SI, LOAD0_DI, LOAD0_CS, LOAD0_SS, LOAD0_DS, LOAD0_ES, LOAD0_FS, LOAD0_GS, LOAD0_FLAGS, LOAD1_AX, LOAD1_AL, LOAD1_AH, LOAD1_BX, LOAD1_BL, LOAD1_BH, LOAD1_CX, LOAD1_CL, LOAD1_CH, LOAD1_DX, LOAD1_DL, LOAD1_DH, LOAD1_SP, LOAD1_BP, LOAD1_SI, LOAD1_DI, LOAD1_CS, LOAD1_SS, LOAD1_DS, LOAD1_ES, LOAD1_FS, LOAD1_GS, LOAD1_FLAGS, STORE0_AX, STORE0_AL, STORE0_AH, STORE0_BX, STORE0_BL, STORE0_BH, STORE0_CX, STORE0_CL, STORE0_CH, STORE0_DX, STORE0_DL, STORE0_DH, STORE0_SP, STORE0_BP, STORE0_SI, STORE0_DI, STORE0_CS, STORE0_SS, STORE0_DS, STORE0_ES, STORE0_FS, STORE0_GS, STORE1_AX, STORE1_AL, STORE1_AH, STORE1_BX, STORE1_BL, STORE1_BH, STORE1_CX, STORE1_CL, STORE1_CH, STORE1_DX, STORE1_DL, STORE1_DH, STORE1_SP, STORE1_BP, STORE1_SI, STORE1_DI, STORE1_CS, STORE1_SS, STORE1_DS, STORE1_ES, STORE1_FS, STORE1_GS, STORE1_FLAGS, LOAD0_MEM_BYTE, LOAD0_MEM_WORD, STORE0_MEM_BYTE, STORE0_MEM_WORD, LOAD1_MEM_BYTE, LOAD1_MEM_WORD, STORE1_MEM_BYTE, STORE1_MEM_WORD, STORE1_ESP, STORE0_FLAGS, LOAD0_IB, LOAD0_IW, LOAD1_IB, LOAD1_IW, LOAD_SEG_CS, LOAD_SEG_SS, LOAD_SEG_DS, LOAD_SEG_ES, LOAD_SEG_FS, LOAD_SEG_GS, LOAD0_ADDR, LOAD0_EAX, LOAD0_EBX, LOAD0_ECX, LOAD0_EDX, LOAD0_ESI, LOAD0_EDI, LOAD0_EBP, LOAD0_ESP, LOAD1_EAX, LOAD1_EBX, LOAD1_ECX, LOAD1_EDX, LOAD1_ESI, LOAD1_EDI, LOAD1_EBP, LOAD1_ESP, STORE0_EAX, STORE0_EBX, STORE0_ECX, STORE0_EDX, STORE0_ESI, STORE0_EDI, STORE0_ESP, STORE0_EBP, STORE1_EAX, STORE1_EBX, STORE1_ECX, STORE1_EDX, STORE1_ESI, STORE1_EDI, STORE1_EBP, LOAD0_MEM_DOUBLE, LOAD1_MEM_DOUBLE, STORE0_MEM_DOUBLE, STORE1_MEM_DOUBLE, LOAD0_EFLAGS, LOAD1_EFLAGS, STORE0_EFLAGS, STORE1_EFLAGS, LOAD0_ID, LOAD1_ID, LOAD0_CR0, LOAD0_CR2, LOAD0_CR3, LOAD0_CR4, STORE0_CR0, STORE0_CR2, STORE0_CR3, STORE0_CR4,
-
-FLAG_BITWISE_08, FLAG_BITWISE_16, FLAG_BITWISE_32, FLAG_SUB_08, FLAG_SUB_16, FLAG_SUB_32, FLAG_REP_SUB_08, FLAG_REP_SUB_16, FLAG_REP_SUB_32, FLAG_ADD_08, FLAG_ADD_16, FLAG_ADD_32, FLAG_ADC_08, FLAG_ADC_16, FLAG_ADC_32, FLAG_SBB_08, FLAG_SBB_16, FLAG_SBB_32, FLAG_DEC_08, FLAG_DEC_16, FLAG_DEC_32, FLAG_INC_08, FLAG_INC_16, FLAG_INC_32, FLAG_SHL_08, FLAG_SHL_16, FLAG_SHL_32, FLAG_SHR_08, FLAG_SHR_16, FLAG_SHR_32, FLAG_SAR_08, FLAG_SAR_16, FLAG_SAR_32, FLAG_RCL_08, FLAG_RCL_16, FLAG_RCL_32, FLAG_RCR_08, FLAG_RCR_16, FLAG_RCR_32, FLAG_ROL_08, FLAG_ROL_16, FLAG_ROL_32, FLAG_ROR_08, FLAG_ROR_16, FLAG_ROR_32, FLAG_NEG_08, FLAG_NEG_16, FLAG_NEG_32, FLAG_ROTATE_08, FLAG_ROTATE_16, FLAG_ROTATE_32, FLAG_UNIMPLEMENTED, FLAG_8F, FLAG_NONE, FLAG_BAD, FLAG_80_82, FLAG_81_83, FLAG_FF, FLAG_F6, FLAG_F7, FLAG_FE, FLAG_FLOAT_NOP,
-
-ADDR_AX, ADDR_BX, ADDR_CX, ADDR_DX, ADDR_SP, ADDR_BP, ADDR_SI, ADDR_DI, ADDR_IB, ADDR_IW, ADDR_AL, ADDR_EAX, ADDR_EBX, ADDR_ECX, ADDR_EDX, ADDR_ESP, ADDR_EBP, ADDR_ESI, ADDR_EDI, ADDR_ID, ADDR_MASK_16, ADDR_2EAX, ADDR_2EBX, ADDR_2ECX, ADDR_2EDX, ADDR_2EBP, ADDR_2ESI, ADDR_2EDI, ADDR_4EAX, ADDR_4EBX, ADDR_4ECX, ADDR_4EDX, ADDR_4EBP, ADDR_4ESI, ADDR_4EDI, ADDR_8EAX, ADDR_8EBX, ADDR_8ECX, ADDR_8EDX, ADDR_8EBP, ADDR_8ESI, ADDR_8EDI,
-
-OP_JMP_FAR, OP_JMP_ABS, OP_CALL, OP_CALL_FAR, OP_CALL_ABS, OP_RET, OP_RET_IW, OP_RET_FAR, OP_RET_FAR_IW, OP_ENTER, OP_LEAVE, OP_JMP_08, OP_JMP_16_32, OP_JO, OP_JO_16_32, OP_JNO, OP_JNO_16_32, OP_JC, OP_JC_16_32, OP_JNC, OP_JNC_16_32, OP_JZ, OP_JZ_16_32, OP_JNZ, OP_JNZ_16_32, OP_JS, OP_JS_16_32, OP_JNS, OP_JNS_16_32, OP_JP, OP_JP_16_32, OP_JNP, OP_JNP_16_32, OP_JA, OP_JA_16_32, OP_JNA, OP_JNA_16_32, OP_JL, OP_JL_16_32, OP_JNL, OP_JNL_16_32, OP_JG, OP_JG_16_32, OP_JNG, OP_JNG_16_32, OP_INT, OP_INT3, OP_IRET, OP_IN_08, OP_IN_16_32, OP_OUT_08, OP_OUT_16_32, OP_INC, OP_DEC, OP_ADD, OP_ADC, OP_SUB, OP_SBB, OP_AND, OP_TEST, OP_OR, OP_XOR, OP_ROL_08, OP_ROL_16_32, OP_ROR_08, OP_ROR_16_32, OP_RCL_08, OP_RCL_16_32, OP_RCR_08, OP_RCR_16_32, OP_SHR, OP_SAR_08, OP_SAR_16_32, OP_NOT, OP_NEG, OP_MUL_08, OP_MUL_16_32, OP_IMULA_08, OP_IMULA_16_32, OP_IMUL_16_32, OP_BSF, OP_BSR, OP_BT_MEM, OP_BTS_MEM, OP_BTR_MEM, OP_BTC_MEM, OP_BT_16_32, OP_BTS_16_32, OP_BTR_16_32, OP_BTC_16_32, OP_SHLD_16_32, OP_SHRD_16_32, OP_CWD, OP_CDQ, OP_AAA, OP_AAD, OP_AAM, OP_AAS, OP_DAA, OP_DAS, OP_BOUND, OP_CLC, OP_STC, OP_CLI, OP_STI, OP_CLD, OP_STD, OP_CMC, OP_SETO, OP_SETNO, OP_SETC, OP_SETNC, OP_SETZ, OP_SETNZ, OP_SETA, OP_SETNA, OP_SETS, OP_SETNS, OP_SETP, OP_SETNP, OP_SETL, OP_SETNL, OP_SETG, OP_SETNG, OP_SALC, OP_CMOVO, OP_CMOVNO, OP_CMOVC, OP_CMOVNC, OP_CMOVZ, OP_CMOVNZ, OP_CMOVS, OP_CMOVNS, OP_CMOVP, OP_CMOVNP, OP_CMOVA, OP_CMOVNA, OP_CMOVL, OP_CMOVNL, OP_CMOVG, OP_CMOVNG, OP_LAHF, OP_SAHF, OP_POP, OP_POPF, OP_PUSH, OP_PUSHA, OP_POPA, OP_SIGN_EXTEND_8_16, OP_SIGN_EXTEND_8_32, OP_SIGN_EXTEND_16_32, OP_SIGN_EXTEND, OP_INSB, OP_INSW, OP_REP_INSB, OP_REP_INSW, OP_LODSB, OP_LODSW, OP_REP_LODSB, OP_REP_LODSW, OP_MOVSB, OP_MOVSW, OP_REP_MOVSB, OP_REP_MOVSW, OP_OUTSB, OP_OUTSW, OP_REP_OUTSB, OP_REP_OUTSW, OP_STOSB, OP_STOSW, OP_REP_STOSB, OP_REP_STOSW, OP_LOOP_CX, OP_LOOPZ_CX, OP_LOOPNZ_CX, OP_JCXZ, OP_HALT, OP_CPUID, OP_NOP, OP_MOV, OP_CMP, OP_BAD, OP_UNIMPLEMENTED, OP_ROTATE_08, OP_ROTATE_16_32, OP_INT0, OP_CBW, OP_PUSHF, OP_SHL, OP_80_83, OP_FF, OP_F6, OP_F7, OP_DIV_08, OP_DIV_16_32, OP_IDIV_08, OP_IDIV_16_32, OP_SCASB, OP_SCASW, OP_REPE_SCASB, OP_REPE_SCASW, OP_REPNE_SCASB, OP_REPNE_SCASW, OP_CMPSB, OP_CMPSW, OP_REPE_CMPSB, OP_REPE_CMPSW, OP_REPNE_CMPSB, OP_REPNE_CMPSW, OP_FE, OP_FLOAT_NOP, OP_SGDT, OP_SIDT, OP_LGDT, OP_LIDT, OP_SMSW, OP_LMSW, OP_F01, OP_F00, OP_SLDT, OP_STR, OP_LLDT, OP_LTR, OP_VERR, OP_VERW, OP_CLTS, OP_RDTSC
-}
 
 //registers
 public Register eax, ebx, edx, ecx, esi, edi, esp, ebp, eip;
@@ -1034,10 +26,10 @@ public Segment idtr, gdtr, ldtr, tss;
 //flags
 public Flag carry, parity, auxiliaryCarry, zero, sign, trap, interruptEnable, direction, overflow, interruptEnableSoon, ioPrivilegeLevel1, ioPrivilegeLevel0, nestedTask, alignmentCheck, idFlag;
 
-public int interruptFlags;
+//protection level
+public int current_privilege_level;
 
-//memory
-public PhysicalMemory physicalMemory;
+public int interruptFlags;
 
 //devices
 public IOPorts ioports;
@@ -1047,29 +39,32 @@ private boolean addressDecoded=false;
 private boolean haltMode=false;
 public int lastInterrupt=-1;
 
+private LinearMemory linearMemory;
+
 public Processor(Computer computer)
 {
 	this.computer=computer;
-	this.physicalMemory=computer.physicalMemory;
 	this.ioports=computer.ioports;
 	interruptController=null;
 
 	processorGUICode=null;
+	
+	linearMemory=new LinearMemory(computer);
 
-	cs=new Segment(Segment.CS,physicalMemory);
-	ds=new Segment(Segment.DS,physicalMemory);
-	ss=new Segment(Segment.SS,physicalMemory);
-	es=new Segment(Segment.ES,physicalMemory);
-	fs=new Segment(Segment.FS,physicalMemory);
-	gs=new Segment(Segment.GS,physicalMemory);
+	cs=new Segment(Segment.CS,computer.physicalMemory);
+	ds=new Segment(Segment.DS,computer.physicalMemory);
+	ss=new Segment(Segment.SS,computer.physicalMemory);
+	es=new Segment(Segment.ES,computer.physicalMemory);
+	fs=new Segment(Segment.FS,computer.physicalMemory);
+	gs=new Segment(Segment.GS,computer.physicalMemory);
 
-	idtr=new Segment(Segment.IDTR,physicalMemory);
+	idtr=new Segment(Segment.IDTR,computer.physicalMemory);
  	idtr.setDescriptorValue(0);
-	gdtr=new Segment(Segment.GDTR,physicalMemory);
+	gdtr=new Segment(Segment.GDTR,computer.physicalMemory);
 	gdtr.setDescriptorValue(0);
-	ldtr=new Segment(Segment.LDTR,physicalMemory);
+	ldtr=new Segment(Segment.LDTR,linearMemory);
 	ldtr.setDescriptorValue(0);
-	tss=new Segment(Segment.TSS,physicalMemory);
+	tss=new Segment(Segment.TSS,linearMemory);
 	tss.setDescriptorValue(0);
 
 	eax=new Register(Register.EAX,0);
@@ -1102,16 +97,78 @@ public Processor(Computer computer)
 	nestedTask=new Flag(Flag.OTHER);
 	alignmentCheck=new Flag(Flag.OTHER);
 	idFlag=new Flag(Flag.OTHER);
+	setCPL(0);
+//	current_privilege_level=0;
 
 	fetchQueue=new FetchQueue();
 
 	initializeDecoder();
 
+	
 	reset();
+}
+
+public String saveState()
+{
+	String state="";
+	state+=cs.saveState()+":";
+	state+=ss.saveState()+":";
+	state+=ds.saveState()+":";
+	state+=es.saveState()+":";
+	state+=fs.saveState()+":";
+	state+=gs.saveState()+":";
+	state+=idtr.saveState()+":";
+	state+=gdtr.saveState()+":";
+	state+=ldtr.saveState()+":";
+	state+=tss.saveState()+":";
+
+	state+=eax.saveState()+":";
+	state+=ebx.saveState()+":";
+	state+=ecx.saveState()+":";
+	state+=edx.saveState()+":";
+	state+=esp.saveState()+":";
+	state+=ebp.saveState()+":";
+	state+=esi.saveState()+":";
+	state+=edi.saveState()+":";
+	state+=eip.saveState()+":";
+	state+=cr0.saveState()+":";
+	state+=cr2.saveState()+":";
+	state+=cr3.saveState()+":";
+	state+=cr4.saveState()+":";
+
+	state+=carry.saveState()+":";
+	state+=parity.saveState()+":";
+	state+=auxiliaryCarry.saveState()+":";
+	state+=zero.saveState()+":";
+	state+=sign.saveState()+":";
+	state+=trap.saveState()+":";
+	state+=interruptEnable.saveState()+":";
+	state+=direction.saveState()+":";
+	state+=overflow.saveState()+":";
+	state+=interruptEnableSoon.saveState()+":";
+	state+=ioPrivilegeLevel1.saveState()+":";
+	state+=ioPrivilegeLevel0.saveState()+":";
+	state+=nestedTask.saveState()+":";
+	state+=alignmentCheck.saveState()+":";
+	state+=idFlag.saveState()+":";
+	state+=interruptFlags;
+
+	return state;
+}
+
+public void loadState(String state)
+{
+	String[] states=state.split(":");
+	cs.loadState(states[0]); ss.loadState(states[1]); ds.loadState(states[2]); es.loadState(states[3]); fs.loadState(states[4]); gs.loadState(states[5]); idtr.loadState(states[6]); gdtr.loadState(states[7]); ldtr.loadState(states[8]); tss.loadState(states[9]);
+	eax.loadState(states[10]); ebx.loadState(states[11]); ecx.loadState(states[12]); edx.loadState(states[13]); esp.loadState(states[14]); ebp.loadState(states[15]); esi.loadState(states[16]); edi.loadState(states[17]); eip.loadState(states[18]); cr0.loadState(states[19]); cr2.loadState(states[20]); cr3.loadState(states[21]); cr4.loadState(states[22]);
+	carry.loadState(states[23]); parity.loadState(states[24]); auxiliaryCarry.loadState(states[25]); zero.loadState(states[26]); sign.loadState(states[27]); trap.loadState(states[28]); interruptEnable.loadState(states[29]); direction.loadState(states[30]); overflow.loadState(states[31]); interruptEnableSoon.loadState(states[32]); ioPrivilegeLevel1.loadState(states[33]); ioPrivilegeLevel0.loadState(states[34]); nestedTask.loadState(states[35]); alignmentCheck.loadState(states[36]); idFlag.loadState(states[37]);
+	interruptFlags=new Scanner(states[38]).nextInt();
 }
 
 public void reset()
 {
+	linearMemory=new LinearMemory(computer);
+
 	eax.setValue(0);
 	ebx.setValue(0);
 	ecx.setValue(0);
@@ -1149,11 +206,15 @@ public void reset()
 	parity.set();
 	zero.set();
 
-	cr0.setValue(0x60000010);
+	setCR0(0x60000010);
+	setCR2(0);
+	setCR3(0);
+	setCR4(0);
+/*	cr0.setValue(0x60000010);
 	cr2.setValue(0);
 	cr3.setValue(0);
-	cr4.setValue(0);
-
+	cr4.setValue(0);*/
+	
 	haltMode=false;
 }
 
@@ -1209,42 +270,101 @@ public void printMicrocode(int[] code)
 	System.out.println();
 }
 
+public void setCR0(int value)
+{
+	value|=0x10;
+	if (value==cr0.getValue()) return;
+	int changedBits=cr0.getValue()^value;
+	cr0.setValue(value);
+	if (isModeReal())
+	{
+		setCPL(0);
+		cs.memory=computer.physicalMemory;
+		ss.memory=computer.physicalMemory;
+		ds.memory=computer.physicalMemory;
+		es.memory=computer.physicalMemory;
+		fs.memory=computer.physicalMemory;
+		gs.memory=computer.physicalMemory;
+		
+//		current_privilege_level=0;
+		if(processorGUICode!=null) processorGUICode.push(GUICODE.MODE_REAL);
+		
+//		System.out.println("Switching to Real Mode");
+//		System.out.printf("New segment bases: CS: %x, SS: %x, DS: %x, ES: %x, FS: %x, GS: %x\n",cs.getBase(),ss.getBase(),ds.getBase(),es.getBase(),fs.getBase(),gs.getBase());
+	}
+	else
+	{
+		cs.memory=linearMemory;
+		ss.memory=linearMemory;
+		ds.memory=linearMemory;
+		es.memory=linearMemory;
+		fs.memory=linearMemory;
+		gs.memory=linearMemory;
+		if(processorGUICode!=null) processorGUICode.push(GUICODE.MODE_PROTECTED);
+//		System.out.println("Switching to Protected Mode");
+//		System.out.printf("New segment bases: CS: %x, SS: %x, DS: %x, ES: %x, FS: %x, GS: %x\n",cs.getBase(),ss.getBase(),ds.getBase(),es.getBase(),fs.getBase(),gs.getBase());
+	}
+	if ((value&0x2)!=0)
+		panic("implement CR0 monitor coprocessor");
+	if ((value&0x4)!=0)
+		panic("implement CR0 fpu emulation");
+	if ((value&0x8)!=0)
+		panic("implement CR0 task switched");
+	if ((value&0x20)!=0)
+		panic("implement CR0 numeric error");
+	if ((value&0x40000)!=0)
+		panic("implement CR0 alignment mask");
+	if ((value&0x20000000)==0)
+		panic("implement CR0 writethrough");
+	if ((changedBits&0x10000)!=0)
+	{
+		panic("implement CR0 write protect");
+		linearMemory.setWriteProtectUserPages((value&0x10000)!=0);
+	}
+	if ((changedBits&0x40000000)!=0)
+	{
+		//page caching
+		linearMemory.setPagingEnabled((value&0x80000000)!=0);
+		linearMemory.setPageCacheEnabled((value&0x40000000)==0);
+	}	
+	if ((changedBits&0x80000000)!=0)
+	{
+		//paging
+		linearMemory.setPagingEnabled((value&0x80000000)!=0);
+		linearMemory.setPageCacheEnabled((value&0x40000000)==0);
+	}
+}
+public void setCR2(int value)
+{
+	cr2.setValue(value);
+	if (value!=0)
+		panic("setting CR2 to "+value);
+}
+public void setCR3(int value)
+{
+	cr3.setValue(value);
+	linearMemory.setPageDirectoryBaseAddress(value);
+	linearMemory.setPageCacheEnabled((value&0x10)==0);
+//	if ((value&0x8)==0)
+//		panic("implement CR3 writes transparent");
+}
+public void setCR4(int value)
+{
+	cr4.setValue((cr4.getValue()&~0x5f)|(value&0x5f));
+	linearMemory.setGlobalPagesEnabled((value&0x80)!=0);
+	linearMemory.setPageSizeExtensionsEnabled((value&0x10)!=0);
+}
+
 public boolean isModeReal()
 {
 	if((cr0.getValue()&1)==0) return true;
 	return false;
 }
 
-public void switchToRealMode()
+private void setCPL(int cpl)
 {
-/*	cs.setValue(cs.getValue());
-	ss.setValue(ss.getValue());
-	ds.setValue(ds.getValue());
-	es.setValue(es.getValue());
-	fs.setValue(fs.getValue());
-	gs.setValue(gs.getValue());*/
-	if(processorGUICode!=null) processorGUICode.push(GUICODE.MODE_REAL);
-//	System.out.println("Switching to Real Mode");
-//	System.out.printf("New segment bases: CS: %x, SS: %x, DS: %x, ES: %x, FS: %x, GS: %x\n",cs.getBase(),ss.getBase(),ds.getBase(),es.getBase(),fs.getBase(),gs.getBase());
-
-//	computer.debugMode=false;
-//if (computer.icount<0x38ca91) computer.debugMode=false;
-
-}
-
-public void switchToProtectedMode()
-{
-/*	cs.setValue((cs.getValue()<<3)|0x4);
-	ss.setValue((ss.getValue()<<3)|0x4);
-	ds.setValue((ds.getValue()<<3)|0x4);
-	es.setValue((es.getValue()<<3)|0x4);
-	fs.setValue((fs.getValue()<<3)|0x4);
-	gs.setValue((gs.getValue()<<3)|0x4);*/
-	if(processorGUICode!=null) processorGUICode.push(GUICODE.MODE_PROTECTED);
-//	System.out.println("Switching to Protected Mode");
-//	System.out.printf("New segment bases: CS: %x, SS: %x, DS: %x, ES: %x, FS: %x, GS: %x\n",cs.getBase(),ss.getBase(),ds.getBase(),es.getBase(),fs.getBase(),gs.getBase());
-
-//	computer.debugMode=true;
+	current_privilege_level=cpl;
+	linearMemory.setSupervisor(cpl==0);
 }
 
 //models a register
@@ -1254,6 +374,19 @@ public class Register
 	static final int EAX=100, EBX=101, ECX=102, EDX=103, ESI=104, EDI=105, ESP=106, EBP=107, CR0=108, CR2=109, CR3=110, CR4=111, EIP=112;
 	int id;
 	int value;
+	
+	public String saveState()
+	{
+		String state="";
+		state+=id+" "+value;
+		return state;
+	}
+	public void loadState(String state)
+	{
+		Scanner loader=new Scanner(state);
+		id=loader.nextInt(); value=loader.nextInt();
+	}	
+
 	public Register(int id)
 	{
 		this.id=id;
@@ -1370,6 +503,18 @@ public class Flag
 	private int v1, v2, v3, method;
 	private long v1long;
 
+	public String saveState()
+	{
+		String state="";
+		state+=type+" "+(value?1:0)+" "+v1+" "+v2+" "+v3+" "+method+" "+v1long;
+		return state;
+	}
+	public void loadState(String state)
+	{
+		Scanner loader=new Scanner(state);
+		type=loader.nextInt(); value=loader.nextInt()==1; v1=loader.nextInt(); v2=loader.nextInt(); v3=loader.nextInt(); method=loader.nextInt(); v1long=loader.nextLong();
+	}
+	
 	public Flag(int type)
 	{
 //		super(false);
@@ -1605,18 +750,31 @@ public class Segment
 	private int id;
 	private int base;
 	private long limit;
-	private PhysicalMemory physicalMemory;
+	private MemoryDevice memory;
 
 	long descriptor;
 	boolean granularity,defaultSize,present,system;
 	int rpl,dpl;
 
-
-	public Segment(int id, PhysicalMemory physicalMemory)
+	public String saveState()
+	{
+		String state="";
+		state+=value+" "+id+" "+base+" "+limit+" "+descriptor+" "+(granularity?1:0)+" "+(defaultSize?1:0)+" "+(present?1:0)+" "+(system?1:0)+" "+rpl+" "+dpl;
+		return state;
+	}
+	public void loadState(String state)
+	{
+		Scanner loader=new Scanner(state);
+		value=loader.nextInt(); id=loader.nextInt(); base=loader.nextInt(); limit=loader.nextLong();
+		descriptor=loader.nextLong(); granularity=loader.nextInt()==1; defaultSize=loader.nextInt()==1; present=loader.nextInt()==1; system=loader.nextInt()==1;
+		rpl=loader.nextInt(); dpl=loader.nextInt();
+	}
+	
+	public Segment(int id, MemoryDevice memory)
 	{
 //		super(0);
 		this.id=id;
-		this.physicalMemory=physicalMemory;
+		this.memory=memory;
 		limit=0xffff;
 	}
 	
@@ -1660,6 +818,8 @@ public class Segment
 	public void setProtectedValue(int value)
 	{
 		//first get the descriptor
+		boolean sup=linearMemory.isSupervisor;
+		linearMemory.setSupervisor(true);
 		if ((value&4)==0)
 		{
 			descriptor=gdtr.loadQuadWord(value&0xfff8);
@@ -1676,6 +836,7 @@ public class Segment
 		if (computer.debugMode)
 			System.out.printf("Value is %x, Descriptor is %x\n",value,descriptor);
 		setProtectedValue(value,descriptor);
+		linearMemory.setSupervisor(sup);
 	}
 
 	public void setProtectedValue(int value, long descriptor)
@@ -1716,50 +877,50 @@ public class Segment
 	}
 	public byte loadByte(int offset)
 	{
-		byte memvalue=physicalMemory.getByte(address(offset));
+		byte memvalue=memory.getByte(address(offset));
 		if(processorGUICode!=null) processorGUICode.pushMemory(id,value,0,address(offset),memvalue);
 		return memvalue;
 	}
 	public short loadWord(int offset)
 	{
-		short memvalue=physicalMemory.getWord(address(offset));
+		short memvalue=memory.getWord(address(offset));
 		if(processorGUICode!=null) processorGUICode.pushMemory(id,value,0,address(offset),memvalue);
 		return memvalue;
 	}
 	public int loadDoubleWord(int offset)
 	{
-		int memvalue=physicalMemory.getDoubleWord(address(offset));
+		int memvalue=memory.getDoubleWord(address(offset));
 		if(processorGUICode!=null) processorGUICode.pushMemory(id,value,0,address(offset),memvalue);
 		return memvalue;
 	}
 	public long loadQuadWord(int offset)
 	{
-		long memvalue=physicalMemory.getQuadWord(address(offset));
+		long memvalue=memory.getQuadWord(address(offset));
 		if(processorGUICode!=null) processorGUICode.pushMemory(id,value,0,address(offset),memvalue);
 		return memvalue;
 	}
 	public void storeByte(int offset, byte value)
 	{
 		if(processorGUICode!=null) processorGUICode.pushMemory(id,this.value,1,address(offset),value);
-		physicalMemory.setByte(address(offset),value);
+		memory.setByte(address(offset),value);
 		fetchQueue.flush();
 	}
 	public void storeWord(int offset, short value)
 	{
 		if(processorGUICode!=null) processorGUICode.pushMemory(id,this.value,1,address(offset),value);
-		physicalMemory.setWord(address(offset),value);
+		memory.setWord(address(offset),value);
 		fetchQueue.flush();
 	}
 	public void storeDoubleWord(int offset, int value)
 	{
 		if(processorGUICode!=null) processorGUICode.pushMemory(id,this.value,1,address(offset),value);
-		physicalMemory.setDoubleWord(address(offset),value);
+		memory.setDoubleWord(address(offset),value);
 		fetchQueue.flush();
 	}
 	public void storeQuadWord(int offset, long value)
 	{
 		if(processorGUICode!=null) processorGUICode.pushMemory(id,this.value,1,address(offset),value);
-		physicalMemory.setQuadWord(address(offset),value);
+		memory.setQuadWord(address(offset),value);
 		fetchQueue.flush();
 	}
 }
@@ -1803,11 +964,18 @@ public void setFlags(int code)
 	idFlag.set((code&(1<<21))!=0);
 }
 
-public void handleRealModeException(Processor_Exception e)
+public void handleProcessorException(Processor_Exception e)
 {
+	if (e.vector==PAGE_FAULT.vector)
+	{
+		setCR2(linearMemory.lastPageFaultAddress);
+		System.out.println("A page fault exception just happened: "+e.vector);
+	}
+	//REMOVE THIS LINE WHEN I'M CONFIDENT THAT EXCEPTIONS WORK
+	panic("A processor exception happened "+e.vector);
 	System.out.println("A Processor Exception just happened: "+e.vector);
 	if(processorGUICode!=null) processorGUICode.push(GUICODE.EXCEPTION,e.vector);
-        handleInterrupt(e.vector);
+    handleInterrupt(e.vector);
 }
 
 public void waitForInterrupt()
@@ -1848,7 +1016,7 @@ public void clearInterrupt()
 	interruptFlags &= ~ 0x1;
 }
 	//deal with a real mode interrupt
-private void handleInterrupt(int vector)
+public void handleInterrupt(int vector)
 {
 	int newIP=0, newSegment=0;
 	long descriptor=0;
@@ -1880,6 +1048,8 @@ private void handleInterrupt(int vector)
 	else
 	{
 		//get the new CS:EIP from the IDT
+		boolean sup=linearMemory.isSupervisor;
+		linearMemory.setSupervisor(true);
 		vector=vector*8;
 		descriptor=idtr.loadQuadWord(vector);
 		int segIndex=(int)((descriptor>>16)&0xffff);
@@ -1887,25 +1057,31 @@ private void handleInterrupt(int vector)
 			descriptor=ldtr.loadQuadWord(segIndex&0xfff8);
 		else
 			descriptor=gdtr.loadQuadWord(segIndex&0xfff8);
+		linearMemory.setSupervisor(sup);
 		
 		int dpl=(int)((descriptor>>45)&0x3);
 		newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
 		newSegment = (int)((descriptor>>16)&0xffff);
-/*		int stackAddress=dpl*8+4;
-		int newSS=0xffff&(tss.loadWord(stackAddress+4));
-		int newSP=tss.loadDoubleWord(stackAddress);
-		int oldSS=ss.getValue();
-		int oldSP=esp.getValue();
-		ss.setValue(newSS);
-		esp.setValue(newSP);
-
-		//save SS:ESP on the stack
-		int sesp1 = esp.getValue();
-		sesp1-=4;
-		ss.storeDoubleWord(sesp1, oldSS);
-		sesp1-=4;
-		ss.storeDoubleWord(sesp1, oldSP);
-		esp.setValue(sesp1);*/
+		
+		if (dpl<current_privilege_level)
+		{
+			int stackAddress=dpl*8+4;
+			int newSS=0xffff&(tss.loadWord(stackAddress+4));
+			int newSP=tss.loadDoubleWord(stackAddress);
+			int oldSS=ss.getValue();
+			int oldSP=esp.getValue();
+			ss.setValue(newSS);
+			esp.setValue(newSP);
+	
+			//save SS:ESP on the stack
+			int sesp1 = esp.getValue();
+			sesp1-=4;
+			ss.storeDoubleWord(sesp1, oldSS);
+			sesp1-=4;
+			ss.storeDoubleWord(sesp1, oldSP);
+			esp.setValue(sesp1);
+		}
+		
 		//save the flags on the stack
 		int sesp=esp.getValue();
 		int eflags = getFlags();
@@ -1922,6 +1098,8 @@ private void handleInterrupt(int vector)
 			//change CS and IP to the ISR's values
 		cs.setProtectedValue(newSegment,descriptor);
 		eip.setValue(newIP);
+		setCPL(dpl);
+//		current_privilege_level=dpl;
 	}
 
 	if(processorGUICode!=null) processorGUICode.push(GUICODE.HARDWARE_INTERRUPT,vector);
@@ -2178,10 +1356,10 @@ public void executeMicroInstructions()
 	case STORE0_GS: gs.setValue(0xffff & reg0); break;
 	case STORE0_FLAGS: setFlags(0xffff & reg0); break;
 	case STORE0_EFLAGS: setFlags(reg0); break;
-	case STORE0_CR0: cr0.setValue(reg0); if (isModeReal()) switchToRealMode(); else switchToProtectedMode(); break;
-	case STORE0_CR2: cr2.setValue(reg0); break;
-	case STORE0_CR3: cr3.setValue(reg0); break;
-	case STORE0_CR4: cr4.setValue(reg0); break;
+	case STORE0_CR0: setCR0(reg0); break;
+	case STORE0_CR2: setCR2(reg0); break;
+	case STORE0_CR3: setCR3(reg0); break;
+	case STORE0_CR4: setCR4(reg0); break;
 
 	case STORE1_AX: eax.setLower16Value(0xffff & reg1); break;
 	case STORE1_BX: ebx.setLower16Value(0xffff & reg1); break;
@@ -2861,14 +2039,15 @@ public void executeMicroInstructions()
 	case OP_SIDT:	if (op32) reg1=idtr.getBase(); else reg1=idtr.getBase()&0x00ffffff; reg0=gdtr.getLimit(); break;
 
 	case OP_SMSW:	reg0 = cr0.getValue() & 0xffff; break;
-	case OP_LMSW:	cr0.setValue((cr0.getValue() & ~0xf)|(reg0 & 0xf)); if (isModeReal()) switchToRealMode(); else switchToProtectedMode(); break;
+	case OP_LMSW:	setCR0((cr0.getValue()&~0xf)|(reg0&0xf)); break;
+//	case OP_LMSW:	cr0.setValue((cr0.getValue() & ~0xf)|(reg0 & 0xf)); if (isModeReal()) switchToRealMode(); else switchToProtectedMode(); break;
 
 	case OP_SLDT:	reg0=0xffff&ldtr.getBase(); break;
 	case OP_STR:	reg0=0xffff&tss.getBase(); break;
-	case OP_LLDT:	ldtr.setDescriptorValue(reg0); System.out.printf("New LDT starts at %x\n",reg0); break;
-	case OP_LTR:	tss.setDescriptorValue(reg0); System.out.printf("New TSS starts at %x\n",reg0); break;
-
-	case OP_CLTS:	cr3.setValue(cr3.getValue()&~0x4); break;
+	case OP_LLDT:	ldtr.setProtectedValue(reg0&~0x4); System.out.printf("New LDT starts at %x\n",ldtr.getBase()); break;
+	case OP_LTR:	tss.setProtectedValue(reg0); System.out.printf("New TSS starts at %x\n",tss.getBase()); break;
+	
+	case OP_CLTS:	setCR3(cr3.getValue()&~0x4); break;
 
 	case OP_RDTSC:	long tsc = rdtsc(); reg0=(int)tsc; reg1=(int)(tsc>>>32); break;
 
@@ -2945,7 +2124,7 @@ public void executeMicroInstructions()
 	}
 	catch (Processor_Exception e)
 	{
-		handleRealModeException(e);
+		handleProcessorException(e);
 	}
 
 }
@@ -3083,6 +2262,13 @@ private void ret_far(boolean op32, boolean addr32)
 		cs.setValue(ss.loadWord((sp+4)));
 		esp.setValue(sp+8);
 	}
+	if (!isModeReal())
+	{
+		if (cs.rpl<current_privilege_level)
+			throw GENERAL_PROTECTION;
+//		current_privilege_level=cs.rpl;
+		setCPL(cs.rpl);
+	}
 }
 
 private void ret_far_iw(short data, boolean op32, boolean addr32)
@@ -3141,6 +2327,12 @@ private void jump_far(int ip, int segment)
 {
 	eip.setValue(ip);
 	cs.setValue(segment);
+	if (!isModeReal())
+	{
+		if (cs.dpl<current_privilege_level)
+			throw GENERAL_PROTECTION;
+		cs.rpl=current_privilege_level;
+	}
 }
 
 private void call_far(int ip, int segment, boolean op32, boolean addr32)
@@ -3187,6 +2379,12 @@ private void call_far(int ip, int segment, boolean op32, boolean addr32)
 
 	eip.setValue(ip);
 	cs.setValue(segment);
+	if (!isModeReal())
+	{
+		if (cs.dpl<current_privilege_level)
+			throw GENERAL_PROTECTION;
+		cs.rpl=current_privilege_level;
+	}
 }
 
 private void jcxz(byte offset)
@@ -3201,7 +2399,7 @@ private void jecxz(byte offset)
 
 private void enter(int frameSize, int nestingLevel, boolean op32, boolean addr32)
 {
-if (op32||addr32) { panic("Implement enter 32"); System.exit(0); }
+if (op32||addr32) { panic("Implement enter 32"); }
 
 	nestingLevel %= 32;
 
@@ -3290,7 +2488,7 @@ private void pusha()
 	esp.setValue((temp & ~0xffff) | (offset & 0xffff));
 }
 
-private void pushad()
+public void pushad()
 {
 	int offset = esp.getValue()&0xffff;
 //	if ((offset<32)&&(offset>0))
@@ -3339,7 +2537,7 @@ private void popa()
 	esp.setValue((esp.getValue() & ~0xffff) | (offset & 0xffff));
 }
 
-private void popad()
+public void popad()
 {
 	int offset = 0xffff & esp.getValue();
 
@@ -3485,6 +2683,8 @@ private void intr_protected(int vector,boolean op32, boolean addr32)
 		panic("Only handling 32 bit mode protected interrupts");
 	
 	//get the new CS:EIP from the IDT
+	boolean sup=linearMemory.isSupervisor;
+	linearMemory.setSupervisor(true);
 	vector=vector*8;
 	descriptor=idtr.loadQuadWord(vector);
 	int segIndex=(int)((descriptor>>16)&0xffff);
@@ -3493,36 +2693,31 @@ private void intr_protected(int vector,boolean op32, boolean addr32)
 		newSegmentDescriptor=ldtr.loadQuadWord(segIndex&0xfff8);
 	else
 		newSegmentDescriptor=gdtr.loadQuadWord(segIndex&0xfff8);
+	linearMemory.setSupervisor(sup);
 	
 	dpl=(int)((newSegmentDescriptor>>45)&0x3);
 	newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
 	newCS = (int)((descriptor>>16)&0xffff);
 
-	//calculate new stack segment
-	int stackAddress=dpl*8+4;
-	int newSS=0xffff&(tss.loadWord(stackAddress+4));
-	int newSP=tss.loadDoubleWord(stackAddress);
-	
-	System.out.println("stackAddress "+stackAddress);
-	System.out.println("dpl "+dpl);
-	System.out.println("tss "+tss.getValue());
-	System.out.println("newSS "+newSS);
-	System.out.println("newSP "+newSP);
-	System.out.println("newIP "+newIP);
-	System.out.println("newCS "+newCS);
-/*	computer.debugMode=true;
-	
-	int oldSS=ss.getValue();
-	int oldSP=esp.getValue();
-	ss.setValue(newSS);
-	esp.setValue(newSP);*/
-
-	//save SS:ESP on the stack
 	int sesp = esp.getValue();
-/*	sesp-=4;
-	ss.storeDoubleWord(sesp, oldSS);
-	sesp-=4;
-	ss.storeDoubleWord(sesp, oldSP);*/
+	if (dpl<current_privilege_level)
+	{	
+		//calculate new stack segment
+		int stackAddress=dpl*8+4;
+		int newSS=0xffff&(tss.loadWord(stackAddress+4));
+		int newSP=tss.loadDoubleWord(stackAddress);
+
+		int oldSS=ss.getValue();
+		int oldSP=esp.getValue();
+		ss.setValue(newSS);
+		esp.setValue(newSP);
+		//save SS:ESP on the stack
+		sesp=newSP;
+		sesp-=4;
+		ss.storeDoubleWord(sesp, oldSS);
+		sesp-=4;
+		ss.storeDoubleWord(sesp, oldSP);
+	}
 	
 	//save the flags on the stack
 	sesp-=4;
@@ -3541,10 +2736,12 @@ private void intr_protected(int vector,boolean op32, boolean addr32)
 	
 	cs.setProtectedValue(newCS,descriptor);
 	eip.setValue(newIP);
+	setCPL(dpl);
+//	current_privilege_level=dpl;
 }
 
 
-private int iret(boolean op32, boolean addr32)
+public int iret(boolean op32, boolean addr32)
 {
 	if (!isModeReal())
 	{
@@ -3604,12 +2801,16 @@ private int iret_protected(boolean op32, boolean addr32)
 	flags=(ss.loadDoubleWord(esp.getValue()));
 	esp.setValue(esp.getValue()+4);
 	
-/*	int newSP=ss.loadDoubleWord(esp.getValue());
-	esp.setValue(esp.getValue()+4);
-	int newSS=ss.loadDoubleWord(esp.getValue());
-	esp.setValue(newSP);
-	ss.setValue(newSS);*/
-	
+	if (cs.rpl>current_privilege_level)
+	{
+		int newSP=ss.loadDoubleWord(esp.getValue());
+		esp.setValue(esp.getValue()+4);
+		int newSS=ss.loadDoubleWord(esp.getValue());
+		esp.setValue(newSP);
+		ss.setValue(newSS);
+		setCPL(cs.rpl);
+//		current_privilege_level=cs.rpl;
+	}
 	return flags;
 }
 
@@ -3826,7 +3027,7 @@ private void movs(Segment seg, int b, boolean addr32)
 
 private void rep_movs(Segment seg, int b, boolean addr32)
 {
-	int count,inaddr,outaddr,data;
+	int count,inaddr,outaddr;
 	if(!addr32)
 	{
 		count = ecx.getValue()&0xffff;
@@ -4906,7 +4107,7 @@ public void panic(String reason)
 {
 	System.out.println("PANIC: "+reason);
 	System.out.println("icount = "+computer.icount);
-//	System.exit(0);
+	System.exit(0);
 }
 
 //call this to start the decoding
@@ -6353,6 +5554,7 @@ public final Processor_Exception SIMD_FLOATING_POINT = new Processor_Exception(0
 
 public class Processor_Exception extends RuntimeException
 {
+	private static final long serialVersionUID = 1L;
 	int vector;
 
 	public Processor_Exception(int vector)
@@ -6951,6 +6153,1006 @@ private static int[] sibTable = new int[]
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+};
+
+public void constructProcessorGUICode()
+{
+	processorGUICode=new ProcessorGUICode();
+}
+
+public class ProcessorGUICode
+{
+	private String addressString;
+
+	ArrayList<GUICODE> code;
+	ArrayList<String> name;
+	ArrayList<String> value;
+	
+	int instructionNumber;
+	int displacement;
+
+	public ProcessorGUICode()
+	{
+		code=new ArrayList<GUICODE>();
+		name=new ArrayList<String>();
+		value=new ArrayList<String>();
+		
+		addressString="";
+		instructionNumber=instructionCount++;
+	}
+
+	public void updateMemoryGUI()
+	{
+		if (computer.memoryGUI==null) return;
+
+		for (int i=0; i<code.size(); i++)
+		{
+			int j;
+			if (code.get(i)==null) return;
+			switch(code.get(i))
+			{
+				case CS_MEMORY_READ:	computer.memoryGUI.codeRead(Integer.parseInt(name.get(i),16)); break;
+				case CS_MEMORY_WRITE:	computer.memoryGUI.codeWrite(Integer.parseInt(name.get(i),16)); break;
+				case SS_MEMORY_READ:	computer.memoryGUI.stackRead(Integer.parseInt(name.get(i),16)); break;
+				case SS_MEMORY_WRITE:
+					for (j=0; j<i; j++)
+						if (code.get(j)==GUICODE.DECODE_INPUT_OPERAND_0)
+							break;
+					if (j<i)
+					{
+						int size=1;
+						if (!name.equals("") && name.get(j).charAt(0)=='e') size=4;
+						else if (name.get(j).equals("ax")||name.get(j).equals("bx")||name.get(j).equals("cx")||name.get(j).equals("dx")||name.get(j).equals("sp")||name.get(j).equals("bp")||name.get(j).equals("si")||name.get(j).equals("di")||name.get(j).equals("cs")||name.get(j).equals("ss")||name.get(j).equals("ds")||name.get(j).equals("es")||name.get(j).equals("fs")||name.get(j).equals("gs")||name.get(j).equals("ip")) size=2;
+						computer.memoryGUI.stackWrite(Integer.parseInt(name.get(i),16),name.get(j),size); break;
+					}
+					computer.memoryGUI.stackWrite(Integer.parseInt(name.get(i),16)); break;
+				case DS_MEMORY_READ:	computer.memoryGUI.dataRead(Integer.parseInt(name.get(i),16)); break;
+				case DS_MEMORY_WRITE:	computer.memoryGUI.dataWrite(Integer.parseInt(name.get(i),16)); break;
+				case ES_MEMORY_READ: case FS_MEMORY_READ: case GS_MEMORY_READ:
+					computer.memoryGUI.extraRead(Integer.parseInt(name.get(i),16)); break;
+				case ES_MEMORY_WRITE: case FS_MEMORY_WRITE: case GS_MEMORY_WRITE:
+					computer.memoryGUI.extraWrite(Integer.parseInt(name.get(i),16)); break;
+				case IDTR_MEMORY_READ:	computer.memoryGUI.interruptRead(Integer.parseInt(name.get(i),16)); break;
+				case IDTR_MEMORY_WRITE:	computer.memoryGUI.interruptWrite(Integer.parseInt(name.get(i),16)); break;
+			}
+		}
+		computer.memoryGUI.updateIP(cs.address(eip.getValue()));
+	}
+
+	public void updateGUI()
+	{
+		if (computer.processorGUI==null) return;
+		if (!computer.debugMode && !computer.updateGUIOnPlay) return;
+
+		System.out.println("Instruction "+instructionNumber+":");
+
+		for (int i=0; i<code.size(); i++)
+		{
+			if (computer.processorGUI!=null) computer.processorGUI.applyCode(code.get(i),name.get(i),value.get(i));
+
+			System.out.print(code.get(i));
+			System.out.print(" ");
+			if (!name.get(i).equals(""))
+				System.out.print(name.get(i)+" ");
+			if (!value.get(i).equals(""))
+				System.out.print(value.get(i));
+			System.out.println();
+
+		}
+
+	}
+
+	public String constructName()
+	{
+		boolean o0=false, i0=false;
+		String n="";
+		for (int i=0; i<code.size(); i++)
+		{
+			if (code.get(i)==GUICODE.DECODE_INSTRUCTION)
+			{
+				n=name.get(i);
+				break;
+			}
+		}
+		for (int i=0; i<code.size(); i++)
+		{
+			if (code.get(i)==GUICODE.DECODE_OUTPUT_OPERAND_0)
+			{
+				n=n+" "+name.get(i);
+				o0=true;
+				break;
+			}
+		}
+		for (int i=0; i<code.size(); i++)
+		{
+			if (code.get(i)==GUICODE.DECODE_INPUT_OPERAND_0)
+			{
+				i0=true;
+				if(o0)
+					n=n+" =";
+				if (name.get(i).equals("immediate"))
+					n=n+" "+Integer.toHexString(getLastiCode());
+				else
+					n=n+" "+name.get(i);
+				break;
+			}
+		}
+		for (int i=0; i<code.size(); i++)
+		{
+			if (code.get(i)==GUICODE.DECODE_INPUT_OPERAND_1)
+			{
+				if(i0)
+					n=n+",";
+				else if (o0)
+					n=n+" =";
+
+				if (name.get(i).equals("immediate"))
+					n=n+" "+Integer.toHexString(getLastiCode());
+				else
+					n=n+" "+name.get(i);
+				break;
+			}
+		}
+		return n;
+	}
+
+	public void push(GUICODE guicode)
+	{
+		code.add(guicode);
+		name.add("");
+		value.add("");
+	}
+	public void push(GUICODE guicode, String name)
+	{
+		code.add(guicode);
+		this.name.add(name);
+		value.add("");
+	}
+	public void push(GUICODE guicode, String name, int value)
+	{
+		code.add(guicode);
+		this.name.add(name);
+		this.value.add(Integer.toHexString(value));
+	}
+	public void push(GUICODE guicode, int name, int value)
+	{
+		code.add(guicode);
+		this.name.add(Integer.toHexString(name));
+		this.value.add(Integer.toHexString(value));
+	}
+	public void push(GUICODE guicode, int name)
+	{
+		code.add(guicode);
+		this.name.add(Integer.toHexString(name));
+		this.value.add("");
+	}
+	public void pushFetch(int ip)
+	{
+		push(GUICODE.FETCH,ip);
+	}
+	public void pushFlag(int type, int value)
+	{
+		String name="";
+		switch(type)
+		{
+			case Flag.AUXILIARYCARRY: name="auxiliary carry"; break;
+			case Flag.CARRY: name="carry"; break;
+			case Flag.SIGN: name="sign"; break;
+			case Flag.PARITY: name="parity"; break;
+			case Flag.ZERO: name="zero"; break;
+			case Flag.OVERFLOW: name="overflow"; break;
+			default: name="other"; break;
+		}
+		if (value==0)
+			push(GUICODE.FLAG_CLEAR,name);
+		else if (value==1)
+			push(GUICODE.FLAG_SET,name);
+//		else
+//			push(GUICODE.FLAG_READ,name);
+	}
+
+	public void pushRegister(int id, int access, int value)
+	{
+		String name="";
+		switch(id)
+		{
+			case Register.EAX: name="eax"; break;
+			case Register.EBX: name="ebx"; break;
+			case Register.ECX: name="ecx"; break;
+			case Register.EDX: name="edx"; break;
+			case Register.ESI: name="esi"; break;
+			case Register.EDI: name="edi"; break;
+			case Register.ESP: name="esp"; break;
+			case Register.EBP: name="ebp"; break;
+			case Register.EIP: name="eip"; break;
+			case Register.CR0: name="cr0"; break;
+			case Register.CR2: name="cr2"; break;
+			case Register.CR3: name="cr3"; break;
+			case Register.CR4: name="cr4"; break;
+		}
+		if (access!=0)
+			push(GUICODE.REGISTER_WRITE,name,value);
+//		else
+//			push(GUICODE.REGISTER_READ,name,value);
+	}
+
+	public void pushSegment(int id, int access, int value)
+	{
+		String name="";
+		switch(id)
+		{
+			case Segment.CS: name="cs"; break;
+			case Segment.SS: name="ss"; break;
+			case Segment.DS: name="ds"; break;
+			case Segment.ES: name="es"; break;
+			case Segment.FS: name="fs"; break;
+			case Segment.GS: name="gs"; break;
+			case Segment.IDTR: name="idtr"; break;
+			case Segment.GDTR: name="gdtr"; break;
+			case Segment.LDTR: name="ldtr"; break;
+			case Segment.TSS: name="tss"; break;
+		}
+		if (access!=0)
+			push(GUICODE.REGISTER_WRITE,name,value);
+//		else
+//			push(GUICODE.REGISTER_READ,name,value);
+	}
+
+	public void pushMemory(int segid, int segvalue, int access, int address, short value)
+	{
+		pushMemory(segid,segvalue,access,address,(byte)(value));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>8));
+	}
+
+	public void pushMemory(int segid, int segvalue, int access, int address, int value)
+	{
+		pushMemory(segid,segvalue,access,address,(byte)(value));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>8));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>16));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>24));
+	}
+
+	public void pushMemory(int segid, int segvalue, int access, int address, long value)
+	{
+		pushMemory(segid,segvalue,access,address,(byte)(value));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>8));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>16));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>24));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>32));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>40));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>48));
+		pushMemory(segid,segvalue,access,address,(byte)(value>>>56));
+	}
+
+	public void pushMemory(int segid, int segvalue, int access, int address, byte value)
+	{
+		pushSegment(segid,0,segvalue);
+		if(access==0)
+		{
+			switch(segid)
+			{
+				case Segment.CS: push(GUICODE.CS_MEMORY_READ,address,value); break;
+				case Segment.SS: push(GUICODE.SS_MEMORY_READ,address,value); break;
+				case Segment.DS: push(GUICODE.DS_MEMORY_READ,address,value); break;
+				case Segment.ES: push(GUICODE.ES_MEMORY_READ,address,value); break;
+				case Segment.FS: push(GUICODE.FS_MEMORY_READ,address,value); break;
+				case Segment.GS: push(GUICODE.GS_MEMORY_READ,address,value); break;
+				case Segment.IDTR: push(GUICODE.IDTR_MEMORY_READ,address,value); break;
+				case Segment.GDTR: push(GUICODE.GDTR_MEMORY_READ,address,value); break;
+				case Segment.LDTR: push(GUICODE.LDTR_MEMORY_READ,address,value); break;
+				case Segment.TSS: push(GUICODE.TSS_MEMORY_READ,address,value); break;
+			}
+		}
+		else
+		{
+			switch(segid)
+			{
+				case Segment.CS: push(GUICODE.CS_MEMORY_WRITE,address,value); break;
+				case Segment.SS: push(GUICODE.SS_MEMORY_WRITE,address,value); break;
+				case Segment.DS: push(GUICODE.DS_MEMORY_WRITE,address,value); break;
+				case Segment.ES: push(GUICODE.ES_MEMORY_WRITE,address,value); break;
+				case Segment.FS: push(GUICODE.FS_MEMORY_WRITE,address,value); break;
+				case Segment.GS: push(GUICODE.GS_MEMORY_WRITE,address,value); break;
+				case Segment.IDTR: push(GUICODE.IDTR_MEMORY_WRITE,address,value); break;
+				case Segment.GDTR: push(GUICODE.GDTR_MEMORY_WRITE,address,value); break;
+				case Segment.LDTR: push(GUICODE.LDTR_MEMORY_WRITE,address,value); break;
+				case Segment.TSS: push(GUICODE.TSS_MEMORY_WRITE,address,value); break;
+			}
+		}
+	}
+
+	public void pushInstruction(MICROCODE microcode, int opcode)
+	{
+		String name="";
+
+		switch(microcode)
+		{
+			case OP_MOV: name="mov"; break;
+			case OP_JMP_FAR: name="jmp far"; break;
+			case OP_JMP_ABS: name="jmp abs"; break;
+			case OP_JMP_08:  name="jmp"; break;
+			case OP_JMP_16_32:  name="jmp"; break;
+			case OP_CALL_FAR: name="call far"; break;
+			case OP_CALL_ABS: name="call abs"; break;
+			case OP_CALL: name="call"; break;
+			case OP_RET: name="ret"; break;
+			case OP_RET_IW: name="ret iw"; break;
+			case OP_RET_FAR: name="ret far"; break;
+			case OP_RET_FAR_IW: name="ret far iw"; break;
+			case OP_JO: name="jo"; break;
+			case OP_JO_16_32: name="jo"; break;
+			case OP_JNO: name="jno"; break;
+			case OP_JNO_16_32: name="jno"; break;
+			case OP_JC: name="jc"; break;
+			case OP_JC_16_32: name="jc"; break;
+			case OP_JNC: name="jnc"; break;
+			case OP_JNC_16_32: name="jnc"; break;
+			case OP_JS: name="js"; break;
+			case OP_JS_16_32: name="js"; break;
+			case OP_JNS: name="jns"; break;
+			case OP_JNS_16_32: name="jns"; break;
+			case OP_JZ: name="jz"; break;
+			case OP_JZ_16_32: name="jz"; break;
+			case OP_JNZ: name="jnz"; break;
+			case OP_JNZ_16_32: name="jnz"; break;
+			case OP_JP: name="jp"; break;
+			case OP_JP_16_32: name="jp"; break;
+			case OP_JNP: name="jnp"; break;
+			case OP_JNP_16_32: name="jnp"; break;
+			case OP_JA: name="ja"; break;
+			case OP_JA_16_32: name="ja"; break;
+			case OP_JNA: name="jna"; break;
+			case OP_JNA_16_32: name="jna"; break;
+			case OP_JL: name="jl"; break;
+			case OP_JL_16_32: name="jl"; break;
+			case OP_JNL: name="jnl"; break;
+			case OP_JNL_16_32: name="jnl"; break;
+			case OP_JG: name="jg"; break;
+			case OP_JG_16_32: name="jg"; break;
+			case OP_JNG: name="jng"; break;
+			case OP_JNG_16_32: name="jng"; break;
+			case OP_LOOP_CX:  name="loop cx"; break;
+			case OP_LOOPZ_CX:  name="loopz cx"; break;
+			case OP_LOOPNZ_CX: name="loopnz cx"; break;
+			case OP_JCXZ: name="jcxz"; break;
+			case OP_IN_08: name="in"; break;
+			case OP_IN_16_32: name="in"; break;
+			case OP_INSB: name="insb"; break;
+			case OP_INSW: name="insw"; break;
+			case OP_REP_INSB: name="rep insb"; break;
+			case OP_REP_INSW: name="rep insw"; break;
+			case OP_OUT_08: name="out"; break;
+			case OP_OUT_16_32: name="out"; break;
+			case OP_OUTSB: name="outsb"; break;
+			case OP_OUTSW: name="outsw"; break;
+			case OP_REP_OUTSB: name="rep outsb"; break;
+			case OP_REP_OUTSW: name="rep outsw"; break;
+			case OP_INT: name="int"; break;
+			case OP_INT3: name="int"; break;
+			case OP_IRET: name="iret"; break;
+			case OP_INC: name="inc"; break;
+			case OP_DEC: name="dec"; break;
+			case OP_ADD: name="add"; break;
+			case OP_ADC: name="adc"; break;
+			case OP_SUB: name="sub"; break;
+			case OP_CMP: name="cmp"; break;
+			case OP_SBB: name="sbb"; break;
+			case OP_AND: name="and"; break;
+			case OP_TEST: name="test"; break;
+			case OP_OR: name="or"; break;
+			case OP_XOR: name="xor"; break;
+			case OP_ROL_08: name="rol"; break;
+			case OP_ROL_16_32: name="rol"; break;
+			case OP_ROR_08: name="ror"; break;
+			case OP_ROR_16_32: name="ror"; break;
+			case OP_RCL_08: name="rcl"; break;
+			case OP_RCL_16_32: name="rcl"; break;
+			case OP_RCR_08: name="rcr"; break;
+			case OP_RCR_16_32: name="rcr"; break;
+			case OP_SHL: name="shl"; break;
+			case OP_SHR: name="shr"; break;
+			case OP_SAR_08: name="sar"; break;
+			case OP_SAR_16_32: name="sar"; break;
+			case OP_NOT: name="not"; break;
+			case OP_NEG: name="neg"; break;
+			case OP_MUL_08: name="mul"; break;
+			case OP_MUL_16_32: name="mul"; break;
+			case OP_IMULA_08: name="imula"; break;
+			case OP_IMULA_16_32: name="imula"; break;
+			case OP_IMUL_16_32: name="imul"; break;
+			case OP_DIV_08: name="div"; break;
+			case OP_DIV_16_32: name="div"; break;
+			case OP_IDIV_08: name="idiv"; break;
+			case OP_IDIV_16_32: name="idiv"; break;
+			case OP_BT_MEM: name="bt mem"; break;
+			case OP_BTS_MEM: name="bts mem"; break;
+			case OP_BTR_MEM: name="btr mem"; break;
+			case OP_BTC_MEM: name="btc mem"; break;
+			case OP_BT_16_32: name="bt"; break;
+			case OP_BTS_16_32: name="bts"; break;
+			case OP_BTR_16_32: name="btr"; break;
+			case OP_BTC_16_32: name="btc"; break;
+			case OP_SHLD_16_32: name="shld"; break;
+			case OP_SHRD_16_32: name="shrd"; break;
+			case OP_AAA: name="aaa"; break;
+			case OP_AAD: name="aad"; break;
+			case OP_AAM: name="aam"; break;
+			case OP_AAS: name="aas"; break;
+			case OP_CWD: name="cwd"; break;
+			case OP_DAA: name="daa"; break;
+			case OP_DAS: name="das"; break;
+			case OP_BOUND: name="bound"; break;
+			case OP_SIGN_EXTEND: name="cdw"; break;
+			case OP_SIGN_EXTEND_8_16: name="cdw"; break;
+			case OP_SIGN_EXTEND_8_32: name="cdw"; break;
+			case OP_SIGN_EXTEND_16_32: name="cdw"; break;
+			case OP_SCASB: name="scasb"; break;
+			case OP_SCASW: name="scasw"; break;
+			case OP_REPNE_SCASB: name="repne scasb"; break;
+			case OP_REPE_SCASB: name="repe scasb"; break;
+			case OP_REPNE_SCASW: name="repne scasw"; break;
+			case OP_REPE_SCASW: name="repe scasw"; break;
+			case OP_CMPSB: name="cmpsb"; break;
+			case OP_CMPSW: name="cmpsw"; break;
+			case OP_REPNE_CMPSB: name="repne cmpsb"; break;
+			case OP_REPE_CMPSB: name="repe cmpsb"; break;
+			case OP_REPNE_CMPSW: name="repne cmpsw"; break;
+			case OP_REPE_CMPSW: name="repe cmpsw"; break;
+			case OP_LODSB: name="lodsb"; break;
+			case OP_LODSW: name="lodsw"; break;
+			case OP_REP_LODSB: name="rep lodsb"; break;
+			case OP_REP_LODSW: name="rep lodsw"; break;
+			case OP_STOSB: name="stosb"; break;
+			case OP_STOSW: name="stosw"; break;
+			case OP_REP_STOSB: name="rep stosb"; break;
+			case OP_REP_STOSW: name="rep stosw"; break;
+			case OP_MOVSB: name="movsb"; break;
+			case OP_MOVSW: name="movsw"; break;
+			case OP_REP_MOVSB: name="rep movsb"; break;
+			case OP_REP_MOVSW: name="rep movsw"; break;
+			case OP_CLC: name="clc"; break;
+			case OP_STC: name="stc"; break;
+			case OP_CLI: name="cli"; break;
+			case OP_STI: name="sti"; break;
+			case OP_CLD: name="cld"; break;
+			case OP_STD: name="std"; break;
+			case OP_CMC: name="cmc"; break;
+			case OP_SETO: name="seto"; break;
+			case OP_SETNO: name="setno"; break;
+			case OP_SETC: name="setc"; break;
+			case OP_SETNC: name="setnc"; break;
+			case OP_SETZ: name="setz"; break;
+			case OP_SETNZ: name="setnz"; break;
+			case OP_SETA: name="seta"; break;
+			case OP_SETNA: name="setna"; break;
+			case OP_SETL: name="setl"; break;
+			case OP_SETNL: name="setnl"; break;
+			case OP_SETG: name="setg"; break;
+			case OP_SETNG: name="setng"; break;
+			case OP_SETS: name="sets"; break;
+			case OP_SETNS: name="setns"; break;
+			case OP_SETP: name="setp"; break;
+			case OP_SETNP: name="setnp"; break;
+			case OP_SALC: name="salc"; break;
+			case OP_LAHF: name="lahf"; break;
+			case OP_SAHF: name="sahf"; break;
+			case OP_CMOVO: name="cmovo"; break;
+			case OP_CMOVNO: name="cmovno"; break;
+			case OP_CMOVC: name="cmovc"; break;
+			case OP_CMOVNC: name="cmovnc"; break;
+			case OP_CMOVZ: name="cmovz"; break;
+			case OP_CMOVNZ: name="cmovnz"; break;
+			case OP_CMOVP: name="cmovp"; break;
+			case OP_CMOVNP: name="cmovnp"; break;
+			case OP_CMOVS: name="cmovs"; break;
+			case OP_CMOVNS: name="cmovns"; break;
+			case OP_CMOVL: name="cmovl"; break;
+			case OP_CMOVNL: name="cmovnl"; break;
+			case OP_CMOVG: name="cmovg"; break;
+			case OP_CMOVNG: name="cmovng"; break;
+			case OP_CMOVA: name="cmova"; break;
+			case OP_CMOVNA: name="cmovna"; break;
+			case OP_POP: name="pop"; break;
+			case OP_POPF: name="popf"; break;
+			case OP_POPA: name="popa"; break;
+			case OP_LEAVE: name="leave"; break;
+			case OP_PUSH: name="push"; break;
+			case OP_PUSHF: name="pushf"; break;
+			case OP_PUSHA: name="pusha"; break;
+			case OP_ENTER: name="enter"; break;
+			case OP_LGDT: name="lgdt"; break;
+			case OP_LIDT: name="lidt"; break;
+			case OP_LLDT: name="lldt"; break;
+			case OP_LMSW: name="lmsw"; break;
+			case OP_LTR: name="ltr"; break;
+			case OP_SGDT: name="sgdt"; break;
+			case OP_SIDT: name="sidt"; break;
+			case OP_SLDT: name="sldt"; break;
+			case OP_SMSW: name="smsw"; break;
+			case OP_STR: name="str"; break;
+			case OP_CLTS: name="clts"; break;
+			case OP_CPUID: name="cpuid"; break;
+			case OP_HALT: name="halt"; break;
+			case OP_RDTSC: name="rdtsc"; break;
+			default: name="nop"; break;
+		}
+
+		push(GUICODE.DECODE_INSTRUCTION, name);
+	}
+
+	public void pushMicrocode(MICROCODE microcode, int reg0, int reg1, int addr, boolean condition)
+	{
+		String name="";
+		switch(microcode)
+		{
+			case LOAD_SEG_CS: addressString="cs:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"cs"); break;
+			case LOAD_SEG_SS: addressString="ss:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"ss"); break;
+			case LOAD_SEG_DS: addressString="ds:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"ds"); break;
+			case LOAD_SEG_ES: addressString="es:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"es"); break;
+			case LOAD_SEG_FS: addressString="fs:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"fs"); break;
+			case LOAD_SEG_GS: addressString="gs:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"gs"); break;
+
+			case ADDR_AX: addressString+="ax+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"ax"); break;
+			case ADDR_BX: addressString+="bx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bx"); break;
+			case ADDR_CX: addressString+="cx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"cx"); break;
+			case ADDR_DX: addressString+="dx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"dx"); break;
+			case ADDR_SP: addressString+="sp+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"sp"); break;
+			case ADDR_BP: addressString+="bp+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bp"); break;
+			case ADDR_SI: addressString+="si+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"si"); break;
+			case ADDR_DI: addressString+="di+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"di"); break;
+			case ADDR_EAX: addressString+="eax+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"ax"); break;
+			case ADDR_EBX: addressString+="ebx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bx"); break;
+			case ADDR_ECX: addressString+="ecx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"cx"); break;
+			case ADDR_EDX: addressString+="edx+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"dx"); break;
+			case ADDR_ESP: addressString+="esp+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"sp"); break;
+			case ADDR_EBP: addressString+="ebp+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bp"); break;
+			case ADDR_ESI: addressString+="esi+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"si"); break;
+			case ADDR_EDI: addressString+="edi+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"di"); break;
+			case ADDR_2EAX: addressString+="eax*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"ax"); break;
+			case ADDR_2EBX: addressString+="ebx*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bx"); break;
+			case ADDR_2ECX: addressString+="ecx*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"cx"); break;
+			case ADDR_2EDX: addressString+="edx*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"dx"); break;
+			case ADDR_2EBP: addressString+="ebp*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bp"); break;
+			case ADDR_2ESI: addressString+="esi*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"si"); break;
+			case ADDR_2EDI: addressString+="edi*2+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"di"); break;
+			case ADDR_4EAX: addressString+="eax*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"ax"); break;
+			case ADDR_4EBX: addressString+="ebx*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bx"); break;
+			case ADDR_4ECX: addressString+="ecx*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"cx"); break;
+			case ADDR_4EDX: addressString+="edx*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"dx"); break;
+			case ADDR_4EBP: addressString+="ebp*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bp"); break;
+			case ADDR_4ESI: addressString+="esi*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"si"); break;
+			case ADDR_4EDI: addressString+="edi*4+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"di"); break;
+			case ADDR_8EAX: addressString+="eax*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"ax"); break;
+			case ADDR_8EBX: addressString+="ebx*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bx"); break;
+			case ADDR_8ECX: addressString+="ecx*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"cx"); break;
+			case ADDR_8EDX: addressString+="edx*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"dx"); break;
+			case ADDR_8EBP: addressString+="ebp*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"bp"); break;
+			case ADDR_8ESI: addressString+="esi*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"si"); break;
+			case ADDR_8EDI: addressString+="edi*8+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"di"); break;
+			case ADDR_IB: addressString+=Integer.toHexString(displacement)+"+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"displacement",displacement); break;
+			case ADDR_IW: addressString+=Integer.toHexString(displacement)+"+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"displacement",displacement); break;
+			case ADDR_ID: addressString+=Integer.toHexString(displacement)+"+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"displacement",displacement); break;
+
+			case LOAD0_AX: name="ax"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_EAX: name="eax"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_AL: name="al"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_AH: name="ah"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_BX: name="bx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_EBX: name="ebx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_BL: name="bl"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_BH: name="bh"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_CX: name="cx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_ECX: name="ecx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_CL: name="cl"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_CH: name="ch"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_DX: name="dx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_EDX: name="edx"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_DL: name="dl"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_DH: name="dh"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_SI: name="si"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_ESI: name="esi"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_DI: name="di"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_EDI: name="edi"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_SP: name="sp"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_ESP: name="esp"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_BP: name="bp"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_EBP: name="ebp"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_CS: name="cs"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_DS: name="ds"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_SS: name="ss"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_ES: name="es"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_FS: name="fs"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_GS: name="gs"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_FLAGS: case LOAD0_EFLAGS: name="flags"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_ADDR: name="["+addressString.substring(0,addressString.length()-1)+"]"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_IB: case LOAD0_IW: case LOAD0_ID: name="immediate"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_CR0: name="cr0"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_CR2: name="cr2"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_CR3: name="cr3"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_CR4: name="cr4"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD0_MEM_BYTE: case LOAD0_MEM_WORD: case LOAD0_MEM_DOUBLE: name="memory["+addressString.substring(0,addressString.length()-1)+"]"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
+			case LOAD1_AX: name="ax"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_EAX: name="eax"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_AL: name="al"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_AH: name="ah"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_BX: name="bx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_EBX: name="ebx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_BL: name="bl"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_BH: name="bh"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_CX: name="cx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_ECX: name="ecx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_CL: name="cl"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_CH: name="ch"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_DX: name="dx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_EDX: name="edx"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_DL: name="dl"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_DH: name="dh"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_SI: name="si"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_ESI: name="esi"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_DI: name="di"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_EDI: name="edi"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_SP: name="sp"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_ESP: name="esp"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_BP: name="bp"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_EBP: name="ebp"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_CS: name="cs"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_DS: name="ds"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_SS: name="ss"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_ES: name="es"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_FS: name="fs"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_GS: name="gs"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_FLAGS: case LOAD1_EFLAGS: name="flags"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_IB: case LOAD1_IW: case LOAD1_ID: name="immediate"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+			case LOAD1_MEM_BYTE: case LOAD1_MEM_WORD: case LOAD1_MEM_DOUBLE: name="memory["+addressString.substring(0,addressString.length()-1)+"]"; push(GUICODE.DECODE_INPUT_OPERAND_1,name,reg1); break;
+
+			case STORE0_AX: name="ax"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_EAX: name="eax"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_AL: name="al"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_AH: name="ah"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_BX: name="bx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_EBX: name="ebx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_BL: name="bl"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_BH: name="bh"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_CX: name="cx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_ECX: name="ecx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_CL: name="cl"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_CH: name="ch"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_DX: name="dx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_EDX: name="edx"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_DL: name="dl"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_DH: name="dh"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_SI: name="si"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_ESI: name="esi"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_DI: name="di"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_EDI: name="edi"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_SP: name="sp"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_ESP: name="esp"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_BP: name="bp"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_EBP: name="ebp"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_CS: name="cs"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_DS: name="ds"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_SS: name="ss"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_ES: name="es"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_FS: name="fs"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_GS: name="gs"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_FLAGS: case STORE0_EFLAGS: name="flags"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_CR0: name="cr0"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_CR2: name="cr2"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_CR3: name="cr3"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_CR4: name="cr4"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			case STORE0_MEM_BYTE: case STORE0_MEM_WORD: case STORE0_MEM_DOUBLE: name="memory["+addressString.substring(0,addressString.length()-1)+"]"; push(GUICODE.DECODE_OUTPUT_OPERAND_0,name,reg0); break;
+			
+			case STORE1_AX: name="ax"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_EAX: name="eax"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_AL: name="al"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_AH: name="ah"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_BX: name="bx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_EBX: name="ebx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_BL: name="bl"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_BH: name="bh"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_CX: name="cx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_ECX: name="ecx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_CL: name="cl"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_CH: name="ch"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_DX: name="dx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_EDX: name="edx"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_DL: name="dl"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_DH: name="dh"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_SI: name="si"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_ESI: name="esi"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_DI: name="di"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_EDI: name="edi"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_SP: name="sp"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_ESP: name="esp"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_BP: name="bp"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_EBP: name="ebp"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_CS: name="cs"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_DS: name="ds"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_SS: name="ss"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_ES: name="es"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_FS: name="fs"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_GS: name="gs"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_FLAGS: case STORE1_EFLAGS: name="flags"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+			case STORE1_MEM_BYTE: case STORE1_MEM_WORD: case STORE1_MEM_DOUBLE: name="memory["+addressString.substring(0,addressString.length()-1)+"]"; push(GUICODE.DECODE_OUTPUT_OPERAND_1,name,reg1); break;
+
+
+			case OP_JMP_FAR: 
+			case OP_JMP_ABS:
+				push(GUICODE.EXECUTE_JUMP_ABSOLUTE,reg0); break;
+			case OP_JMP_08: 
+			case OP_JMP_16_32: 
+				push(GUICODE.EXECUTE_JUMP,reg0); break;
+			case OP_CALL_FAR:
+			case OP_CALL_ABS:
+				push(GUICODE.EXECUTE_CALL_STACK,reg0); push(GUICODE.EXECUTE_JUMP_ABSOLUTE,reg0); break;
+			case OP_CALL:
+				push(GUICODE.EXECUTE_CALL_STACK,reg0); push(GUICODE.EXECUTE_JUMP,reg0); break;
+			case OP_RET:
+			case OP_RET_IW:
+			case OP_RET_FAR:
+			case OP_RET_FAR_IW:
+				push(GUICODE.EXECUTE_RETURN); break;
+
+			case OP_JO:
+			case OP_JO_16_32:
+			case OP_JNO:
+			case OP_JNO_16_32:
+			case OP_JC:
+			case OP_JC_16_32:
+			case OP_JNC:
+			case OP_JNC_16_32:
+			case OP_JS:
+			case OP_JS_16_32:
+			case OP_JNS:
+			case OP_JNS_16_32:
+			case OP_JZ:
+			case OP_JZ_16_32:
+			case OP_JNZ:
+			case OP_JNZ_16_32:
+			case OP_JP:
+			case OP_JP_16_32:
+			case OP_JNP:
+			case OP_JNP_16_32:
+			case OP_JA:
+			case OP_JA_16_32:
+			case OP_JNA:
+			case OP_JNA_16_32:
+			case OP_JL:
+			case OP_JL_16_32:
+			case OP_JNL:
+			case OP_JNL_16_32:
+			case OP_JG:
+			case OP_JG_16_32:
+			case OP_JNG:
+			case OP_JNG_16_32:
+			case OP_LOOP_CX: 
+			case OP_LOOPZ_CX: 
+			case OP_LOOPNZ_CX:
+			case OP_JCXZ:
+ 
+				push(GUICODE.EXECUTE_CONDITION);
+				if(condition)
+					push(GUICODE.EXECUTE_JUMP,reg0);
+				break;
+
+			case OP_IN_08:
+			case OP_IN_16_32:
+			case OP_INSB:
+			case OP_INSW:
+			case OP_REP_INSB:
+			case OP_REP_INSW:
+				push(GUICODE.EXECUTE_PORT_READ); break;
+			case OP_OUT_08:
+			case OP_OUT_16_32:
+			case OP_OUTSB:
+			case OP_OUTSW:
+			case OP_REP_OUTSB:
+			case OP_REP_OUTSW:
+				push(GUICODE.EXECUTE_PORT_WRITE); break;
+
+			case OP_INT:
+			case OP_INT3:
+				push(GUICODE.EXECUTE_INTERRUPT,reg0); break;
+
+			case OP_IRET:
+				push(GUICODE.EXECUTE_INTERRUPT_RETURN); break;
+
+			case OP_INC:
+			case OP_DEC:
+			case OP_NOT:
+			case OP_NEG:
+			case OP_SHRD_16_32:
+			case OP_AAA:
+			case OP_AAD:
+			case OP_AAM:
+			case OP_AAS:
+			case OP_CWD:
+			case OP_DAA:
+			case OP_DAS:
+			case OP_BOUND:
+			case OP_SIGN_EXTEND:
+			case OP_SIGN_EXTEND_8_16:
+			case OP_SIGN_EXTEND_8_32:
+			case OP_SIGN_EXTEND_16_32:
+				push(GUICODE.EXECUTE_ARITHMETIC_1_1); push(GUICODE.EXECUTE_FLAG); break;
+
+			case OP_ADD:
+			case OP_ADC:
+			case OP_SUB:
+			case OP_CMP:
+			case OP_SBB:
+			case OP_AND:
+			case OP_TEST:
+			case OP_OR:
+			case OP_XOR:
+			case OP_ROL_08:
+			case OP_ROL_16_32:
+			case OP_ROR_08:
+			case OP_ROR_16_32:
+			case OP_RCL_08:
+			case OP_RCL_16_32:
+			case OP_RCR_08:
+			case OP_RCR_16_32:
+			case OP_SHL:
+			case OP_SHR:
+			case OP_SAR_08:
+			case OP_SAR_16_32:
+			case OP_MUL_08:
+			case OP_MUL_16_32:
+			case OP_IMULA_08:
+			case OP_IMULA_16_32:
+			case OP_IMUL_16_32:
+			case OP_DIV_08:
+			case OP_DIV_16_32:
+			case OP_IDIV_08:
+			case OP_IDIV_16_32:
+			case OP_SHLD_16_32:
+			case OP_BT_MEM:
+			case OP_BTS_MEM:
+			case OP_BTR_MEM:
+			case OP_BTC_MEM:
+			case OP_BT_16_32:
+			case OP_BTS_16_32:
+			case OP_BTR_16_32:
+			case OP_BTC_16_32:
+				push(GUICODE.EXECUTE_ARITHMETIC_2_1); push(GUICODE.EXECUTE_FLAG); break;
+
+			case OP_SCASB:
+			case OP_SCASW:
+			case OP_REPNE_SCASB:
+			case OP_REPE_SCASB:
+			case OP_REPNE_SCASW:
+			case OP_REPE_SCASW:
+			case OP_CMPSB:
+			case OP_CMPSW:
+			case OP_REPNE_CMPSB:
+			case OP_REPE_CMPSB:
+			case OP_REPNE_CMPSW:
+			case OP_REPE_CMPSW:
+				push(GUICODE.EXECUTE_MEMORY_COMPARE); break;
+
+			case OP_LODSB:
+			case OP_LODSW:
+			case OP_REP_LODSB:
+			case OP_REP_LODSW:
+			case OP_STOSB:
+			case OP_STOSW:
+			case OP_REP_STOSB:
+			case OP_REP_STOSW:
+			case OP_MOVSB:
+			case OP_MOVSW:
+			case OP_REP_MOVSB:
+			case OP_REP_MOVSW:
+				push(GUICODE.EXECUTE_MEMORY_TRANSFER); break;
+
+			case OP_CLC:
+			case OP_STC:
+			case OP_CLI:
+			case OP_STI:
+			case OP_CLD:
+			case OP_STD:
+			case OP_CMC:
+			case OP_SETO:
+			case OP_SETNO:
+			case OP_SETC:
+			case OP_SETNC:
+			case OP_SETZ:
+			case OP_SETNZ:
+			case OP_SETA:
+			case OP_SETNA:
+			case OP_SETL:
+			case OP_SETNL:
+			case OP_SETG:
+			case OP_SETNG:
+			case OP_SETS:
+			case OP_SETNS:
+			case OP_SETP:
+			case OP_SETNP:
+			case OP_SALC:
+			case OP_LAHF:
+			case OP_SAHF:
+				push(GUICODE.EXECUTE_FLAG); break;
+
+			case OP_CMOVO:
+			case OP_CMOVNO:
+			case OP_CMOVC:
+			case OP_CMOVNC:
+			case OP_CMOVZ:
+			case OP_CMOVNZ:
+			case OP_CMOVP:
+			case OP_CMOVNP:
+			case OP_CMOVS:
+			case OP_CMOVNS:
+			case OP_CMOVL:
+			case OP_CMOVNL:
+			case OP_CMOVG:
+			case OP_CMOVNG:
+			case OP_CMOVA:
+			case OP_CMOVNA:
+				push(GUICODE.EXECUTE_CONDITION);
+				if(condition)
+					push(GUICODE.EXECUTE_TRANSFER);
+				break;
+
+			case OP_POP:
+			case OP_POPF:
+			case OP_POPA:
+			case OP_LEAVE:
+				push(GUICODE.EXECUTE_POP);
+				break;
+			case OP_PUSH:
+			case OP_PUSHF:
+			case OP_PUSHA:
+			case OP_ENTER:
+				push(GUICODE.EXECUTE_PUSH);
+				break;
+
+			case OP_LGDT:
+			case OP_LIDT:
+			case OP_LLDT:
+			case OP_LMSW:
+			case OP_LTR:
+			case OP_SGDT:
+			case OP_SIDT:
+			case OP_SLDT:
+			case OP_SMSW:
+			case OP_STR:
+			case OP_CPUID:
+			case OP_RDTSC:
+				push(GUICODE.EXECUTE_TRANSFER);
+				break;
+
+			case OP_HALT:
+				push(GUICODE.EXECUTE_HALT);
+				break;
+		}
+	}
+}
+
+enum MICROCODE 
+{
+PREFIX_LOCK, PREFIX_REPNE, PREFIX_REPE, PREFIX_CS, PREFIX_SS, PREFIX_DS, PREFIX_ES, PREFIX_FS, PREFIX_GS, PREFIX_OPCODE_32BIT, PREFIX_ADDRESS_32BIT,
+
+LOAD0_AX, LOAD0_AL, LOAD0_AH, LOAD0_BX, LOAD0_BL, LOAD0_BH, LOAD0_CX, LOAD0_CL, LOAD0_CH, LOAD0_DX, LOAD0_DL, LOAD0_DH, LOAD0_SP, LOAD0_BP, LOAD0_SI, LOAD0_DI, LOAD0_CS, LOAD0_SS, LOAD0_DS, LOAD0_ES, LOAD0_FS, LOAD0_GS, LOAD0_FLAGS, LOAD1_AX, LOAD1_AL, LOAD1_AH, LOAD1_BX, LOAD1_BL, LOAD1_BH, LOAD1_CX, LOAD1_CL, LOAD1_CH, LOAD1_DX, LOAD1_DL, LOAD1_DH, LOAD1_SP, LOAD1_BP, LOAD1_SI, LOAD1_DI, LOAD1_CS, LOAD1_SS, LOAD1_DS, LOAD1_ES, LOAD1_FS, LOAD1_GS, LOAD1_FLAGS, STORE0_AX, STORE0_AL, STORE0_AH, STORE0_BX, STORE0_BL, STORE0_BH, STORE0_CX, STORE0_CL, STORE0_CH, STORE0_DX, STORE0_DL, STORE0_DH, STORE0_SP, STORE0_BP, STORE0_SI, STORE0_DI, STORE0_CS, STORE0_SS, STORE0_DS, STORE0_ES, STORE0_FS, STORE0_GS, STORE1_AX, STORE1_AL, STORE1_AH, STORE1_BX, STORE1_BL, STORE1_BH, STORE1_CX, STORE1_CL, STORE1_CH, STORE1_DX, STORE1_DL, STORE1_DH, STORE1_SP, STORE1_BP, STORE1_SI, STORE1_DI, STORE1_CS, STORE1_SS, STORE1_DS, STORE1_ES, STORE1_FS, STORE1_GS, STORE1_FLAGS, LOAD0_MEM_BYTE, LOAD0_MEM_WORD, STORE0_MEM_BYTE, STORE0_MEM_WORD, LOAD1_MEM_BYTE, LOAD1_MEM_WORD, STORE1_MEM_BYTE, STORE1_MEM_WORD, STORE1_ESP, STORE0_FLAGS, LOAD0_IB, LOAD0_IW, LOAD1_IB, LOAD1_IW, LOAD_SEG_CS, LOAD_SEG_SS, LOAD_SEG_DS, LOAD_SEG_ES, LOAD_SEG_FS, LOAD_SEG_GS, LOAD0_ADDR, LOAD0_EAX, LOAD0_EBX, LOAD0_ECX, LOAD0_EDX, LOAD0_ESI, LOAD0_EDI, LOAD0_EBP, LOAD0_ESP, LOAD1_EAX, LOAD1_EBX, LOAD1_ECX, LOAD1_EDX, LOAD1_ESI, LOAD1_EDI, LOAD1_EBP, LOAD1_ESP, STORE0_EAX, STORE0_EBX, STORE0_ECX, STORE0_EDX, STORE0_ESI, STORE0_EDI, STORE0_ESP, STORE0_EBP, STORE1_EAX, STORE1_EBX, STORE1_ECX, STORE1_EDX, STORE1_ESI, STORE1_EDI, STORE1_EBP, LOAD0_MEM_DOUBLE, LOAD1_MEM_DOUBLE, STORE0_MEM_DOUBLE, STORE1_MEM_DOUBLE, LOAD0_EFLAGS, LOAD1_EFLAGS, STORE0_EFLAGS, STORE1_EFLAGS, LOAD0_ID, LOAD1_ID, LOAD0_CR0, LOAD0_CR2, LOAD0_CR3, LOAD0_CR4, STORE0_CR0, STORE0_CR2, STORE0_CR3, STORE0_CR4,
+
+FLAG_BITWISE_08, FLAG_BITWISE_16, FLAG_BITWISE_32, FLAG_SUB_08, FLAG_SUB_16, FLAG_SUB_32, FLAG_REP_SUB_08, FLAG_REP_SUB_16, FLAG_REP_SUB_32, FLAG_ADD_08, FLAG_ADD_16, FLAG_ADD_32, FLAG_ADC_08, FLAG_ADC_16, FLAG_ADC_32, FLAG_SBB_08, FLAG_SBB_16, FLAG_SBB_32, FLAG_DEC_08, FLAG_DEC_16, FLAG_DEC_32, FLAG_INC_08, FLAG_INC_16, FLAG_INC_32, FLAG_SHL_08, FLAG_SHL_16, FLAG_SHL_32, FLAG_SHR_08, FLAG_SHR_16, FLAG_SHR_32, FLAG_SAR_08, FLAG_SAR_16, FLAG_SAR_32, FLAG_RCL_08, FLAG_RCL_16, FLAG_RCL_32, FLAG_RCR_08, FLAG_RCR_16, FLAG_RCR_32, FLAG_ROL_08, FLAG_ROL_16, FLAG_ROL_32, FLAG_ROR_08, FLAG_ROR_16, FLAG_ROR_32, FLAG_NEG_08, FLAG_NEG_16, FLAG_NEG_32, FLAG_ROTATE_08, FLAG_ROTATE_16, FLAG_ROTATE_32, FLAG_UNIMPLEMENTED, FLAG_8F, FLAG_NONE, FLAG_BAD, FLAG_80_82, FLAG_81_83, FLAG_FF, FLAG_F6, FLAG_F7, FLAG_FE, FLAG_FLOAT_NOP,
+
+ADDR_AX, ADDR_BX, ADDR_CX, ADDR_DX, ADDR_SP, ADDR_BP, ADDR_SI, ADDR_DI, ADDR_IB, ADDR_IW, ADDR_AL, ADDR_EAX, ADDR_EBX, ADDR_ECX, ADDR_EDX, ADDR_ESP, ADDR_EBP, ADDR_ESI, ADDR_EDI, ADDR_ID, ADDR_MASK_16, ADDR_2EAX, ADDR_2EBX, ADDR_2ECX, ADDR_2EDX, ADDR_2EBP, ADDR_2ESI, ADDR_2EDI, ADDR_4EAX, ADDR_4EBX, ADDR_4ECX, ADDR_4EDX, ADDR_4EBP, ADDR_4ESI, ADDR_4EDI, ADDR_8EAX, ADDR_8EBX, ADDR_8ECX, ADDR_8EDX, ADDR_8EBP, ADDR_8ESI, ADDR_8EDI,
+
+OP_JMP_FAR, OP_JMP_ABS, OP_CALL, OP_CALL_FAR, OP_CALL_ABS, OP_RET, OP_RET_IW, OP_RET_FAR, OP_RET_FAR_IW, OP_ENTER, OP_LEAVE, OP_JMP_08, OP_JMP_16_32, OP_JO, OP_JO_16_32, OP_JNO, OP_JNO_16_32, OP_JC, OP_JC_16_32, OP_JNC, OP_JNC_16_32, OP_JZ, OP_JZ_16_32, OP_JNZ, OP_JNZ_16_32, OP_JS, OP_JS_16_32, OP_JNS, OP_JNS_16_32, OP_JP, OP_JP_16_32, OP_JNP, OP_JNP_16_32, OP_JA, OP_JA_16_32, OP_JNA, OP_JNA_16_32, OP_JL, OP_JL_16_32, OP_JNL, OP_JNL_16_32, OP_JG, OP_JG_16_32, OP_JNG, OP_JNG_16_32, OP_INT, OP_INT3, OP_IRET, OP_IN_08, OP_IN_16_32, OP_OUT_08, OP_OUT_16_32, OP_INC, OP_DEC, OP_ADD, OP_ADC, OP_SUB, OP_SBB, OP_AND, OP_TEST, OP_OR, OP_XOR, OP_ROL_08, OP_ROL_16_32, OP_ROR_08, OP_ROR_16_32, OP_RCL_08, OP_RCL_16_32, OP_RCR_08, OP_RCR_16_32, OP_SHR, OP_SAR_08, OP_SAR_16_32, OP_NOT, OP_NEG, OP_MUL_08, OP_MUL_16_32, OP_IMULA_08, OP_IMULA_16_32, OP_IMUL_16_32, OP_BSF, OP_BSR, OP_BT_MEM, OP_BTS_MEM, OP_BTR_MEM, OP_BTC_MEM, OP_BT_16_32, OP_BTS_16_32, OP_BTR_16_32, OP_BTC_16_32, OP_SHLD_16_32, OP_SHRD_16_32, OP_CWD, OP_CDQ, OP_AAA, OP_AAD, OP_AAM, OP_AAS, OP_DAA, OP_DAS, OP_BOUND, OP_CLC, OP_STC, OP_CLI, OP_STI, OP_CLD, OP_STD, OP_CMC, OP_SETO, OP_SETNO, OP_SETC, OP_SETNC, OP_SETZ, OP_SETNZ, OP_SETA, OP_SETNA, OP_SETS, OP_SETNS, OP_SETP, OP_SETNP, OP_SETL, OP_SETNL, OP_SETG, OP_SETNG, OP_SALC, OP_CMOVO, OP_CMOVNO, OP_CMOVC, OP_CMOVNC, OP_CMOVZ, OP_CMOVNZ, OP_CMOVS, OP_CMOVNS, OP_CMOVP, OP_CMOVNP, OP_CMOVA, OP_CMOVNA, OP_CMOVL, OP_CMOVNL, OP_CMOVG, OP_CMOVNG, OP_LAHF, OP_SAHF, OP_POP, OP_POPF, OP_PUSH, OP_PUSHA, OP_POPA, OP_SIGN_EXTEND_8_16, OP_SIGN_EXTEND_8_32, OP_SIGN_EXTEND_16_32, OP_SIGN_EXTEND, OP_INSB, OP_INSW, OP_REP_INSB, OP_REP_INSW, OP_LODSB, OP_LODSW, OP_REP_LODSB, OP_REP_LODSW, OP_MOVSB, OP_MOVSW, OP_REP_MOVSB, OP_REP_MOVSW, OP_OUTSB, OP_OUTSW, OP_REP_OUTSB, OP_REP_OUTSW, OP_STOSB, OP_STOSW, OP_REP_STOSB, OP_REP_STOSW, OP_LOOP_CX, OP_LOOPZ_CX, OP_LOOPNZ_CX, OP_JCXZ, OP_HALT, OP_CPUID, OP_NOP, OP_MOV, OP_CMP, OP_BAD, OP_UNIMPLEMENTED, OP_ROTATE_08, OP_ROTATE_16_32, OP_INT0, OP_CBW, OP_PUSHF, OP_SHL, OP_80_83, OP_FF, OP_F6, OP_F7, OP_DIV_08, OP_DIV_16_32, OP_IDIV_08, OP_IDIV_16_32, OP_SCASB, OP_SCASW, OP_REPE_SCASB, OP_REPE_SCASW, OP_REPNE_SCASB, OP_REPNE_SCASW, OP_CMPSB, OP_CMPSW, OP_REPE_CMPSB, OP_REPE_CMPSW, OP_REPNE_CMPSB, OP_REPNE_CMPSW, OP_FE, OP_FLOAT_NOP, OP_SGDT, OP_SIDT, OP_LGDT, OP_LIDT, OP_SMSW, OP_LMSW, OP_F01, OP_F00, OP_SLDT, OP_STR, OP_LLDT, OP_LTR, OP_VERR, OP_VERW, OP_CLTS, OP_RDTSC
+}
+enum GUICODE
+{
+//processor action codes
+FETCH, DECODE_PREFIX, DECODE_INSTRUCTION, DECODE_OPCODE, DECODE_MODRM, DECODE_SIB, DECODE_INPUT_OPERAND_0, DECODE_INPUT_OPERAND_1, DECODE_OUTPUT_OPERAND_0, DECODE_OUTPUT_OPERAND_1, DECODE_IMMEDIATE, DECODE_DISPLACEMENT, HARDWARE_INTERRUPT, SOFTWARE_INTERRUPT, EXCEPTION, DECODE_MEMORY_ADDRESS, DECODE_SEGMENT_ADDRESS,
+
+EXECUTE_JUMP, EXECUTE_JUMP_ABSOLUTE, EXECUTE_RETURN, EXECUTE_CALL_STACK, EXECUTE_CONDITION, EXECUTE_PORT_READ, EXECUTE_PORT_WRITE, EXECUTE_INTERRUPT, EXECUTE_INTERRUPT_RETURN, EXECUTE_ARITHMETIC_1_1, EXECUTE_ARITHMETIC_2_1, EXECUTE_MEMORY_COMPARE, EXECUTE_MEMORY_TRANSFER, EXECUTE_FLAG, EXECUTE_TRANSFER, EXECUTE_PUSH, EXECUTE_POP, EXECUTE_HALT,
+
+//mode codes
+MODE_REAL, MODE_PROTECTED,
+
+//storage codes
+FLAG_SET, FLAG_CLEAR, FLAG_READ, REGISTER_READ, REGISTER_WRITE, PORT_READ, PORT_WRITE, CS_MEMORY_READ, CS_MEMORY_WRITE, SS_MEMORY_READ, SS_MEMORY_WRITE, DS_MEMORY_READ, DS_MEMORY_WRITE, ES_MEMORY_READ, ES_MEMORY_WRITE, FS_MEMORY_READ, FS_MEMORY_WRITE, GS_MEMORY_READ, GS_MEMORY_WRITE, IDTR_MEMORY_READ, IDTR_MEMORY_WRITE, GDTR_MEMORY_READ, GDTR_MEMORY_WRITE, LDTR_MEMORY_READ, LDTR_MEMORY_WRITE, TSS_MEMORY_READ, TSS_MEMORY_WRITE,
 };
 
 }
