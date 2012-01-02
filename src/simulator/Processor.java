@@ -59,8 +59,10 @@ public Processor(Computer computer)
 	gs=new Segment(Segment.GS,computer.physicalMemory);
 
 	idtr=new Segment(Segment.IDTR,computer.physicalMemory);
+//	idtr=new Segment(Segment.IDTR,linearMemory);
  	idtr.setDescriptorValue(0);
 	gdtr=new Segment(Segment.GDTR,computer.physicalMemory);
+//	gdtr=new Segment(Segment.GDTR,linearMemory);
 	gdtr.setDescriptorValue(0);
 	ldtr=new Segment(Segment.LDTR,linearMemory);
 	ldtr.setDescriptorValue(0);
@@ -833,8 +835,6 @@ public class Segment
 			}
 			descriptor=ldtr.loadQuadWord(value&0xfff8);
 		}
-		if (computer.debugMode)
-			System.out.printf("Value is %x, Descriptor is %x\n",value,descriptor);
 		setProtectedValue(value,descriptor);
 		linearMemory.setSupervisor(sup);
 	}
@@ -855,6 +855,11 @@ public class Segment
 		defaultSize=(descriptor&(1l<<54))!=0;
 		present=(descriptor&(1l<<47))!=0;
 		system=(descriptor&(1l<<44))!=0;
+		
+		if (id==CS && !defaultSize)
+			System.out.println("operating in 16 bit protected mode "+descriptor+" "+value);
+		else if (id==CS)
+			System.out.println("operating in 32 bit protected mode "+descriptor+" "+value);
 	}
 
 	public int getBase()
@@ -1221,6 +1226,7 @@ public void executeMicroInstructions()
 	long reg0l=0;
 	Segment seg=null;
 	boolean condition=false;
+	int displacement=0;
 
 	codesHandled=0;
 	icodesHandled=0;
@@ -1232,14 +1238,16 @@ public void executeMicroInstructions()
 	{
 	while (codesHandled < codeLength)
 	{
-	if(computer.debugMode)
-	{
-		System.out.println(code[codesHandled]);
-		System.out.printf("reg0=%x, reg1=%x, addr=%x\n",reg0,reg1,addr);
-	}
 	microcode=getCode();
 	op32=isCode(MICROCODE.PREFIX_OPCODE_32BIT);
 	addr32=isCode(MICROCODE.PREFIX_ADDRESS_32BIT);
+
+	if(computer.debugMode)
+	{
+		System.out.println(code[codesHandled]);
+		System.out.printf("reg0=%x, reg1=%x, addr=%x ",reg0,reg1,addr);
+		System.out.println(microcode+" op32="+" addr32="+addr32);
+	}
 
 	//this is a hack - remove it later
 //if (microcode==MICROCODE.OP_FLOAT_NOP && (eip.getValue()==0x10018e||eip.getValue()==0x10018c)) eax.setValue(eax.getValue()&~0xff);
@@ -1450,9 +1458,9 @@ public void executeMicroInstructions()
 	case ADDR_8ESI:	addr += (esi.getValue()<<3); break;
 	case ADDR_8EDI:	addr += (edi.getValue()<<3); break;
 
-	case ADDR_IB:	addr += ((byte)getiCode()); break;
-	case ADDR_IW:	addr += (short)getiCode(); break;
-	case ADDR_ID:	addr += getiCode(); break;
+	case ADDR_IB:	displacement=((byte)getiCode()); addr += displacement; break;
+	case ADDR_IW:	displacement= (short)getiCode(); addr += displacement; break;
+	case ADDR_ID:	displacement= getiCode(); addr += displacement; break;
 
 	case ADDR_MASK_16:	addr=addr&0xffff; break;
 
@@ -1578,34 +1586,41 @@ public void executeMicroInstructions()
 	case OP_SCASB:
 	case OP_SCASW:
 		{
-		int a=edi.getValue()&0xffff;
-		int i,n;
-		if (microcode==MICROCODE.OP_SCASB)
-		{
-			i=0xff&es.loadByte(a);
-			n=1;
-		}
-		else if (!op32)
-		{
-			i=0xffff&es.loadWord(a);
-			n=2;
-		}
-		else
-		{
-			i=es.loadDoubleWord(a);
-			n=4;
-		}
-		if(direction.read())
-			a-=n;
-		else
-			a+=n;
-		edi.setValue((edi.getValue()&~0xffff)|(a&0xffff));
-		reg2=reg0;
-		if (microcode==MICROCODE.OP_SCASW && op32)
-			reg0=(int)((0xffffffffl&reg0)-(0xffffffffl&i));
-		else
-			reg0=reg0-i;
-		reg1=i;
+			int a;
+			if (!addr32)
+				a=edi.getValue()&0xffff;
+			else
+				a=edi.getValue();
+			int i,n;
+			if (microcode==MICROCODE.OP_SCASB)
+			{
+				i=0xff&es.loadByte(a);
+				n=1;
+			}
+			else if (!op32)
+			{
+				i=0xffff&es.loadWord(a);
+				n=2;
+			}
+			else
+			{
+				i=es.loadDoubleWord(a);
+				n=4;
+			}
+			if(direction.read())
+				a-=n;
+			else
+				a+=n;
+			if (!addr32)
+				edi.setValue((edi.getValue()&~0xffff)|(a&0xffff));
+			else
+				edi.setValue(a);
+			reg2=reg0;
+			if (microcode==MICROCODE.OP_SCASW && op32)
+				reg0=(int)((0xffffffffl&reg0)-(0xffffffffl&i));
+			else
+				reg0=reg0-i;
+			reg1=i;
 		}
 		break;
 
@@ -1614,62 +1629,83 @@ public void executeMicroInstructions()
 	case OP_REPNE_SCASW:
 	case OP_REPE_SCASW:
 		{
-		int count=ecx.getValue()&0xffff;
-		int a=edi.getValue()&0xffff;
-		boolean used=count!=0;
-		int input=0;
-		while(count!=0)
-		{
-			if (microcode==MICROCODE.OP_REPNE_SCASB || microcode==MICROCODE.OP_REPE_SCASB)
-			{
-				input=0xff&es.loadByte(a);
-				count--;
-				if(direction.read())
-					a-=1;
-				else
-					a+=1;
-			}
-			else if (!op32)
-			{
-				input=0xffff&es.loadWord(a);
-				count--;
-				if(direction.read())
-					a-=2;
-				else
-					a+=2;
-			}
+			int count,a;
+			if(!op32)
+				count=ecx.getValue()&0xffff;
 			else
-			{
-				input=es.loadDoubleWord(a);
-				count--;
-				if(direction.read())
-					a-=4;
-				else
-					a+=4;
-			}
-			if (microcode==MICROCODE.OP_REPNE_SCASB || microcode==MICROCODE.OP_REPNE_SCASW)
-			{
-				if(reg0==input) break;
-			}
+				count=ecx.getValue();
+			if (!addr32)
+				a=edi.getValue()&0xffff;
 			else
+				a=edi.getValue();
+			boolean used=count!=0;
+			int input=0;
+			while(count!=0)
 			{
-				if(reg0!=input) break;
+				if (microcode==MICROCODE.OP_REPNE_SCASB || microcode==MICROCODE.OP_REPE_SCASB)
+				{
+					input=0xff&es.loadByte(a);
+					count--;
+					if(direction.read())
+						a-=1;
+					else
+						a+=1;
+				}
+				else if (!op32)
+				{
+					input=0xffff&es.loadWord(a);
+					count--;
+					if(direction.read())
+						a-=2;
+					else
+						a+=2;
+				}
+				else
+				{
+					input=es.loadDoubleWord(a);
+					count--;
+					if(direction.read())
+						a-=4;
+					else
+						a+=4;
+				}
+				if (microcode==MICROCODE.OP_REPNE_SCASB || microcode==MICROCODE.OP_REPNE_SCASW)
+				{
+					if(reg0==input) break;
+				}
+				else
+				{
+					if(reg0!=input) break;
+				}
 			}
-		}
-		ecx.setValue((ecx.getValue()&~0xffff)|(count&0xffff));
-		edi.setValue((edi.getValue()&~0xffff)|(a&0xffff));
-		reg2=reg0;
-		reg1=input;
-		reg0=used? 1:0;
+			if (!op32)
+				ecx.setValue((ecx.getValue()&~0xffff)|(count&0xffff));
+			else
+				ecx.setValue(count);
+			if (!addr32)
+				edi.setValue((edi.getValue()&~0xffff)|(a&0xffff));
+			else
+				edi.setValue(a);
+			reg2=reg0;
+			reg1=input;
+			reg0=used? 1:0;
 		}
 		break;
 
 	case OP_CMPSB:
 	case OP_CMPSW:
 	{
-
-		int addrOne=esi.getValue()&0xffff;
-		int addrTwo=edi.getValue()&0xffff;
+		int addrOne,addrTwo;
+		if (!addr32)
+		{
+			addrOne=esi.getValue()&0xffff;
+			addrTwo=edi.getValue()&0xffff;
+		}
+		else
+		{
+			addrOne=esi.getValue();
+			addrTwo=edi.getValue();
+		}
 		int dataOne;
 		int dataTwo;
 		int n;
@@ -1702,8 +1738,16 @@ public void executeMicroInstructions()
 			addrTwo+=n;
 		}
 
-		esi.setValue((esi.getValue()&~0xffff)|(addrOne&0xffff));
-		edi.setValue((edi.getValue()&~0xffff)|(addrTwo&0xffff));
+		if(!addr32)
+		{
+			esi.setValue((esi.getValue()&~0xffff)|(addrOne&0xffff));
+			edi.setValue((edi.getValue()&~0xffff)|(addrTwo&0xffff));
+		}
+		else
+		{
+			esi.setValue(addrOne);
+			edi.setValue(addrTwo);
+		}
 		reg2=dataOne;
 		reg1=dataTwo;
 		if(microcode==MICROCODE.OP_CMPSW && op32)
@@ -1718,9 +1762,21 @@ public void executeMicroInstructions()
 	case OP_REPNE_CMPSW:
 	case OP_REPE_CMPSW:
 	{
-		int count=ecx.getValue()&0xffff;
-		int addrOne=esi.getValue()&0xffff;
-		int addrTwo=edi.getValue()&0xffff;
+		int count,addrOne,addrTwo;
+		if(!op32)
+			count=ecx.getValue()&0xffff;
+		else
+			count=ecx.getValue();
+		if(!addr32)
+		{
+			addrOne=esi.getValue()&0xffff;
+			addrTwo=edi.getValue()&0xffff;
+		}
+		else
+		{
+			addrOne=esi.getValue();
+			addrTwo=edi.getValue();
+		}
 		boolean used=count!=0;
 		int dataOne=0;
 		int dataTwo=0;
@@ -1783,9 +1839,20 @@ public void executeMicroInstructions()
 				if(dataOne==dataTwo) break;
 			}
 		}
-		ecx.setValue((ecx.getValue()&~0xffff)|(count&0xffff));
-		esi.setValue((esi.getValue()&~0xffff)|(addrOne&0xffff));
-		edi.setValue((edi.getValue()&~0xffff)|(addrTwo&0xffff));
+		if(!op32)
+			ecx.setValue((ecx.getValue()&~0xffff)|(count&0xffff));
+		else
+			ecx.setValue(count);
+		if(!addr32)
+		{
+			esi.setValue((esi.getValue()&~0xffff)|(addrOne&0xffff));
+			edi.setValue((edi.getValue()&~0xffff)|(addrTwo&0xffff));
+		}
+		else
+		{
+			esi.setValue(addrOne);
+			edi.setValue(addrTwo);
+		}
 		reg0=used? 1:0;
 		reg1=dataTwo;
 		reg2=dataOne;
@@ -1994,10 +2061,10 @@ public void executeMicroInstructions()
 	case OP_SIGN_EXTEND_8_32: if(op32) reg0 = ((byte)reg0); break;
 	case OP_SIGN_EXTEND_16_32: if(op32) reg0 = ((short)reg0); break;
 
-	case OP_INSB: ins(reg0,1); break;
-	case OP_INSW: ins(reg0,op32?4:2); break;
-	case OP_REP_INSB: rep_ins(reg0,1); break;
-	case OP_REP_INSW: rep_ins(reg0,op32?4:2); break;
+	case OP_INSB: ins(reg0,1,addr32); break;
+	case OP_INSW: ins(reg0,op32?4:2,addr32); break;
+	case OP_REP_INSB: rep_ins(reg0,1,addr32); break;
+	case OP_REP_INSW: rep_ins(reg0,op32?4:2,addr32); break;
 
 	case OP_LODSB: lods(seg,1,addr32); break;
 	case OP_LODSW: lods(seg,op32?4:2,addr32); break;
@@ -2009,10 +2076,10 @@ public void executeMicroInstructions()
 	case OP_REP_MOVSB: rep_movs(seg,1,addr32); break;
 	case OP_REP_MOVSW: rep_movs(seg,op32?4:2,addr32); break;
 
-	case OP_OUTSB: outs(reg0, seg, 1); break;
-	case OP_OUTSW: outs(reg0, seg, op32?4:2); break;
-	case OP_REP_OUTSB: rep_outs(reg0, seg, 1); break;
-	case OP_REP_OUTSW: rep_outs(reg0, seg, op32?4:2); break;
+	case OP_OUTSB: outs(reg0, seg, 1,addr32); break;
+	case OP_OUTSW: outs(reg0, seg, op32?4:2,addr32); break;
+	case OP_REP_OUTSB: rep_outs(reg0, seg, 1,addr32); break;
+	case OP_REP_OUTSW: rep_outs(reg0, seg, op32?4:2,addr32); break;
 			
 	case OP_STOSB: stos(reg0,1,addr32); break;
 	case OP_STOSW: stos(reg0,op32?4:2,addr32); break;
@@ -2033,8 +2100,15 @@ public void executeMicroInstructions()
 
 	case OP_CPUID: cpuid(); break;
 
-	case OP_LGDT:	gdtr.setDescriptorValue(op32? reg1:(reg1&0x00ffffff),reg0); System.out.printf("New GDT starts at %x\n", op32? reg1:(reg1&0x00ffffff)); break;
-	case OP_LIDT:	idtr.setDescriptorValue(op32? reg1:(reg1&0x00ffffff),reg0); break;
+	case OP_LGDT:	
+		gdtr.memory=linearMemory; 
+		gdtr.setDescriptorValue(op32? reg1:(reg1&0x00ffffff),reg0); 
+		System.out.printf("New GDT starts at %x\n", gdtr.getBase()); 
+		break;
+	case OP_LIDT:
+		idtr.memory=linearMemory;
+		idtr.setDescriptorValue(op32? reg1:(reg1&0x00ffffff),reg0); 
+		break;
 	case OP_SGDT:	if (op32) reg1=gdtr.getBase(); else reg1=gdtr.getBase()&0x00ffffff; reg0=gdtr.getLimit(); break;
 	case OP_SIDT:	if (op32) reg1=idtr.getBase(); else reg1=idtr.getBase()&0x00ffffff; reg0=gdtr.getLimit(); break;
 
@@ -2119,7 +2193,7 @@ public void executeMicroInstructions()
 	
 	}
 
-	if(processorGUICode!=null) processorGUICode.pushMicrocode(microcode,reg0,reg1,addr,condition);
+	if(processorGUICode!=null) processorGUICode.pushMicrocode(microcode,reg0,reg1,addr,displacement,condition);
 	}
 	}
 	catch (Processor_Exception e)
@@ -2814,87 +2888,179 @@ private int iret_protected(boolean op32, boolean addr32)
 	return flags;
 }
 
-private void ins(int port, int b)
+private void ins(int port, int b, boolean addr32)
 {
-	int addr = edi.getValue() & 0xffff;
-	if (b==1)
-		es.storeByte(addr & 0xffff, (byte)ioports.ioPortReadByte(port));
-	else if (b==2)
-		es.storeWord(addr & 0xffff, (short)ioports.ioPortReadWord(port));
-	else
-		es.storeDoubleWord(addr & 0xffff, ioports.ioPortReadLong(port));
-	if (direction.read()) 
-		addr -= b;
-	else
-		addr += b;
-
-	edi.setValue((edi.getValue()&~0xffff)|(addr&0xffff));
-}
-
-private void rep_ins(int port, int b)
-{
-	int count = ecx.getValue() & 0xffff;
-	int addr = edi.getValue() & 0xffff;
-
-	while (count != 0) 
+	if (!addr32)
 	{
+		int addr = edi.getValue() & 0xffff;
 		if (b==1)
-			es.storeByte(addr & 0xffff, (byte)ioports.ioPortReadByte(port));		
+			es.storeByte(addr & 0xffff, (byte)ioports.ioPortReadByte(port));
 		else if (b==2)
-			es.storeWord(addr & 0xffff, (short)ioports.ioPortReadWord(port));		
+			es.storeWord(addr & 0xffff, (short)ioports.ioPortReadWord(port));
 		else
-			es.storeDoubleWord(addr & 0xffff, ioports.ioPortReadLong(port));		
-		count--;
-		if (direction.read())
+			es.storeDoubleWord(addr & 0xffff, ioports.ioPortReadLong(port));
+		if (direction.read()) 
 			addr -= b;
 		else
 			addr += b;
+	
+		edi.setValue((edi.getValue()&~0xffff)|(addr&0xffff));
 	}
-	ecx.setValue((ecx.getValue() & ~0xffff) | (count & 0xffff));
-	edi.setValue((edi.getValue() & ~0xffff) | (addr & 0xffff));
-}
-
-
-private void outs(int port, Segment seg, int b)
-{
-	int addr = esi.getValue() & 0xffff;
-
-	if (b==1)
-		ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr&0xffff));
-	else if (b==2)
-		ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr&0xffff));
 	else
-		ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr&0xffff));
-
-	if (direction.read()) 
-		addr -= b;
-	else
-		addr += b;
-
-	esi.setValue((esi.getValue()&~0xffff)|(addr&0xffff));
-}
-
-private void rep_outs(int port, Segment seg, int b)
-{
-	int count = ecx.getValue() & 0xffff;
-	int addr = esi.getValue() & 0xffff;
-
-	while (count != 0) 
 	{
+		int addr = edi.getValue();
+		if (b==1)
+			es.storeByte(addr, (byte)ioports.ioPortReadByte(port));
+		else if (b==2)
+			es.storeWord(addr, (short)ioports.ioPortReadWord(port));
+		else
+			es.storeDoubleWord(addr, ioports.ioPortReadLong(port));
+		if (direction.read()) 
+			addr -= b;
+		else
+			addr += b;
+
+		edi.setValue(addr);
+	}
+}
+
+private void rep_ins(int port, int b, boolean addr32)
+{
+	if (!addr32)
+	{
+		int count = ecx.getValue() & 0xffff;
+		int addr = edi.getValue() & 0xffff;
+	
+		while (count != 0) 
+		{
+			if (b==1)
+				es.storeByte(addr & 0xffff, (byte)ioports.ioPortReadByte(port));		
+			else if (b==2)
+				es.storeWord(addr & 0xffff, (short)ioports.ioPortReadWord(port));		
+			else
+				es.storeDoubleWord(addr & 0xffff, ioports.ioPortReadLong(port));		
+			count--;
+			if (direction.read())
+				addr -= b;
+			else
+				addr += b;
+		}
+		ecx.setValue((ecx.getValue() & ~0xffff) | (count & 0xffff));
+		edi.setValue((edi.getValue() & ~0xffff) | (addr & 0xffff));
+	}
+	else
+	{
+		int count = ecx.getValue();
+		int addr = edi.getValue();
+	
+		while (count != 0) 
+		{
+			if (b==1)
+				es.storeByte(addr, (byte)ioports.ioPortReadByte(port));		
+			else if (b==2)
+				es.storeWord(addr, (short)ioports.ioPortReadWord(port));		
+			else
+				es.storeDoubleWord(addr, ioports.ioPortReadLong(port));		
+			count--;
+			if (direction.read())
+				addr -= b;
+			else
+				addr += b;
+		}
+		ecx.setValue(count);
+		edi.setValue(addr);
+	}
+}
+
+
+private void outs(int port, Segment seg, int b, boolean addr32)
+{
+	if (!addr32)
+	{
+		int addr = esi.getValue() & 0xffff;
+	
 		if (b==1)
 			ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr&0xffff));
 		else if (b==2)
 			ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr&0xffff));
 		else
 			ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr&0xffff));
-		count--;
-		if (direction.read())
+	
+		if (direction.read()) 
 			addr -= b;
 		else
 			addr += b;
+
+if (esi.getValue()==0x3ffff) System.out.println("outs addr16 "+esi.getValue()+" "+addr);
+		esi.setValue((esi.getValue()&~0xffff)|(addr&0xffff));
 	}
-	ecx.setValue((ecx.getValue() & ~0xffff) | (count & 0xffff));
-	esi.setValue((esi.getValue() & ~0xffff) | (addr & 0xffff));
+	else
+	{
+		int addr = esi.getValue();
+		
+		if (b==1)
+			ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr));
+		else if (b==2)
+			ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr));
+		else
+			ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr));
+	
+		if (direction.read()) 
+			addr -= b;
+		else
+			addr += b;
+	
+if (esi.getValue()==0x3ffff) System.out.println("outs addr32 "+esi.getValue()+" "+addr);
+		esi.setValue(addr);		
+	}
+}
+
+private void rep_outs(int port, Segment seg, int b, boolean addr32)
+{
+	if (!addr32)
+	{
+		int count = ecx.getValue() & 0xffff;
+		int addr = esi.getValue() & 0xffff;
+	
+		while (count != 0) 
+		{
+			if (b==1)
+				ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr&0xffff));
+			else if (b==2)
+				ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr&0xffff));
+			else
+				ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr&0xffff));
+			count--;
+			if (direction.read())
+				addr -= b;
+			else
+				addr += b;
+		}
+		ecx.setValue((ecx.getValue() & ~0xffff) | (count & 0xffff));
+		esi.setValue((esi.getValue() & ~0xffff) | (addr & 0xffff));
+	}
+	else
+	{
+		int count = ecx.getValue();
+		int addr = esi.getValue();
+
+		while (count != 0) 
+		{
+			if (b==1)
+				ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr));
+			else if (b==2)
+				ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr));
+			else
+				ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr));
+			count--;
+			if (direction.read())
+				addr -= b;
+			else
+				addr += b;
+		}
+		ecx.setValue(count);
+		esi.setValue(addr);		
+	}
 }
 
 private void lods(Segment seg, int b, boolean addr32)
@@ -3569,19 +3735,20 @@ private void cpuid()
 			int features=0;
 			features|=0;	//no features at all
 
-	    features |= 0x01; //Have an FPU;
-	    features |= (1<< 8);  // Support CMPXCHG8B instruction
-	    features |= (1<< 4);  // implement TSC
-	    features |= (1<< 5);  // support RDMSR/WRMSR
+//		    features |= 0x01; //Have an FPU;
+		    features |= 0x00; //Have no FPU;
+//	    features |= (1<< 8);  // Support CMPXCHG8B instruction
+//	    features |= (1<< 4);  // implement TSC
+//	    features |= (1<< 5);  // support RDMSR/WRMSR
 	    //features |= (1<<23);  // support MMX
 	    //features |= (1<<24);  // Implement FSAVE/FXRSTOR instructions.
-	    features |= (1<<15);  // Implement CMOV instructions.
+//	    features |= (1<<15);  // Implement CMOV instructions.
 	    //features |= (1<< 9);   // APIC on chip
 	    //features |= (1<<25);  // support SSE
 	    features |= (1<< 3);  // Support Page-Size Extension (4M pages)
 	    features |= (1<<13);  // Support Global pages.
 	    //features |= (1<< 6);  // Support PAE.
-	    features |= (1<<11);  // SYSENTER/SYSEXIT
+//	    features |= (1<<11);  // SYSENTER/SYSEXIT
 
 			edx.setValue(features);
 			break;
@@ -4107,7 +4274,7 @@ public void panic(String reason)
 {
 	System.out.println("PANIC: "+reason);
 	System.out.println("icount = "+computer.icount);
-	System.exit(0);
+	//System.exit(0);
 }
 
 //call this to start the decoding
@@ -5017,6 +5184,36 @@ private void decodeIrregularOperand(int opcode, int modrm, int sib, int displace
 				load0_Cd(modrm); break;
 			case 0xf22:
 				load0_Rd(modrm); break;
+			case 0xfab: case 0xfa3: case 0xfbb: case 0xfb3:
+				if (isCode(MICROCODE.PREFIX_OPCODE_32BIT))
+				{
+					switch(modrm&0xc7)
+					{
+					case 0xc0: pushCode(MICROCODE.LOAD0_EAX); break;
+					case 0xc1: pushCode(MICROCODE.LOAD0_ECX); break;
+					case 0xc2: pushCode(MICROCODE.LOAD0_EDX); break;
+					case 0xc3: pushCode(MICROCODE.LOAD0_EBX); break;
+					case 0xc4: pushCode(MICROCODE.LOAD0_ESP); break;
+					case 0xc5: pushCode(MICROCODE.LOAD0_EBP); break;
+					case 0xc6: pushCode(MICROCODE.LOAD0_ESI); break;
+					case 0xc7: pushCode(MICROCODE.LOAD0_EDI); break;
+					}
+				}
+				else
+				{
+					switch(modrm&0xc7)
+					{
+					case 0xc0: pushCode(MICROCODE.LOAD0_AX); break;
+					case 0xc1: pushCode(MICROCODE.LOAD0_CX); break;
+					case 0xc2: pushCode(MICROCODE.LOAD0_DX); break;
+					case 0xc3: pushCode(MICROCODE.LOAD0_BX); break;
+					case 0xc4: pushCode(MICROCODE.LOAD0_SP); break;
+					case 0xc5: pushCode(MICROCODE.LOAD0_BP); break;
+					case 0xc6: pushCode(MICROCODE.LOAD0_SI); break;
+					case 0xc7: pushCode(MICROCODE.LOAD0_DI); break;
+					}					
+				}
+				break;
 			default:
 				panic("Need to decode irregular input 0 operand: "+opcode);
 		}
@@ -5098,6 +5295,36 @@ private void decodeIrregularOperand(int opcode, int modrm, int sib, int displace
 					pushCode(MICROCODE.LOAD1_MEM_DOUBLE);
 				}	
 				break;
+			case 0xfab: case 0xfa3: case 0xfbb: case 0xfb3:
+				if (isCode(MICROCODE.PREFIX_OPCODE_32BIT))
+				{
+					switch(modrm&0x38)
+					{
+					case 0xc0: pushCode(MICROCODE.LOAD1_EAX); break;
+					case 0xc1: pushCode(MICROCODE.LOAD1_ECX); break;
+					case 0xc2: pushCode(MICROCODE.LOAD1_EDX); break;
+					case 0xc3: pushCode(MICROCODE.LOAD1_EBX); break;
+					case 0xc4: pushCode(MICROCODE.LOAD1_ESP); break;
+					case 0xc5: pushCode(MICROCODE.LOAD1_EBP); break;
+					case 0xc6: pushCode(MICROCODE.LOAD1_ESI); break;
+					case 0xc7: pushCode(MICROCODE.LOAD1_EDI); break;
+					}
+				}
+				else
+				{
+					switch(modrm&0xc7)
+					{
+					case 0xc0: pushCode(MICROCODE.LOAD1_AX); break;
+					case 0xc1: pushCode(MICROCODE.LOAD1_CX); break;
+					case 0xc2: pushCode(MICROCODE.LOAD1_DX); break;
+					case 0xc3: pushCode(MICROCODE.LOAD1_BX); break;
+					case 0xc4: pushCode(MICROCODE.LOAD1_SP); break;
+					case 0xc5: pushCode(MICROCODE.LOAD1_BP); break;
+					case 0xc6: pushCode(MICROCODE.LOAD1_SI); break;
+					case 0xc7: pushCode(MICROCODE.LOAD1_DI); break;
+					}					
+				}
+				break;
 			default:
 				panic("Need to decode irregular input 1 operand: "+opcode);
 		}
@@ -5164,6 +5391,15 @@ private void decodeIrregularOperand(int opcode, int modrm, int sib, int displace
 					effective_word(modrm,sib,displacement,2);
 			}
 			break;
+			case 0xfab: case 0xfb3: case 0xfbb:
+				if((modrm&0xc0)!=0xc0)
+				{
+					if (isCode(MICROCODE.PREFIX_OPCODE_32BIT))
+						effective_double(modrm,sib,displacement,2);
+					else
+						effective_word(modrm,sib,displacement,2);
+				}
+				break;
 			case 0xf00:
 				if ((modrm&0x38)==0)
 					effective_word(modrm,sib,displacement,2);
@@ -5660,7 +5896,7 @@ public static final int[][] inputTable1 = new int[][]
 //DI
 {0x97},{},{},{},{},{},{},{},
 //special
-{0x9a, 0xea, 0xc8, 0xf6, 0xf7, 0x62, 0xc4, 0xc5, 0xfb2, 0xfb4, 0xfb5, 0xfba, 0xff, 0xd1, 0xd0, 0xf01}
+{0x9a, 0xea, 0xc8, 0xf6, 0xf7, 0x62, 0xc4, 0xc5, 0xfb2, 0xfb4, 0xfb5, 0xfba, 0xff, 0xd1, 0xd0, 0xf01, 0xfa3, 0xfab, 0xfb3, 0xfbb}
 };
 
 
@@ -5935,7 +6171,7 @@ MICROCODE.FLAG_BAD, //fae
 MICROCODE.FLAG_NONE, //faf
 MICROCODE.FLAG_UNIMPLEMENTED, MICROCODE.FLAG_UNIMPLEMENTED, //fb0-fb1
 MICROCODE.FLAG_NONE, //fb2
-MICROCODE.FLAG_BAD, //fb3
+MICROCODE.FLAG_NONE, //fb3
 MICROCODE.FLAG_NONE, MICROCODE.FLAG_NONE, MICROCODE.FLAG_NONE, MICROCODE.FLAG_NONE, //fb4-fb7
 MICROCODE.FLAG_BAD, MICROCODE.FLAG_BAD, //fb8-fb9
 MICROCODE.FLAG_NONE, MICROCODE.FLAG_NONE, //fba-fbb
@@ -6169,7 +6405,7 @@ public class ProcessorGUICode
 	ArrayList<String> value;
 	
 	int instructionNumber;
-	int displacement;
+//	int displacement;
 
 	public ProcessorGUICode()
 	{
@@ -6680,7 +6916,7 @@ public class ProcessorGUICode
 		push(GUICODE.DECODE_INSTRUCTION, name);
 	}
 
-	public void pushMicrocode(MICROCODE microcode, int reg0, int reg1, int addr, boolean condition)
+	public void pushMicrocode(MICROCODE microcode, int reg0, int reg1, int addr, int displacement, boolean condition)
 	{
 		String name="";
 		switch(microcode)

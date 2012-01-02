@@ -262,6 +262,7 @@ public class Trace extends AbstractGUI
 		dump+=Integer.toBinaryString(entry.flags)+" ";
 		for (String b:entry.instructionBytes)
 			dump+=(b+" ");
+		dump+=entry.instruction_name;
 		return dump;
 	}
 	

@@ -22,6 +22,7 @@ public class LinearMemory implements MemoryDevice
 	public LinearMemory(Computer computer)
 	{
 		this.computer=computer;
+		pagingDisabled=true;
 		flush();
 	}
 	
@@ -72,12 +73,14 @@ public class LinearMemory implements MemoryDevice
 		setByte(address+7,(byte)(value>>56));
 	}
 	
+	static int quantity=0;
 	private class PageTableEntry
 	{
 		int physicalBaseAddress;
 		public PageTableEntry(int address)
 		{
 			physicalBaseAddress=address;
+System.out.println("new page entry: "+address+" "+(quantity++));
 		}
 	}
 
@@ -131,8 +134,7 @@ public class LinearMemory implements MemoryDevice
 				return writeSupervisorPageTable[virtualPageIndex].physicalBaseAddress;
 			}
 			catch(NullPointerException e){}
-			validateTLBEntryWrite(virtualAddress);
-			return writeSupervisorPageTable[virtualPageIndex].physicalBaseAddress;
+			return validateTLBEntryWrite(virtualAddress);
 		}
 		else
 		{
@@ -143,14 +145,13 @@ public class LinearMemory implements MemoryDevice
 				return writeUserPageTable[virtualPageIndex].physicalBaseAddress;
 			}
 			catch(NullPointerException e){}
-			validateTLBEntryWrite(virtualAddress);
-			return writeUserPageTable[virtualPageIndex].physicalBaseAddress;
+			return validateTLBEntryWrite(virtualAddress);
 		}
 	}
 
 	private int validateTLBEntryRead(int virtualAddress)
 	{
-		System.out.println("validate TLB entry read "+ virtualAddress);
+//		System.out.println("validate TLB entry read "+ virtualAddress);
 		int virtualPageIndex=virtualAddress>>>PAGE_NUMBER_SHIFT;
 		lastPageFaultAddress=virtualAddress;
 		
@@ -195,7 +196,7 @@ public class LinearMemory implements MemoryDevice
 	
 	private int validateTLBEntryWrite(int virtualAddress)
 	{
-		System.out.println("validate TLB entry write "+ virtualAddress);
+//		System.out.println("validate TLB entry write "+ virtualAddress);
 		int virtualPageIndex=virtualAddress>>>PAGE_NUMBER_SHIFT;
 		lastPageFaultAddress=virtualAddress;
 		
@@ -293,7 +294,7 @@ public class LinearMemory implements MemoryDevice
 	private void panic(String message)
 	{
 		System.out.println("PANIC in linear memory: "+message);
-		System.exit(0);
+		//System.exit(0);
 	}
 }
 
