@@ -39,7 +39,7 @@ private boolean addressDecoded=false;
 private boolean haltMode=false;
 public int lastInterrupt=-1;
 
-private LinearMemory linearMemory;
+public LinearMemory linearMemory;
 
 public Processor(Computer computer)
 {
@@ -880,6 +880,12 @@ public class Segment
 //		return (0xffff0&base)+(0xffff&offset);
 		return base+offset;
 	}
+	public int physicalAddress(int offset)
+	{
+		if(memory==computer.physicalMemory)
+			return base+offset;
+		return linearMemory.virtualAddressLookup(base+offset);
+	}
 	public byte loadByte(int offset)
 	{
 		byte memvalue=memory.getByte(address(offset));
@@ -1332,6 +1338,12 @@ public void executeMicroInstructions()
 	case LOAD1_IW: reg1 = getiCode() & 0xffff; break;
 	case LOAD1_ID: reg1 = getiCode(); break;
 
+	case LOAD2_IB: reg2 = getiCode() & 0xff; break;
+	case LOAD2_AL: reg2 = eax.getValue() & 0xff; break;
+	case LOAD2_AX: reg2 = eax.getValue() & 0xffff; break;
+	case LOAD2_EAX: reg2 = eax.getValue(); break;
+	case LOAD2_CL: reg2 = ecx.getValue() & 0xff; break;
+	
 	case STORE0_AX: eax.setLower16Value(0xffff & reg0); break;
 	case STORE0_BX: ebx.setLower16Value(0xffff & reg0); break;
 	case STORE0_CX: ecx.setLower16Value(0xffff & reg0); break;
@@ -2193,7 +2205,7 @@ public void executeMicroInstructions()
 	
 	}
 
-	if(processorGUICode!=null) processorGUICode.pushMicrocode(microcode,reg0,reg1,addr,displacement,condition);
+	if(processorGUICode!=null) processorGUICode.pushMicrocode(microcode,reg0,reg1,reg2,addr,displacement,condition);
 	}
 	}
 	catch (Processor_Exception e)
@@ -4389,16 +4401,12 @@ private void decodePrefix(boolean is32bit)
 					pushCode(MICROCODE.PREFIX_OPCODE_32BIT);
 				else
 					removeCode(MICROCODE.PREFIX_OPCODE_32BIT);
-//				System.out.println("opcode override");
-//				panic("Opcode size override not implemented - only 16 bit for now");
 				break;
 			case 0x67:
 				if(!is32bit)
 					pushCode(MICROCODE.PREFIX_ADDRESS_32BIT);
 				else
 					removeCode(MICROCODE.PREFIX_ADDRESS_32BIT);
-//				System.out.println("address override");
-//				panic("Address size override not implemented - only 16 bit for now");
 				break;
 			case 0xd8: case 0xd9: case 0xda: case 0xdb: case 0xdc: case 0xdd: case 0xde: case 0xdf:
 				return;
@@ -4723,7 +4731,25 @@ private void decodeOperands(int opcode, int modrm, int sib, int displacement, lo
 	//a few instructions have a third input
 	if (inputOperands && (opcode==0xfa4 || opcode==0xfa5 || opcode==0xfac || opcode==0xfad || opcode==0xfb0 || opcode==0xfb1))
 	{
-		panic("Instruction encountered with third input "+opcode);
+		switch(opcode)
+		{
+		case 0xfa4: case 0xfac:
+			pushCode(MICROCODE.LOAD2_IB);
+			pushCode((int)immediate);
+			break;
+		case 0xfa5: case 0xfad:
+			pushCode(MICROCODE.LOAD2_CL);
+			break;
+		case 0xfb0:
+			pushCode(MICROCODE.LOAD2_AL);
+			break;
+		case 0xfb1:
+			if(isCode(MICROCODE.PREFIX_OPCODE_32BIT))
+				pushCode(MICROCODE.LOAD2_EAX);
+			else
+				pushCode(MICROCODE.LOAD2_AX);
+			break;
+		}
 	}
 }
 
@@ -6421,6 +6447,7 @@ public class ProcessorGUICode
 	{
 		if (computer.memoryGUI==null) return;
 
+try{
 		for (int i=0; i<code.size(); i++)
 		{
 			int j;
@@ -6452,6 +6479,7 @@ public class ProcessorGUICode
 				case IDTR_MEMORY_WRITE:	computer.memoryGUI.interruptWrite(Integer.parseInt(name.get(i),16)); break;
 			}
 		}
+}catch(Exception e){}
 		computer.memoryGUI.updateIP(cs.address(eip.getValue()));
 	}
 
@@ -6516,6 +6544,22 @@ public class ProcessorGUICode
 		for (int i=0; i<code.size(); i++)
 		{
 			if (code.get(i)==GUICODE.DECODE_INPUT_OPERAND_1)
+			{
+				if(i0)
+					n=n+",";
+				else if (o0)
+					n=n+" =";
+
+				if (name.get(i).equals("immediate"))
+					n=n+" "+Integer.toHexString(getLastiCode());
+				else
+					n=n+" "+name.get(i);
+				break;
+			}
+		}
+		for (int i=0; i<code.size(); i++)
+		{
+			if (code.get(i)==GUICODE.DECODE_INPUT_OPERAND_2)
 			{
 				if(i0)
 					n=n+",";
@@ -6916,7 +6960,7 @@ public class ProcessorGUICode
 		push(GUICODE.DECODE_INSTRUCTION, name);
 	}
 
-	public void pushMicrocode(MICROCODE microcode, int reg0, int reg1, int addr, int displacement, boolean condition)
+	public void pushMicrocode(MICROCODE microcode, int reg0, int reg1, int reg2, int addr, int displacement, boolean condition)
 	{
 		String name="";
 		switch(microcode)
@@ -6968,6 +7012,12 @@ public class ProcessorGUICode
 			case ADDR_IB: addressString+=Integer.toHexString(displacement)+"+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"displacement",displacement); break;
 			case ADDR_IW: addressString+=Integer.toHexString(displacement)+"+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"displacement",displacement); break;
 			case ADDR_ID: addressString+=Integer.toHexString(displacement)+"+"; push(GUICODE.DECODE_MEMORY_ADDRESS,"displacement",displacement); break;
+
+			case LOAD2_AX: name="ax"; push(GUICODE.DECODE_INPUT_OPERAND_2,name,reg2); break;
+			case LOAD2_EAX: name="eax"; push(GUICODE.DECODE_INPUT_OPERAND_2,name,reg2); break;
+			case LOAD2_AL: name="al"; push(GUICODE.DECODE_INPUT_OPERAND_2,name,reg2); break;
+			case LOAD2_CL: name="cl"; push(GUICODE.DECODE_INPUT_OPERAND_2,name,reg2); break;
+			case LOAD2_IB: name="immediate"; push(GUICODE.DECODE_INPUT_OPERAND_2,name,reg2); break;
 
 			case LOAD0_AX: name="ax"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
 			case LOAD0_EAX: name="eax"; push(GUICODE.DECODE_INPUT_OPERAND_0,name,reg0); break;
@@ -7371,6 +7421,8 @@ PREFIX_LOCK, PREFIX_REPNE, PREFIX_REPE, PREFIX_CS, PREFIX_SS, PREFIX_DS, PREFIX_
 
 LOAD0_AX, LOAD0_AL, LOAD0_AH, LOAD0_BX, LOAD0_BL, LOAD0_BH, LOAD0_CX, LOAD0_CL, LOAD0_CH, LOAD0_DX, LOAD0_DL, LOAD0_DH, LOAD0_SP, LOAD0_BP, LOAD0_SI, LOAD0_DI, LOAD0_CS, LOAD0_SS, LOAD0_DS, LOAD0_ES, LOAD0_FS, LOAD0_GS, LOAD0_FLAGS, LOAD1_AX, LOAD1_AL, LOAD1_AH, LOAD1_BX, LOAD1_BL, LOAD1_BH, LOAD1_CX, LOAD1_CL, LOAD1_CH, LOAD1_DX, LOAD1_DL, LOAD1_DH, LOAD1_SP, LOAD1_BP, LOAD1_SI, LOAD1_DI, LOAD1_CS, LOAD1_SS, LOAD1_DS, LOAD1_ES, LOAD1_FS, LOAD1_GS, LOAD1_FLAGS, STORE0_AX, STORE0_AL, STORE0_AH, STORE0_BX, STORE0_BL, STORE0_BH, STORE0_CX, STORE0_CL, STORE0_CH, STORE0_DX, STORE0_DL, STORE0_DH, STORE0_SP, STORE0_BP, STORE0_SI, STORE0_DI, STORE0_CS, STORE0_SS, STORE0_DS, STORE0_ES, STORE0_FS, STORE0_GS, STORE1_AX, STORE1_AL, STORE1_AH, STORE1_BX, STORE1_BL, STORE1_BH, STORE1_CX, STORE1_CL, STORE1_CH, STORE1_DX, STORE1_DL, STORE1_DH, STORE1_SP, STORE1_BP, STORE1_SI, STORE1_DI, STORE1_CS, STORE1_SS, STORE1_DS, STORE1_ES, STORE1_FS, STORE1_GS, STORE1_FLAGS, LOAD0_MEM_BYTE, LOAD0_MEM_WORD, STORE0_MEM_BYTE, STORE0_MEM_WORD, LOAD1_MEM_BYTE, LOAD1_MEM_WORD, STORE1_MEM_BYTE, STORE1_MEM_WORD, STORE1_ESP, STORE0_FLAGS, LOAD0_IB, LOAD0_IW, LOAD1_IB, LOAD1_IW, LOAD_SEG_CS, LOAD_SEG_SS, LOAD_SEG_DS, LOAD_SEG_ES, LOAD_SEG_FS, LOAD_SEG_GS, LOAD0_ADDR, LOAD0_EAX, LOAD0_EBX, LOAD0_ECX, LOAD0_EDX, LOAD0_ESI, LOAD0_EDI, LOAD0_EBP, LOAD0_ESP, LOAD1_EAX, LOAD1_EBX, LOAD1_ECX, LOAD1_EDX, LOAD1_ESI, LOAD1_EDI, LOAD1_EBP, LOAD1_ESP, STORE0_EAX, STORE0_EBX, STORE0_ECX, STORE0_EDX, STORE0_ESI, STORE0_EDI, STORE0_ESP, STORE0_EBP, STORE1_EAX, STORE1_EBX, STORE1_ECX, STORE1_EDX, STORE1_ESI, STORE1_EDI, STORE1_EBP, LOAD0_MEM_DOUBLE, LOAD1_MEM_DOUBLE, STORE0_MEM_DOUBLE, STORE1_MEM_DOUBLE, LOAD0_EFLAGS, LOAD1_EFLAGS, STORE0_EFLAGS, STORE1_EFLAGS, LOAD0_ID, LOAD1_ID, LOAD0_CR0, LOAD0_CR2, LOAD0_CR3, LOAD0_CR4, STORE0_CR0, STORE0_CR2, STORE0_CR3, STORE0_CR4,
 
+LOAD2_AL, LOAD2_CL, LOAD2_AX, LOAD2_EAX, LOAD2_IB,
+
 FLAG_BITWISE_08, FLAG_BITWISE_16, FLAG_BITWISE_32, FLAG_SUB_08, FLAG_SUB_16, FLAG_SUB_32, FLAG_REP_SUB_08, FLAG_REP_SUB_16, FLAG_REP_SUB_32, FLAG_ADD_08, FLAG_ADD_16, FLAG_ADD_32, FLAG_ADC_08, FLAG_ADC_16, FLAG_ADC_32, FLAG_SBB_08, FLAG_SBB_16, FLAG_SBB_32, FLAG_DEC_08, FLAG_DEC_16, FLAG_DEC_32, FLAG_INC_08, FLAG_INC_16, FLAG_INC_32, FLAG_SHL_08, FLAG_SHL_16, FLAG_SHL_32, FLAG_SHR_08, FLAG_SHR_16, FLAG_SHR_32, FLAG_SAR_08, FLAG_SAR_16, FLAG_SAR_32, FLAG_RCL_08, FLAG_RCL_16, FLAG_RCL_32, FLAG_RCR_08, FLAG_RCR_16, FLAG_RCR_32, FLAG_ROL_08, FLAG_ROL_16, FLAG_ROL_32, FLAG_ROR_08, FLAG_ROR_16, FLAG_ROR_32, FLAG_NEG_08, FLAG_NEG_16, FLAG_NEG_32, FLAG_ROTATE_08, FLAG_ROTATE_16, FLAG_ROTATE_32, FLAG_UNIMPLEMENTED, FLAG_8F, FLAG_NONE, FLAG_BAD, FLAG_80_82, FLAG_81_83, FLAG_FF, FLAG_F6, FLAG_F7, FLAG_FE, FLAG_FLOAT_NOP,
 
 ADDR_AX, ADDR_BX, ADDR_CX, ADDR_DX, ADDR_SP, ADDR_BP, ADDR_SI, ADDR_DI, ADDR_IB, ADDR_IW, ADDR_AL, ADDR_EAX, ADDR_EBX, ADDR_ECX, ADDR_EDX, ADDR_ESP, ADDR_EBP, ADDR_ESI, ADDR_EDI, ADDR_ID, ADDR_MASK_16, ADDR_2EAX, ADDR_2EBX, ADDR_2ECX, ADDR_2EDX, ADDR_2EBP, ADDR_2ESI, ADDR_2EDI, ADDR_4EAX, ADDR_4EBX, ADDR_4ECX, ADDR_4EDX, ADDR_4EBP, ADDR_4ESI, ADDR_4EDI, ADDR_8EAX, ADDR_8EBX, ADDR_8ECX, ADDR_8EDX, ADDR_8EBP, ADDR_8ESI, ADDR_8EDI,
@@ -7380,7 +7432,7 @@ OP_JMP_FAR, OP_JMP_ABS, OP_CALL, OP_CALL_FAR, OP_CALL_ABS, OP_RET, OP_RET_IW, OP
 enum GUICODE
 {
 //processor action codes
-FETCH, DECODE_PREFIX, DECODE_INSTRUCTION, DECODE_OPCODE, DECODE_MODRM, DECODE_SIB, DECODE_INPUT_OPERAND_0, DECODE_INPUT_OPERAND_1, DECODE_OUTPUT_OPERAND_0, DECODE_OUTPUT_OPERAND_1, DECODE_IMMEDIATE, DECODE_DISPLACEMENT, HARDWARE_INTERRUPT, SOFTWARE_INTERRUPT, EXCEPTION, DECODE_MEMORY_ADDRESS, DECODE_SEGMENT_ADDRESS,
+FETCH, DECODE_PREFIX, DECODE_INSTRUCTION, DECODE_OPCODE, DECODE_MODRM, DECODE_SIB, DECODE_INPUT_OPERAND_0, DECODE_INPUT_OPERAND_1, DECODE_INPUT_OPERAND_2, DECODE_OUTPUT_OPERAND_0, DECODE_OUTPUT_OPERAND_1, DECODE_IMMEDIATE, DECODE_DISPLACEMENT, HARDWARE_INTERRUPT, SOFTWARE_INTERRUPT, EXCEPTION, DECODE_MEMORY_ADDRESS, DECODE_SEGMENT_ADDRESS,
 
 EXECUTE_JUMP, EXECUTE_JUMP_ABSOLUTE, EXECUTE_RETURN, EXECUTE_CALL_STACK, EXECUTE_CONDITION, EXECUTE_PORT_READ, EXECUTE_PORT_WRITE, EXECUTE_INTERRUPT, EXECUTE_INTERRUPT_RETURN, EXECUTE_ARITHMETIC_1_1, EXECUTE_ARITHMETIC_2_1, EXECUTE_MEMORY_COMPARE, EXECUTE_MEMORY_TRANSFER, EXECUTE_FLAG, EXECUTE_TRANSFER, EXECUTE_PUSH, EXECUTE_POP, EXECUTE_HALT,
 

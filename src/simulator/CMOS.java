@@ -43,14 +43,14 @@ public class CMOS extends IODevice
 		cmosdata[0x16] = (byte)(640>>8);
 
 		//set extended memory size
-		int ramsize = (PhysicalMemory.EXTENDED_RAM_SIZE)/1024;
-		int n = ramsize;
+		int ramsize = (PhysicalMemory.EXTENDED_RAM_SIZE);
+		int n = ramsize/1024-1024;
 		if (n>65535)
 			n=65535;
 		cmosdata[0x17] = (byte) n;
-		cmosdata[0x18] = (byte) (n>>8);
+		cmosdata[0x18] = (byte) (n>>>8);
 		cmosdata[0x30] = (byte) n;
-		cmosdata[0x31] = (byte) (n>>8);
+		cmosdata[0x31] = (byte) (n>>>8);
 
 		//set extended memory size above 16M
 		if (ramsize <= 16*1024*1024)
@@ -60,7 +60,7 @@ public class CMOS extends IODevice
 		if (n>65535)
 			n=65535;
 		cmosdata[0x34] = (byte) n;
-		cmosdata[0x35] = (byte) (n>>8);
+		cmosdata[0x35] = (byte) (n>>>8);
 
 		//boot from a floppy disk
 		//(if we wanted to boot from hard disk, then 2.  cd, 3)

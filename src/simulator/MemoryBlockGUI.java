@@ -296,7 +296,7 @@ public class MemoryBlockGUI extends AbstractGUI implements AdjustmentListener
 			decoder.fetchQueue.fetch();
 			decoder.decodeInstruction(decoder.cs.getDefaultSize());
 			while (decoder.codesHandled<decoder.codeLength)
-				decoder.processorGUICode.pushMicrocode(decoder.getCode(),0,0,0,0,false);
+				decoder.processorGUICode.pushMicrocode(decoder.getCode(),0,0,0,0,0,false);
 			decodedAddress=address;
 		}
 		public int getByteStep(int address)

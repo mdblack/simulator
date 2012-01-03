@@ -4,11 +4,13 @@ import java.awt.*;
 import javax.swing.*;
 import javax.swing.event.ChangeListener;
 
+import simulator.BreakpointGUI.BreakpointListSelectionListener;
+
 import java.awt.event.*;
 
 public class RegisterGUI extends AbstractGUI
 {
-	public static final int NAMEWIDTH=70,FIELDWIDTH=70,COMMENTWIDTH=300,ROWHEIGHT=20;
+	public static final int NAMEWIDTH=70,FIELDWIDTH=70,COMMENTWIDTH=300,ROWHEIGHT=21;
 
 	public static final int EIP=0,EAX=1,EBX=2,ECX=3,EDX=4,ESP=5,EBP=6,ESI=7,EDI=8,CS=9,SS=10,DS=11,ES=12,FS=13,GS=14,CR0=15,CR2=16,CR3=17,IDTR=18,GDTR=19,LDTR=20,TSS=21;
 	public static final int C=0,P=1,AC=2,Z=3,S=4,T=5,I=6,D=7,O=8;
@@ -23,12 +25,15 @@ public class RegisterGUI extends AbstractGUI
 	private JCheckBox[] flagBox;
 	private JLabel inst;
 	private JTextField intText;
+	private JTextField addrField;
+	private JList typeBox;
 	
 	private String[] oldValues;
+	private int valuemode=0;		//0=hex, 1=binary, 2=decimal
 
 	public RegisterGUI(Computer computer)
 	{
-		super(computer,"Registers",600,600,false,true,true,false);
+		super(computer,"Registers",600,700,false,true,true,false);
 
 		regField=new JTextField[22];
 		regName=new JLabel[22];
@@ -81,28 +86,44 @@ public class RegisterGUI extends AbstractGUI
 	{
 		switch(i)
 		{
-		case(EIP): computer.processor.eip.setValue((int)Long.parseLong(regField[EIP].getText(),16)); break;
-		case(EAX): computer.processor.eax.setValue((int)Long.parseLong(regField[EAX].getText(),16)); break;
-		case(EBX): computer.processor.ebx.setValue((int)Long.parseLong(regField[EBX].getText(),16)); break;
-		case(ECX): computer.processor.ecx.setValue((int)Long.parseLong(regField[ECX].getText(),16)); break;
-		case(EDX): computer.processor.edx.setValue((int)Long.parseLong(regField[EDX].getText(),16)); break;
-		case(ESI): computer.processor.esi.setValue((int)Long.parseLong(regField[ESI].getText(),16)); break;
-		case(EDI): computer.processor.edi.setValue((int)Long.parseLong(regField[EDI].getText(),16)); break;
-		case(ESP): computer.processor.esp.setValue((int)Long.parseLong(regField[ESP].getText(),16)); break;
-		case(EBP): computer.processor.ebp.setValue((int)Long.parseLong(regField[EBP].getText(),16)); break;
-		case(CR0): computer.processor.setCR0((int)Long.parseLong(regField[CR0].getText(),16)); break;
-		case(CR2): computer.processor.setCR2((int)Long.parseLong(regField[CR2].getText(),16)); break;
-		case(CR3): computer.processor.setCR3((int)Long.parseLong(regField[CR3].getText(),16)); break;
-		case(CS): computer.processor.cs.setDescriptorValue((int)Long.parseLong(regField[CS].getText(),16)); break;
-		case(SS): computer.processor.ss.setDescriptorValue((int)Long.parseLong(regField[SS].getText(),16)); break;
-		case(DS): computer.processor.ds.setDescriptorValue((int)Long.parseLong(regField[DS].getText(),16)); break;
-		case(ES): computer.processor.es.setDescriptorValue((int)Long.parseLong(regField[ES].getText(),16)); break;
-		case(FS): computer.processor.fs.setDescriptorValue((int)Long.parseLong(regField[FS].getText(),16)); break;
-		case(GS): computer.processor.gs.setDescriptorValue((int)Long.parseLong(regField[GS].getText(),16)); break;
-		case(IDTR): if (computer.processor.idtr!=null) computer.processor.idtr.setDescriptorValue((int)Long.parseLong(regField[IDTR].getText(),16)); break;
-		case(GDTR): if (computer.processor.gdtr!=null) computer.processor.gdtr.setDescriptorValue((int)Long.parseLong(regField[GDTR].getText(),16)); break;
-		case(LDTR): if (computer.processor.ldtr!=null) computer.processor.ldtr.setDescriptorValue((int)Long.parseLong(regField[LDTR].getText(),16)); break;
-		case(TSS): if (computer.processor.tss!=null) computer.processor.tss.setDescriptorValue((int)Long.parseLong(regField[TSS].getText(),16)); break;
+		case(EIP): computer.processor.eip.setValue(stringToValue(regField[EIP].getText())); break;
+		case(EAX): computer.processor.eax.setValue(stringToValue(regField[EAX].getText())); break;
+		case(EBX): computer.processor.ebx.setValue(stringToValue(regField[EBX].getText())); break;
+		case(ECX): computer.processor.ecx.setValue(stringToValue(regField[ECX].getText())); break;
+		case(EDX): computer.processor.edx.setValue(stringToValue(regField[EDX].getText())); break;
+		case(ESI): computer.processor.esi.setValue(stringToValue(regField[ESI].getText())); break;
+		case(EDI): computer.processor.edi.setValue(stringToValue(regField[EDI].getText())); break;
+		case(ESP): computer.processor.esp.setValue(stringToValue(regField[ESP].getText())); break;
+		case(EBP): computer.processor.ebp.setValue(stringToValue(regField[EBP].getText())); break;
+		case(CR0): computer.processor.setCR0(stringToValue(regField[CR0].getText())); break;
+		case(CR2): computer.processor.setCR2(stringToValue(regField[CR2].getText())); break;
+		case(CR3): computer.processor.setCR3(stringToValue(regField[CR3].getText())); break;
+		case(CS): 
+			if (computer.processor.isModeReal()) { computer.processor.cs.setDescriptorValue(stringToValue(regField[CS].getText())); break; }
+			else { computer.processor.cs.setProtectedValue((stringToValue(regField[CS].getText()))); break; }
+		case(SS): 
+			if (computer.processor.isModeReal()) { computer.processor.ss.setDescriptorValue(stringToValue(regField[SS].getText())); break; }
+			else { computer.processor.ss.setProtectedValue((stringToValue(regField[SS].getText()))); break; }
+		case(DS): 
+			if (computer.processor.isModeReal()) { computer.processor.ds.setDescriptorValue(stringToValue(regField[DS].getText())); break; }
+			else { computer.processor.ds.setProtectedValue((stringToValue(regField[DS].getText()))); break; }
+		case(ES): 
+			if (computer.processor.isModeReal()) { computer.processor.es.setDescriptorValue(stringToValue(regField[ES].getText())); break; }
+			else { computer.processor.es.setProtectedValue((stringToValue(regField[ES].getText()))); break; }
+		case(FS): 
+			if (computer.processor.isModeReal()) { computer.processor.fs.setDescriptorValue(stringToValue(regField[FS].getText())); break; }
+			else { computer.processor.fs.setProtectedValue((stringToValue(regField[FS].getText()))); break; }
+		case(GS): 
+			if (computer.processor.isModeReal()) { computer.processor.gs.setDescriptorValue(stringToValue(regField[GS].getText())); break; }
+			else { computer.processor.gs.setProtectedValue((stringToValue(regField[GS].getText()))); break; }
+		case(IDTR): 
+			if (computer.processor.idtr!=null) computer.processor.idtr.setDescriptorValue(stringToValue(regField[IDTR].getText())); break;
+		case(GDTR): 
+			if (computer.processor.gdtr!=null) computer.processor.gdtr.setDescriptorValue(stringToValue(regField[GDTR].getText())); break;
+		case(LDTR): 
+			if (computer.processor.ldtr!=null) computer.processor.ldtr.setDescriptorValue(stringToValue(regField[LDTR].getText())); break;
+		case(TSS): 
+			if (computer.processor.tss!=null) computer.processor.tss.setDescriptorValue(stringToValue(regField[TSS].getText())); break;
 		}
 	}
 	public void writeFlag(int i)
@@ -120,58 +141,90 @@ public class RegisterGUI extends AbstractGUI
 		case(O): computer.processor.overflow.set(flagBox[O].isSelected()); break;
 		}
 	}
+	
+	private String valueToString(int value)
+	{
+		if (valuemode==0)
+			return Integer.toHexString(value);
+		else if (valuemode==1)
+			return Integer.toBinaryString(value);
+		else
+			return Integer.toString(value);
+	}
 
+	private int stringToValue(String value)
+	{
+		if (valuemode==0)
+			return (int)Long.parseLong(value,16);
+		else if (valuemode==1)
+			return (int)Long.parseLong(value,2);
+		else
+			return (int)Long.parseLong(value,10);
+	}
+	
 	public void readRegisters()
 	{
 		if (!computer.updateGUIOnPlay && !computer.debugMode) return;
 
-		regField[EIP].setText(""+Integer.toHexString(computer.processor.eip.getValue()));
-		regField[EAX].setText(""+Integer.toHexString(computer.processor.eax.getValue()));
-		regField[EBX].setText(""+Integer.toHexString(computer.processor.ebx.getValue()));
-		regField[ECX].setText(""+Integer.toHexString(computer.processor.ecx.getValue()));
-		regField[EDX].setText(""+Integer.toHexString(computer.processor.edx.getValue()));
-		regField[ESP].setText(""+Integer.toHexString(computer.processor.esp.getValue()));
-		regField[EBP].setText(""+Integer.toHexString(computer.processor.ebp.getValue()));
-		regField[ESI].setText(""+Integer.toHexString(computer.processor.esi.getValue()));
-		regField[EDI].setText(""+Integer.toHexString(computer.processor.edi.getValue()));
-		regField[CR0].setText(""+Integer.toHexString(computer.processor.cr0.getValue()));
-		regField[CR2].setText(""+Integer.toHexString(computer.processor.cr2.getValue()));
-		regField[CR3].setText(""+Integer.toHexString(computer.processor.cr3.getValue()));
-		regField[CS].setText(""+Integer.toHexString(computer.processor.cs.getValue()));
-		regField[SS].setText(""+Integer.toHexString(computer.processor.ss.getValue()));
-		regField[DS].setText(""+Integer.toHexString(computer.processor.ds.getValue()));
-		regField[ES].setText(""+Integer.toHexString(computer.processor.es.getValue()));
-		regField[FS].setText(""+Integer.toHexString(computer.processor.fs.getValue()));
-		regField[GS].setText(""+Integer.toHexString(computer.processor.gs.getValue()));
-		if (computer.processor.idtr!=null) regField[IDTR].setText(""+Integer.toHexString(computer.processor.idtr.getValue()));
-		if (computer.processor.gdtr!=null) regField[GDTR].setText(""+Integer.toHexString(computer.processor.gdtr.getValue()));
-		if (computer.processor.tss!=null) regField[TSS].setText(""+Integer.toHexString(computer.processor.tss.getValue()));
-		if (computer.processor.ldtr!=null) regField[LDTR].setText(""+Integer.toHexString(computer.processor.ldtr.getValue()));
+		regField[EIP].setText(""+valueToString(computer.processor.eip.getValue()));
+		regField[EAX].setText(""+valueToString(computer.processor.eax.getValue()));
+		regField[EBX].setText(""+valueToString(computer.processor.ebx.getValue()));
+		regField[ECX].setText(""+valueToString(computer.processor.ecx.getValue()));
+		regField[EDX].setText(""+valueToString(computer.processor.edx.getValue()));
+		regField[ESP].setText(""+valueToString(computer.processor.esp.getValue()));
+		regField[EBP].setText(""+valueToString(computer.processor.ebp.getValue()));
+		regField[ESI].setText(""+valueToString(computer.processor.esi.getValue()));
+		regField[EDI].setText(""+valueToString(computer.processor.edi.getValue()));
+		regField[CR0].setText(""+valueToString(computer.processor.cr0.getValue()));
+		regField[CR2].setText(""+valueToString(computer.processor.cr2.getValue()));
+		regField[CR3].setText(""+valueToString(computer.processor.cr3.getValue()));
+		regField[CS].setText(""+valueToString(computer.processor.cs.getValue()));
+		regField[SS].setText(""+valueToString(computer.processor.ss.getValue()));
+		regField[DS].setText(""+valueToString(computer.processor.ds.getValue()));
+		regField[ES].setText(""+valueToString(computer.processor.es.getValue()));
+		regField[FS].setText(""+valueToString(computer.processor.fs.getValue()));
+		regField[GS].setText(""+valueToString(computer.processor.gs.getValue()));
+		if (computer.processor.idtr!=null) regField[IDTR].setText(""+valueToString(computer.processor.idtr.getValue()));
+		if (computer.processor.gdtr!=null) regField[GDTR].setText(""+valueToString(computer.processor.gdtr.getValue()));
+		if (computer.processor.tss!=null) regField[TSS].setText(""+valueToString(computer.processor.tss.getValue()));
+		if (computer.processor.ldtr!=null) regField[LDTR].setText(""+valueToString(computer.processor.ldtr.getValue()));
 		
 		for (int r=0; r<regField.length; r++)
 			oldValues[r]=regField[r].getText();
 
 		int csbase=computer.processor.cs.getBase();
 		int cslimit=computer.processor.cs.getLimit();
-		regComment[CS].setText("Base: "+Integer.toHexString(csbase)+", Limit: "+Integer.toHexString(cslimit));
+		regComment[CS].setText("Base: "+valueToString(csbase)+", Limit: "+valueToString(cslimit));
 		int ssbase=computer.processor.ss.getBase();
 		int sslimit=computer.processor.ss.getLimit();
-		regComment[SS].setText("Base: "+Integer.toHexString(ssbase)+", Limit: "+Integer.toHexString(sslimit));
-		regComment[DS].setText("Base: "+Integer.toHexString(computer.processor.ds.getBase())+", Limit: "+Integer.toHexString(computer.processor.ds.getLimit()));
-		regComment[ES].setText("Base: "+Integer.toHexString(computer.processor.es.getBase())+", Limit: "+Integer.toHexString(computer.processor.es.getLimit()));
-		regComment[FS].setText("Base: "+Integer.toHexString(computer.processor.fs.getBase())+", Limit: "+Integer.toHexString(computer.processor.fs.getLimit()));
-		regComment[GS].setText("Base: "+Integer.toHexString(computer.processor.gs.getBase())+", Limit: "+Integer.toHexString(computer.processor.gs.getLimit()));
-		if (computer.processor.idtr!=null) regComment[IDTR].setText("Base: "+Integer.toHexString(computer.processor.idtr.getBase())+", Limit: "+Integer.toHexString(computer.processor.idtr.getLimit()));
-		if (computer.processor.ldtr!=null) regComment[LDTR].setText("Base: "+Integer.toHexString(computer.processor.ldtr.getBase())+", Limit: "+Integer.toHexString(computer.processor.ldtr.getLimit()));
-		if (computer.processor.tss!=null) regComment[TSS].setText("Base: "+Integer.toHexString(computer.processor.tss.getBase())+", Limit: "+Integer.toHexString(computer.processor.tss.getLimit()));
-		if (computer.processor.gdtr!=null) regComment[GDTR].setText("Base: "+Integer.toHexString(computer.processor.gdtr.getBase())+", Limit: "+Integer.toHexString(computer.processor.gdtr.getLimit()));
+		regComment[SS].setText("Base: "+valueToString(ssbase)+", Limit: "+valueToString(sslimit));
+		regComment[DS].setText("Base: "+valueToString(computer.processor.ds.getBase())+", Limit: "+valueToString(computer.processor.ds.getLimit()));
+		regComment[ES].setText("Base: "+valueToString(computer.processor.es.getBase())+", Limit: "+valueToString(computer.processor.es.getLimit()));
+		regComment[FS].setText("Base: "+valueToString(computer.processor.fs.getBase())+", Limit: "+valueToString(computer.processor.fs.getLimit()));
+		regComment[GS].setText("Base: "+valueToString(computer.processor.gs.getBase())+", Limit: "+valueToString(computer.processor.gs.getLimit()));
+		if (computer.processor.idtr!=null) regComment[IDTR].setText("Base: "+valueToString(computer.processor.idtr.getBase())+", Limit: "+valueToString(computer.processor.idtr.getLimit()));
+		if (computer.processor.ldtr!=null) regComment[LDTR].setText("Base: "+valueToString(computer.processor.ldtr.getBase())+", Limit: "+valueToString(computer.processor.ldtr.getLimit()));
+		if (computer.processor.tss!=null) regComment[TSS].setText("Base: "+valueToString(computer.processor.tss.getBase())+", Limit: "+valueToString(computer.processor.tss.getLimit()));
+		if (computer.processor.gdtr!=null) regComment[GDTR].setText("Base: "+valueToString(computer.processor.gdtr.getBase())+", Limit: "+valueToString(computer.processor.gdtr.getLimit()));
 
-		regComment[EIP].setText("Next instruction: "+Integer.toHexString(csbase+computer.processor.eip.getValue()));
-		regComment[ESP].setText("Top of the stack: "+Integer.toHexString(ssbase+computer.processor.esp.getValue()));
+		if (computer.processor.isModeReal())
+		{
+			regComment[EIP].setText("Next instruction: "+valueToString(csbase+computer.processor.eip.getValue()));
+			regComment[ESP].setText("Top of the stack: "+valueToString(ssbase+computer.processor.esp.getValue()));
+		}
+		else
+		{
+			regComment[EIP].setText("Next instruction: "+valueToString(computer.processor.cs.physicalAddress(computer.processor.eip.getValue())));
+			regComment[ESP].setText("Top of the stack: "+valueToString(computer.processor.ss.physicalAddress(computer.processor.esp.getValue())));
+		}
 		if ((computer.processor.cr0.getValue()&1)==0)
 			regComment[CR0].setText("Real Mode");
 		else
+		{
 			regComment[CR0].setText("Protected Mode");
+			if ((computer.processor.cr0.getValue()&0x80000000)!=0)
+				regComment[CR0].setText("Protected Mode with Paging");
+		}
 
 		flagBox[C].setSelected(computer.processor.carry.read());
 		flagBox[P].setSelected(computer.processor.parity.read());
@@ -213,35 +266,43 @@ public class RegisterGUI extends AbstractGUI
 			guicomponent.add(flagBox[i]);
 		}
 		JButton change = new JButton("Change values");
-		change.setBounds(canvasX/2-90,ROWHEIGHT*26,180,ROWHEIGHT);
+		change.setBounds(canvasX/2-90,ROWHEIGHT*26,180,ROWHEIGHT-1);
 		change.addActionListener(new ButtonListener());
 		guicomponent.add(change);
 
-
-		JButton intr=new JButton("Interrupt");
-		intr.setBounds(canvasX/4-90,ROWHEIGHT*28,180,ROWHEIGHT);
-		intr.addActionListener(new ButtonListener());
-		guicomponent.add(intr);
-
-		intr=new JButton("Push Regs");
-		intr.setBounds(canvasX/4-90,ROWHEIGHT*29,180,ROWHEIGHT);
-		intr.addActionListener(new ButtonListener());
-		guicomponent.add(intr);
+		JButton base = new JButton("Switch base");
+		base.setBounds(canvasX/2-90,ROWHEIGHT*28,180,ROWHEIGHT-1);
+		base.addActionListener(new ButtonListener());
+		guicomponent.add(base);
 		
+		JButton intr=new JButton("Interrupt");
+		intr.setBounds(canvasX/4-90,ROWHEIGHT*29,180,ROWHEIGHT-1);
+		intr.addActionListener(new ButtonListener());
+		guicomponent.add(intr);
+
 		intText=new JTextField("0");
-		intText.setBounds(2*canvasX/4-20,ROWHEIGHT*28,40,ROWHEIGHT);
+		intText.setBounds(2*canvasX/4-20,ROWHEIGHT*29,40,ROWHEIGHT-1);
 		guicomponent.add(intText);
 
 		JButton intrr=new JButton("Interrupt Return");
-		intrr.setBounds(3*canvasX/4-90,ROWHEIGHT*28,180,ROWHEIGHT);
+		intrr.setBounds(3*canvasX/4-90,ROWHEIGHT*29,180,ROWHEIGHT-1);
 		intrr.addActionListener(new ButtonListener());
 		guicomponent.add(intrr);
 
-		intrr=new JButton("Pop Regs");
-		intrr.setBounds(3*canvasX/4-90,ROWHEIGHT*29,180,ROWHEIGHT);
-		intrr.addActionListener(new ButtonListener());
-		guicomponent.add(intrr);
-
+		intr=new JButton("Look up address");
+		intr.setBounds(10,ROWHEIGHT*30,180,ROWHEIGHT-1);
+		intr.addActionListener(new ButtonListener());
+		guicomponent.add(intr);
+		
+		typeBox=new JList(new String[]{"Abs","CS","SS","DS","ES","FS","GS","IDTR","GDTR","LDTR","TSS"});
+		typeBox.setSelectedIndex(0);
+		JScrollPane listpane=new JScrollPane(typeBox);
+		listpane.setBounds(190,ROWHEIGHT*30,FIELDWIDTH,ROWHEIGHT);
+		guicomponent.add(listpane);
+				
+		addrField=new JTextField("0");
+		addrField.setBounds(190+FIELDWIDTH+10,ROWHEIGHT*30,FIELDWIDTH,ROWHEIGHT);
+		guicomponent.add(addrField);
 		
 		readRegisters();
 	}
@@ -271,9 +332,14 @@ public class RegisterGUI extends AbstractGUI
 					writeFlag(i);
 				readRegisters();
 			}
+			else if (e.getActionCommand().equals("Switch base"))
+			{
+				valuemode=(valuemode+1)%3;
+				readRegisters();
+			}
 			else if (e.getActionCommand().equals("Interrupt"))
 			{
-				int interrupt=Integer.parseInt(intText.getText(),16);
+				int interrupt=stringToValue(intText.getText());
 				computer.processor.handleInterrupt(interrupt);
 				readRegisters();
 			}
@@ -291,6 +357,25 @@ public class RegisterGUI extends AbstractGUI
 			{
 				computer.processor.popad();
 				readRegisters();
+			}
+			else if (e.getActionCommand().equals("Look up address"))
+			{
+				int address=stringToValue(addrField.getText());
+				switch(typeBox.getSelectedIndex())
+				{
+				case 0: if (!computer.processor.isModeReal())
+							addrField.setText(valueToString(computer.processor.linearMemory.virtualAddressLookup(address))); break;
+				case 1: addrField.setText(valueToString(computer.processor.cs.physicalAddress(address))); break;
+				case 2: addrField.setText(valueToString(computer.processor.ss.physicalAddress(address))); break;
+				case 3: addrField.setText(valueToString(computer.processor.ds.physicalAddress(address))); break;
+				case 4: addrField.setText(valueToString(computer.processor.es.physicalAddress(address))); break;
+				case 5: addrField.setText(valueToString(computer.processor.fs.physicalAddress(address))); break;
+				case 6: addrField.setText(valueToString(computer.processor.gs.physicalAddress(address))); break;
+				case 7: addrField.setText(valueToString(computer.processor.idtr.physicalAddress(address))); break;
+				case 8: addrField.setText(valueToString(computer.processor.gdtr.physicalAddress(address))); break;
+				case 9: addrField.setText(valueToString(computer.processor.ldtr.physicalAddress(address))); break;
+				case 10: addrField.setText(valueToString(computer.processor.tss.physicalAddress(address))); break;
+				}
 			}
 		}
 	}

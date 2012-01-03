@@ -83,6 +83,31 @@ public class LinearMemory implements MemoryDevice
 System.out.println("new page entry: "+address+" "+(quantity++));
 		}
 	}
+	
+	//used for GUI purposes, not for emulation
+	//does a page table lookup, returns physical address
+	public int virtualAddressLookup(int virtualAddress)
+	{
+		if (pagingDisabled)
+			return virtualAddress;
+		int offset=virtualAddress&BLOCK_OFFSET_MASK;
+		int virtualPageIndex=virtualAddress>>PAGE_NUMBER_SHIFT;
+		//get the information location in the page table directory
+		//determined by the upper 10 bits. each directory entry is 4 bytes.
+		int directoryAddress=directoryBaseAddress | (0xfff & ((virtualPageIndex>>>10)*4));
+		int directoryInformation=computer.physicalMemory.getDoubleWord(directoryAddress);
+		//is the directory there?
+		if ((directoryInformation&1)==0)
+			return -1;
+		//extract the page table: determined by the middle 10 bits
+		int pageTableEntryAddress=(directoryInformation&0xfffff000) | ((virtualPageIndex*4)&0xfff);
+		int pageTableEntry=computer.physicalMemory.getDoubleWord(pageTableEntryAddress);
+		//is it there?
+		if ((pageTableEntry&1)==0)
+			return -1;
+		int physicalBaseAddress=pageTableEntry&0xfffff000;
+		return physicalBaseAddress|offset;
+	}
 
 	//given a virtual page number, get the physical base address
 	private int getPhysicalPageRead(int virtualAddress)

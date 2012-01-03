@@ -118,11 +118,11 @@ public class MemoryGUI extends AbstractGUI
 			return;
 
 		if (overlay.addressType(block*BLOCKSIZE)==4)
-			codeFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.CODE,computer.processor.cs.address(computer.processor.eip.getValue()));
+			codeFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.CODE,computer.processor.cs.physicalAddress(computer.processor.eip.getValue()));
 		else if (overlay.addressType(block*BLOCKSIZE)==3)
 			codeFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.CODE,block*BLOCKSIZE);
 		else if (overlay.addressType(block*BLOCKSIZE)==8)
-			stackFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.STACK,computer.processor.ss.address(computer.processor.esp.getValue()));
+			stackFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.STACK,computer.processor.ss.physicalAddress(computer.processor.esp.getValue()));
 		else if (overlay.addressType(block*BLOCKSIZE)==7)
 			stackFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.STACK,block*BLOCKSIZE);
 		else if (overlay.addressType(block*BLOCKSIZE)==6 || overlay.addressType(block*BLOCKSIZE)==5)
@@ -137,15 +137,17 @@ public class MemoryGUI extends AbstractGUI
 	{
 		keys=keys.toLowerCase();
 		if (keys.equals("i"))
-			codeFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.CODE,computer.processor.cs.address(computer.processor.eip.getValue()));
+			codeFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.CODE,computer.processor.cs.physicalAddress(computer.processor.eip.getValue()));
 		else if (keys.equals("s"))
-			stackFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.STACK,computer.processor.ss.address(computer.processor.esp.getValue()));
+			stackFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.STACK,computer.processor.ss.physicalAddress(computer.processor.esp.getValue()));
 		else if (keys.charAt(0)=='i')
 			defaultFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.CODE,Integer.parseInt(keys.substring(1,keys.length()),16));
 		else if (keys.charAt(0)=='s')
 			defaultFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.STACK,Integer.parseInt(keys.substring(1,keys.length()),16));
 		else if (keys.charAt(0)=='d')
 			defaultFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.DATA,Integer.parseInt(keys.substring(1,keys.length()),16));
+		else if (keys.charAt(0)=='v')
+			defaultFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.DATA,computer.processor.linearMemory.virtualAddressLookup(Integer.parseInt(keys.substring(1,keys.length()),16)));
 		else
 			defaultFrame = new MemoryBlockGUI(computer,MemoryBlockGUI.NOTHING,Integer.parseInt(keys,16));
 	}

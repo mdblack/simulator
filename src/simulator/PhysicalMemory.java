@@ -11,7 +11,7 @@ import java.util.Scanner;
 public class PhysicalMemory implements MemoryDevice
 {
 	//total amount of physical memory after FFFFF
-	public static int EXTENDED_RAM_SIZE=0x1000000;
+	public static int EXTENDED_RAM_SIZE=0x10000000;
 
 	//total physical memory
 	public static int TOTAL_RAM_SIZE=EXTENDED_RAM_SIZE+0x100000;
