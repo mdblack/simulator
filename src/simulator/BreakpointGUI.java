@@ -198,13 +198,13 @@ new String[]{"==","<",">",">=","<="}};
 				}
 				else if (typeBox[i].getSelectedValue().equals("memory") && !entityField[i].getText().equals(""))
 				{
-					int v = computer.physicalMemory.getByte(Integer.parseInt(entityField[i].getText(),16));
+					int v = 0xff&computer.physicalMemory.getByte(Integer.parseInt(entityField[i].getText(),16));
 					comparisonBox[i].setSelectedIndex(2);
 					numberField[i].setText(Integer.toHexString(v));
 				}
 				else if (typeBox[i].getSelectedValue().equals("port") && !entityField[i].getText().equals(""))
 				{
-					int v = computer.processor.ioports.ioPortReadByte(Integer.parseInt(entityField[i].getText(),16));
+					int v = 0xff&computer.processor.ioports.ioPortReadByte(Integer.parseInt(entityField[i].getText(),16));
 					comparisonBox[i].setSelectedIndex(2);
 					numberField[i].setText(Integer.toHexString(v));
 				}
@@ -327,7 +327,7 @@ new String[]{"==","<",">",">=","<="}};
 				String comparison=getNextEquationElement();
 				String number=getNextEquationElement();
 				int number1=0xff&computer.physicalMemory.getByte((int)Long.parseLong(address,16));
-				int number2=(int)Long.parseLong(number,16);
+				int number2=0xff&(int)Long.parseLong(number,16);
 				if (doComparison(comparison,number1,number2)) return true;
 				element=getNextEquationElement();
 			}
@@ -338,7 +338,7 @@ new String[]{"==","<",">",">=","<="}};
 				String comparison=getNextEquationElement();
 				String number=getNextEquationElement();
 				int number1=0xff&computer.processor.ioports.ioPortReadByte(Integer.parseInt(address,16));
-				int number2=(int)Long.parseLong(number,16);
+				int number2=0xff&(int)Long.parseLong(number,16);
 				if (doComparison(comparison,number1,number2)) return true;
 				element=getNextEquationElement();
 			}
