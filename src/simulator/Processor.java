@@ -3561,7 +3561,7 @@ private void btc_mem(int offset, Segment seg, int addr)
 {
 	addr+=(offset>>>3);
 	offset&=0x7;
-	byte data=seg.loadByte(addr);
+	int data=0xff&seg.loadByte(addr);
 	seg.storeByte(addr,(byte)(data^(1<<offset)));
 	carry.set(data,offset,Flag.CY_NTH_BIT_SET);
 }
@@ -3570,7 +3570,7 @@ private void bts_mem(int offset, Segment seg, int addr)
 {
 	addr+=(offset>>>3);
 	offset&=0x7;
-	byte data=seg.loadByte(addr);
+	int data=0xff&seg.loadByte(addr);
 	seg.storeByte(addr,(byte)(data|(1<<offset)));
 	carry.set(data,offset,Flag.CY_NTH_BIT_SET);
 }
@@ -3579,7 +3579,7 @@ private void btr_mem(int offset, Segment seg, int addr)
 {
 	addr+=(offset>>>3);
 	offset&=0x7;
-	byte data=seg.loadByte(addr);
+	int data=0xff&seg.loadByte(addr);
 	seg.storeByte(addr,(byte)(data&~(1<<offset)));
 	carry.set(data,offset,Flag.CY_NTH_BIT_SET);
 }
@@ -3588,7 +3588,7 @@ private void bt_mem(int offset, Segment seg, int addr)
 {
 	addr+=(offset>>>3);
 	offset&=0x7;
-	byte data=seg.loadByte(addr);
+	int data=0xff&seg.loadByte(addr);
 	carry.set(data,offset,Flag.CY_NTH_BIT_SET);
 }
 
@@ -5471,7 +5471,7 @@ private void decodeIrregularOperand(int opcode, int modrm, int sib, int displace
 			}
 			break;
 			case 0xfab: case 0xfb3: case 0xfbb:
-				if((modrm&0xc0)!=0xc0)
+				if((modrm&0xc0)==0xc0)
 				{
 					if (isCode(MICROCODE.PREFIX_OPCODE_32BIT))
 						effective_double(modrm,sib,displacement,2);
@@ -6336,10 +6336,10 @@ try{
 			case OP_DIV_16_32: name="div"; break;
 			case OP_IDIV_08: name="idiv"; break;
 			case OP_IDIV_16_32: name="idiv"; break;
-			case OP_BT_MEM: name="bt mem"; break;
-			case OP_BTS_MEM: name="bts mem"; break;
-			case OP_BTR_MEM: name="btr mem"; break;
-			case OP_BTC_MEM: name="btc mem"; break;
+			case OP_BT_MEM: name="bt_mem"; break;
+			case OP_BTS_MEM: name="bts_mem"; break;
+			case OP_BTR_MEM: name="btr_mem"; break;
+			case OP_BTC_MEM: name="btc_mem"; break;
 			case OP_BT_16_32: name="bt"; break;
 			case OP_BTS_16_32: name="bts"; break;
 			case OP_BTR_16_32: name="btr"; break;
