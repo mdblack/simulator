@@ -72,6 +72,11 @@ new String[]{"==","<",">",">=","<="}};
 
 		refresh();
 	}
+	
+	public void closeGUI()
+	{
+		computer.breakpointGUI=null;
+	}
 
 	public void editEquation()
 	{

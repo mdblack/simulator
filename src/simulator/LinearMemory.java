@@ -8,6 +8,7 @@ public class LinearMemory implements MemoryDevice
 	Computer computer;
 	
 	//page block size is 4096
+	private static final int BLOCK_SIZE=4096;
 	private static final int BLOCK_OFFSET_MASK=0xfff;
 	private static final int PAGE_NUMBER_SHIFT=12;
 	private static final int PAGES=1<<(32-PAGE_NUMBER_SHIFT);
@@ -18,6 +19,8 @@ public class LinearMemory implements MemoryDevice
 	
 	//four TLB tables
 	private PageTableEntry[] readSupervisorPageTable, readUserPageTable, writeSupervisorPageTable, writeUserPageTable;
+	//size of each page: 4k or 4M
+	private boolean[] pageSize;
 
 	public LinearMemory(Computer computer)
 	{
@@ -26,16 +29,15 @@ public class LinearMemory implements MemoryDevice
 		flush();
 	}
 	
-	//reading (and writing) bytes works like this:
-	//call getPhysicalPageRead on the virtual address to get the physical page base 
-	//extract the block offset, add it to the the physical page base, and do the read
 	public byte getByte(int address) 
 	{
-		return computer.physicalMemory.getByte(getPhysicalPageRead(address)|(address & BLOCK_OFFSET_MASK));
+		return computer.physicalMemory.getByte(getPhysicalPageRead(address));
+//		return computer.physicalMemory.getByte(getPhysicalPageRead(address)|(address & BLOCK_OFFSET_MASK));
 	}
 	public void setByte(int address, byte value) 
 	{
-		computer.physicalMemory.setByte(getPhysicalPageWrite(address)|(address & BLOCK_OFFSET_MASK),value);
+		computer.physicalMemory.setByte(getPhysicalPageWrite(address), value);
+//		computer.physicalMemory.setByte(getPhysicalPageWrite(address)|(address & BLOCK_OFFSET_MASK),value);
 	}
 	public short getWord(int address)
 	{
@@ -99,23 +101,34 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 		//is the directory there?
 		if ((directoryInformation&1)==0)
 			return -1;
-		//extract the page table: determined by the middle 10 bits
-		int pageTableEntryAddress=(directoryInformation&0xfffff000) | ((virtualPageIndex*4)&0xfff);
-		int pageTableEntry=computer.physicalMemory.getDoubleWord(pageTableEntryAddress);
-		//is it there?
-		if ((pageTableEntry&1)==0)
-			return -1;
-		int physicalBaseAddress=pageTableEntry&0xfffff000;
-		return physicalBaseAddress|offset;
+		boolean directoryIs4MPage=((0x80&directoryInformation)!=0) && pageSizeExtensions;
+		if (!directoryIs4MPage)
+		{
+			//extract the page table: determined by the middle 10 bits
+			int pageTableEntryAddress=(directoryInformation&0xfffff000) | ((virtualPageIndex*4)&0xfff);
+			int pageTableEntry=computer.physicalMemory.getDoubleWord(pageTableEntryAddress);
+			//is it there?
+			if ((pageTableEntry&1)==0)
+				return -1;
+			int physicalBaseAddress=pageTableEntry&0xfffff000;
+			return physicalBaseAddress|offset;
+		}
+		else
+		{
+			//extract the physical address straight from the directory
+			int physicalBaseAddress=(0xffc00000&directoryInformation);
+			return physicalBaseAddress|(virtualAddress&0x3fffff);
+		}
 	}
 
-	//given a virtual page number, get the physical base address
+	//given a virtual address, get the physical address
 	private int getPhysicalPageRead(int virtualAddress)
 	{
-		int virtualPageIndex=virtualAddress>>>PAGE_NUMBER_SHIFT;
 		//if paging is disabled, the virtual address becomes the physical address
 		if (pagingDisabled)
-			return virtualPageIndex<<PAGE_NUMBER_SHIFT;
+			return virtualAddress;
+		int virtualPageIndex=virtualAddress>>>PAGE_NUMBER_SHIFT;
+		int offset=virtualAddress&BLOCK_OFFSET_MASK;
 		//two direct mapped page tables in the TLB: supervisor and user
 		if (isSupervisor)
 		{
@@ -126,7 +139,7 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 			//get the entry's base address
 			try
 			{
-				return readSupervisorPageTable[virtualPageIndex].physicalBaseAddress;
+				return (readSupervisorPageTable[virtualPageIndex].physicalBaseAddress)|offset;
 			}
 			catch(NullPointerException e){}
 			//if the entry was NULL, construct it and repeat
@@ -138,7 +151,7 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 				readUserPageTable=new PageTableEntry[PAGES];
 			try
 			{
-				return readUserPageTable[virtualPageIndex].physicalBaseAddress;
+				return readUserPageTable[virtualPageIndex].physicalBaseAddress|offset;
 			}
 			catch(NullPointerException e){}
 			return validateTLBEntryRead(virtualAddress);
@@ -147,16 +160,17 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 	//same as read, but with the write page tables
 	private int getPhysicalPageWrite(int virtualAddress)
 	{
-		int virtualPageIndex=virtualAddress>>>PAGE_NUMBER_SHIFT;
 		if (pagingDisabled)
-			return virtualPageIndex<<PAGE_NUMBER_SHIFT;
+			return virtualAddress;
+		int virtualPageIndex=virtualAddress>>>PAGE_NUMBER_SHIFT;
+		int offset=virtualAddress&BLOCK_OFFSET_MASK;
 		if (isSupervisor)
 		{
 			if (writeSupervisorPageTable==null)
 				writeSupervisorPageTable=new PageTableEntry[PAGES];
 			try
 			{
-				return writeSupervisorPageTable[virtualPageIndex].physicalBaseAddress;
+				return writeSupervisorPageTable[virtualPageIndex].physicalBaseAddress|offset;
 			}
 			catch(NullPointerException e){}
 			return validateTLBEntryWrite(virtualAddress);
@@ -167,7 +181,7 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 				writeUserPageTable=new PageTableEntry[PAGES];
 			try
 			{
-				return writeUserPageTable[virtualPageIndex].physicalBaseAddress;
+				return writeUserPageTable[virtualPageIndex].physicalBaseAddress|offset;
 			}
 			catch(NullPointerException e){}
 			return validateTLBEntryWrite(virtualAddress);
@@ -178,6 +192,7 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 	{
 //		System.out.println("validate TLB entry read "+ virtualAddress);
 		int virtualPageIndex=virtualAddress>>>PAGE_NUMBER_SHIFT;
+		int offset=virtualAddress&BLOCK_OFFSET_MASK;
 		lastPageFaultAddress=virtualAddress;
 		
 		//virtual address is divided up as follows:
@@ -189,40 +204,87 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 		int directoryInformation=computer.physicalMemory.getDoubleWord(directoryAddress);
 		//is the directory there?
 		if ((directoryInformation&1)==0) panic("directory isn't there");
-
 		//extract information about the page table directory
+		//is it user or supervisor?
 		boolean directoryIsUser = (4&directoryInformation)!=0;
-		//extract the page table: determined by the middle 10 bits
-		int pageTableEntryAddress=(directoryInformation&0xfffff000) | ((virtualPageIndex*4)&0xfff);
-		int pageTableEntry=computer.physicalMemory.getDoubleWord(pageTableEntryAddress);
-		//is it there?
-		if ((pageTableEntry&1)==0) panic("page table entry isn't there");
-		boolean tableIsUser = (4&pageTableEntry)!=0;
-		//is a user accessing a supervisor page?
-		if ((!tableIsUser || !directoryIsUser) && !isSupervisor) panic("user trying to access a supervisor page");
-		//set bit 17 to 1
-		if ((pageTableEntry&0x20)==0)
+		//is it 4M or 4k?
+		boolean directoryIs4MPage=((0x80&directoryInformation)!=0) && pageSizeExtensions;
+		
+		if (!directoryIs4MPage)
 		{
-			pageTableEntry|=0x20;
-			computer.physicalMemory.setDoubleWord(pageTableEntryAddress, pageTableEntry);
-		}
-		int physicalBaseAddress=pageTableEntry&0xfffff000;
-		//if page caching is disabled, don't make a TLB entry.  just return the physical base address.
-		if (!pageCacheEnabled)
-			return physicalBaseAddress;
+			//extract the page table: determined by the middle 10 bits
+			int pageTableEntryAddress=(directoryInformation&0xfffff000) | ((virtualPageIndex*4)&0xfff);
+			int pageTableEntry=computer.physicalMemory.getDoubleWord(pageTableEntryAddress);
+			//is it there?
+			if ((pageTableEntry&1)==0) panic("page table entry isn't there");
+			boolean tableIsUser = (4&pageTableEntry)!=0;
+			//is a user accessing a supervisor page?
+			if ((!tableIsUser || !directoryIsUser) && !isSupervisor) panic("user trying to access a supervisor page");
+			//set bit 17 to 1
+			if ((pageTableEntry&0x20)==0)
+			{
+				pageTableEntry|=0x20;
+				computer.physicalMemory.setDoubleWord(pageTableEntryAddress, pageTableEntry);
+			}
+			int physicalBaseAddress=pageTableEntry&0xfffff000;
+			//if page caching is disabled, don't make a TLB entry.  just return the physical base address.
+			if (!pageCacheEnabled)
+				return physicalBaseAddress|offset;
 
-		//save the entry in the TLB
-		if (isSupervisor)
-			readSupervisorPageTable[virtualPageIndex]=new PageTableEntry(physicalBaseAddress);
+			//save the entry in the TLB
+			if (isSupervisor)
+				readSupervisorPageTable[virtualPageIndex]=new PageTableEntry(physicalBaseAddress);
+			else
+				readUserPageTable[virtualPageIndex]=new PageTableEntry(physicalBaseAddress);
+			return physicalBaseAddress|offset;
+		}
 		else
-			readUserPageTable[virtualPageIndex]=new PageTableEntry(physicalBaseAddress);
-		return physicalBaseAddress;
+		{
+			if (!directoryIsUser && !isSupervisor)
+				panic("User is trying to access a supervisor directory entry");
+			if ((directoryInformation&0x20)==0)
+			{
+				directoryInformation|=0x20;
+				computer.physicalMemory.setDoubleWord(directoryAddress, directoryInformation);
+			}
+			int physicalBaseAddress=(0xffc00000&directoryInformation);
+			//if no page caching, don't make a TLB entry
+			if (!pageCacheEnabled)
+				return physicalBaseAddress|(virtualAddress&0x3ffffff);
+			int pageSizeIndex=(0xffc00000&virtualAddress)>>>12;
+			//create 1024 (1Ms worth) of TLB entries
+			for (int i=0; i<1024; i++)
+			{
+				pageSize[pageSizeIndex]=true;
+				if (isSupervisor)
+				{
+					if (readSupervisorPageTable==null)
+						readSupervisorPageTable=new PageTableEntry[PAGES];
+					readSupervisorPageTable[pageSizeIndex]=new PageTableEntry(physicalBaseAddress);
+					pageSizeIndex++;
+					physicalBaseAddress+=BLOCK_SIZE;
+				}
+				else
+				{
+					if (readUserPageTable==null)
+						readUserPageTable=new PageTableEntry[PAGES];
+					readUserPageTable[pageSizeIndex]=new PageTableEntry(physicalBaseAddress);
+					pageSizeIndex++;
+					physicalBaseAddress+=BLOCK_SIZE;
+				}
+			}
+			if (isSupervisor)
+				return readSupervisorPageTable[virtualPageIndex].physicalBaseAddress|offset;
+			else
+				return readUserPageTable[virtualPageIndex].physicalBaseAddress|offset;
+		}		
 	}
 	
 	private int validateTLBEntryWrite(int virtualAddress)
 	{
 //		System.out.println("validate TLB entry write "+ virtualAddress);
 		int virtualPageIndex=virtualAddress>>>PAGE_NUMBER_SHIFT;
+		int offset=virtualAddress&BLOCK_OFFSET_MASK;
 		lastPageFaultAddress=virtualAddress;
 		
 		//virtual address is divided up as follows:
@@ -236,32 +298,79 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 		if ((directoryInformation&1)==0) panic("directory isn't there");
 
 		//extract information about the page table directory
+		//user or supervisor?
 		boolean directoryIsUser = (4&directoryInformation)!=0;
-		//extract the page table: determined by the middle 10 bits
-		int pageTableEntryAddress=(directoryInformation&0xfffff000) | ((virtualPageIndex*4)&0xfff);
-		int pageTableEntry=computer.physicalMemory.getDoubleWord(pageTableEntryAddress);
-		//is it there?
-		if ((pageTableEntry&1)==0) panic("page table entry isn't there");
-		boolean tableIsUser = (4&pageTableEntry)!=0;
-		//is a user accessing a supervisor page?
-		if ((!tableIsUser || !directoryIsUser) && !isSupervisor) panic("user trying to access a supervisor page");
-		//set bits 17 and 18 to 1
-		if ((pageTableEntry&0x60)!=0)
+		//is it 4M or 4k?
+		boolean directoryIs4MPage=((0x80&directoryInformation)!=0) && pageSizeExtensions;
+		
+		if (!directoryIs4MPage)
 		{
-			pageTableEntry|=0x60;
-			computer.physicalMemory.setDoubleWord(pageTableEntryAddress, pageTableEntry);
+			//extract the page table: determined by the middle 10 bits
+			int pageTableEntryAddress=(directoryInformation&0xfffff000) | ((virtualPageIndex*4)&0xfff);
+			int pageTableEntry=computer.physicalMemory.getDoubleWord(pageTableEntryAddress);
+			//is it there?
+			if ((pageTableEntry&1)==0) panic("page table entry isn't there");
+			boolean tableIsUser = (4&pageTableEntry)!=0;
+			//is a user accessing a supervisor page?
+			if ((!tableIsUser || !directoryIsUser) && !isSupervisor) panic("user trying to access a supervisor page");
+			//set bits 17 and 18 to 1
+			if ((pageTableEntry&0x60)!=0)
+			{
+				pageTableEntry|=0x60;
+				computer.physicalMemory.setDoubleWord(pageTableEntryAddress, pageTableEntry);
+			}
+			int physicalBaseAddress=pageTableEntry&0xfffff000;
+			//if page caching is disabled, don't make a TLB entry.  just return the physical base address.
+			if (!pageCacheEnabled)
+				return physicalBaseAddress|offset;
+	
+			//save the entry in the TLB
+			if (isSupervisor)
+				writeSupervisorPageTable[virtualPageIndex]=new PageTableEntry(physicalBaseAddress);
+			else
+				writeUserPageTable[virtualPageIndex]=new PageTableEntry(physicalBaseAddress);
+			return physicalBaseAddress|offset;
 		}
-		int physicalBaseAddress=pageTableEntry&0xfffff000;
-		//if page caching is disabled, don't make a TLB entry.  just return the physical base address.
-		if (!pageCacheEnabled)
-			return physicalBaseAddress;
-
-		//save the entry in the TLB
-		if (isSupervisor)
-			writeSupervisorPageTable[virtualPageIndex]=new PageTableEntry(physicalBaseAddress);
 		else
-			writeUserPageTable[virtualPageIndex]=new PageTableEntry(physicalBaseAddress);
-		return physicalBaseAddress;
+		{
+			if (!directoryIsUser && !isSupervisor)
+				panic("User is trying to write a supervisor directory entry");
+			if ((directoryInformation&0x60)==0)
+			{
+				directoryInformation|=0x60;
+				computer.physicalMemory.setDoubleWord(directoryAddress, directoryInformation);
+			}
+			int physicalBaseAddress=0xffc00000&directoryInformation;
+			//don't setup TLB if no cache, just return address
+			if (!pageCacheEnabled)
+				return physicalBaseAddress|(virtualAddress&0x3fffff);
+			int pageSizeIndex=(0xffc00000&virtualAddress)>>>12;
+			//create 1Ms worth of TLB entries
+			for (int i=0; i<1024; i++)
+			{
+				pageSize[pageSizeIndex]=true;
+				if (isSupervisor)
+				{
+					if (writeSupervisorPageTable==null)
+						writeSupervisorPageTable=new PageTableEntry[PAGES];
+					writeSupervisorPageTable[pageSizeIndex]=new PageTableEntry(physicalBaseAddress);
+					pageSizeIndex++;
+					physicalBaseAddress+=BLOCK_SIZE;
+				}
+				else
+				{
+					if (writeUserPageTable==null)
+						writeUserPageTable=new PageTableEntry[PAGES];
+					writeUserPageTable[pageSizeIndex]=new PageTableEntry(physicalBaseAddress);
+					pageSizeIndex++;
+					physicalBaseAddress+=BLOCK_SIZE;
+				}
+			}
+			if (isSupervisor)
+				return writeSupervisorPageTable[virtualPageIndex].physicalBaseAddress|offset;
+			else
+				return writeUserPageTable[virtualPageIndex].physicalBaseAddress|offset;
+		}
 	}
 	
 	public void setSupervisor(boolean value)
@@ -281,8 +390,6 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 	{
 		pageSizeExtensions=value;
 		flush();
-		if (value)
-			panic("implement page size extensions");
 	}
 	//global pages are not purged from the TLB when the page directory base address is changed
 	//right now, just ignore them
@@ -293,6 +400,7 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 			globalPagesEnabled=value;
 			flush();
 		}
+		panic("implement global pages");
 	}
 	public void setWriteProtectUserPages(boolean value)
 	{
@@ -315,6 +423,11 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 		readSupervisorPageTable=null;
 		writeUserPageTable=null;
 		writeSupervisorPageTable=null;
+
+		//set all the pages back to 4k size pages
+		pageSize=new boolean[PAGES];
+		for (int i=0; i<PAGES; i++)
+			pageSize[i]=false;
 	}
 	private void panic(String message)
 	{

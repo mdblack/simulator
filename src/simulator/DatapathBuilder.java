@@ -22,6 +22,11 @@ public class DatapathBuilder extends AbstractGUI
 		datapathComponents=new DatapathComponents(computer);
 		refresh();
 	}
+	public void closeGUI()
+	{
+		computer.datapathBuilder=null;
+		if (computer.controlBuilder!=null) computer.controlBuilder.close();
+	}
 
 	public void place(String component)
 	{
@@ -1551,6 +1556,11 @@ public class DatapathBuilder extends AbstractGUI
 			super(computer,"Datapath Components",WIDTH,HEIGHT,false,true,false,false);
 			thisdatapathcomponents=this;
 			refresh();
+		}
+		public void closeGUI()
+		{
+			computer.datapathBuilder=null;
+			if (computer.controlBuilder!=null) computer.controlBuilder.close();
 		}
 		public void constructGUI(GUIComponent g)
 		{

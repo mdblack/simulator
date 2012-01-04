@@ -52,6 +52,10 @@ public class MemoryBlockGUI extends AbstractGUI implements AdjustmentListener
 		refresh();
 	}
 
+	public void closeGUI()
+	{
+	}
+	
 	public void constructGUI(AbstractGUI.GUIComponent guicomponent)
 	{
 		scrollBar=new JScrollBar(JScrollBar.VERTICAL,address,height()/BYTEHEIGHT,0,PhysicalMemory.TOTAL_RAM_SIZE-1);

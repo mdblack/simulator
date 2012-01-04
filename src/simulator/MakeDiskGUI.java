@@ -65,7 +65,7 @@ public class MakeDiskGUI extends AbstractGUI
 		}
 		refresh();
 	}
-	public void doClose()
+	public void closeGUI()
 	{
 		computer.makeDiskGUI=null;
 	}

@@ -67,7 +67,9 @@ public class ControlGUI extends AbstractGUI
 		menubar.add(menuDisk);
 		menubar.add(menuConstruct);
 	}
-
+	public void closeGUI()
+	{
+	}
 	public void constructGUI(AbstractGUI.GUIComponent guicomponent)
 	{
 		if (!computer.computerGUI.singleFrame)

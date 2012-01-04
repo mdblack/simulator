@@ -26,6 +26,11 @@ public class ControlBuilder extends AbstractGUI
 		refresh();
 	}
 
+	public void closeGUI()
+	{
+		computer.controlBuilder=null;
+	}
+	
 	public int field1width()
 	{
 		int w=GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*computer.datapathBuilder.controlOutputs().length+GAPWIDTH;
@@ -889,6 +894,10 @@ public class ControlBuilder extends AbstractGUI
 		{
 			super(computer,"Control Builder Control",WIDTH,HEIGHT,false,true,false,false);
 			refresh();
+		}
+		public void closeGUI()
+		{
+			computer.controlBuilder=null;
 		}
 		public void constructGUI(GUIComponent g)
 		{

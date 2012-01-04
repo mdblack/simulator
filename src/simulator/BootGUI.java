@@ -113,6 +113,10 @@ public class BootGUI extends AbstractGUI
 		this.hasGUI=hasGUI;
 		refresh();
 	}
+	
+	public void closeGUI()
+	{
+	}
 
 	public void close()
 	{

@@ -87,7 +87,7 @@ public abstract class AbstractGUI
 	public void mouseRelease(MouseEvent e) { }
 	public void mouseExit() { }
 	public void statusEdited(String keys) { }
-	public void closeGUI() { }
+	public abstract void closeGUI();
 
 	//these methods are called externally
 	public void repaint()
@@ -267,31 +267,7 @@ public abstract class AbstractGUI
 	{
 		if (!computer.debugMode) computer.cycleEndLock.lockWait();
 		closeGUI();
-/*		if (this instanceof ProcessorGUI)
-			computer.processorGUI=null;
-		else if (this instanceof MemoryGUI)
-			computer.memoryGUI=null;
-		else if (this instanceof KeyboardGUI)
-			computer.keyboardGUI=null;
-		else if (this instanceof IOGUI)
-			computer.ioGUI=null;
-		else if (this instanceof TimerGUI)
-			computer.timerGUI=null;
-		else if (this instanceof RegisterGUI)
-			computer.registerGUI=null;
-		else if (this instanceof BreakpointGUI)
-			computer.breakpointGUI=null;
-		else if (this instanceof FileTransferGUI)
-			computer.fileTransferGUI=null;
-		else if (this instanceof MemoryTransferGUI)
-			computer.memoryTransferGUI=null;
-		else if (this instanceof MakeDiskGUI)
-			computer.makeDiskGUI=null;
-		else if (this instanceof DiskGUI)
-			computer.diskGUI[((DiskGUI)this).id]=null;
-		else if (this instanceof DiskSectorGUI)
-			computer.sectorGUI[((DiskSectorGUI)this).id]=null;
-*/
+
 		if (!computer.computerGUI.singleFrame)
 			frame.dispose();
 		else

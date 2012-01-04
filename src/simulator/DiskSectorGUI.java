@@ -504,6 +504,11 @@ public class DiskSectorGUI extends AbstractGUI
 			disk.read(selectedSector,sector,1);
 			refresh();
 		}
+		
+		public void closeGUI()
+		{
+			computer.sectorGUI[id]=null;
+		}
 
 		public int width()
 		{
