@@ -13,12 +13,13 @@ Simulates an 8259 interrupt controller
 
 package simulator;
 
+import java.util.Scanner;
+
 public class InterruptController extends IODevice
 {
     private InterruptControllerElement master;
     private InterruptControllerElement slave;
 
-    private Processor cpu;
     private Computer computer;
 
     /**
@@ -28,13 +29,28 @@ public class InterruptController extends IODevice
     public InterruptController(Computer computer)
     {
     	this.computer=computer;
-	this.cpu = computer.processor;
-	master = new InterruptControllerElement(true);
-	slave = new InterruptControllerElement(false);
-	computer.ioports.requestPorts(this,ioPortsRequested(),"Interrupt");
-	cpu.setInterruptController(this);
+    	master = new InterruptControllerElement(true);
+    	slave = new InterruptControllerElement(false);
+    	computer.ioports.requestPorts(this,ioPortsRequested(),"Interrupt");
     }
 
+    public String saveState()
+    {
+    	return "InterruptController:"+master.saveState()+":"+slave.saveState();
+    }
+    
+    public void loadState(String state)
+    {
+    	String[] states=state.split(":");
+		if (!states[0].equals("InterruptController"))
+		{
+			System.out.println("Error in load state: InterruptController expected");
+			return;
+		}    	
+    	master.loadState(states[1]);
+    	slave.loadState(states[2]);
+    }
+    
     private void updateIRQ()
     {
 	int slaveIRQ, masterIRQ;
@@ -48,7 +64,7 @@ public class InterruptController extends IODevice
 	/* look at requested IRQ */
 	masterIRQ = master.getIRQ();
 	if(masterIRQ >= 0) {
-	    cpu.raiseInterrupt();
+	    computer.processor.raiseInterrupt();
 	}
     }
 
@@ -134,6 +150,47 @@ public class InterruptController extends IODevice
 	private boolean rotateOnAutoEOI;
 
 	private int[] ioPorts;
+	
+	public String saveState()
+	{
+		String state="";
+		state+=lastInterruptRequestRegister+" ";
+		state+=interruptRequestRegister+" ";
+		state+=interruptMaskRegister+" ";
+		state+=interruptServiceRegister+" ";
+		state+=priorityAdd+" ";
+		state+=irqBase+" ";
+		state+=initState+" ";
+		state+=elcr+" ";
+		state+=elcrMask+" ";
+		state+=(readRegisterSelect?1:0)+" ";
+		state+=(poll?1:0)+" ";
+		state+=(fourByteInit?1:0)+" ";
+		state+=(specialFullyNestedMode?1:0)+" ";
+		state+=(autoEOI?1:0)+" ";
+		state+=(rotateOnAutoEOI?1:0);
+		return state;
+	}
+	
+	public void loadState(String state)
+	{
+		Scanner s=new Scanner(state);
+		lastInterruptRequestRegister=s.nextInt();
+		interruptRequestRegister=s.nextInt();
+		interruptMaskRegister=s.nextInt();
+		interruptServiceRegister=s.nextInt();
+		priorityAdd=s.nextInt();
+		irqBase=s.nextInt();
+		initState=s.nextInt();
+		elcr=s.nextInt();
+		elcrMask=s.nextInt();
+		readRegisterSelect=s.nextInt()==1;
+		poll=s.nextInt()==1;
+		fourByteInit=s.nextInt()==1;
+		specialFullyNestedMode=s.nextInt()==1;
+		autoEOI=s.nextInt()==1;
+		rotateOnAutoEOI=s.nextInt()==1;
+	}
 
 	public InterruptControllerElement(boolean master)
 	{
@@ -208,7 +265,7 @@ public class InterruptController extends IODevice
                 {
 		    /* init */
 		    this.reset();
-		    cpu.clearInterrupt();
+		    computer.processor.clearInterrupt();
 
 		    initState = 1;
 		    fourByteInit = ((data & 1) != 0);

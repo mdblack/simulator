@@ -36,50 +36,62 @@ public class PhysicalMemory implements MemoryDevice
 	
 	public String saveState()
 	{
-		String state="";
+		StringBuilder state=new StringBuilder();
+		state.append("PhysicalMemory:");
 		
 		for (int i=0; i<baseMemoryBlock.length; i++)
 		{
 			if (baseMemoryBlock[i].initialized)
 			{
-				String s="";
-				s+=i+" "+(baseMemoryBlock[i].writeable?1:0)+" ";
+				System.out.println("saving base block "+i);
+				StringBuilder s=new StringBuilder();
+				s.append(i+" "+(baseMemoryBlock[i].writeable?1:0)+" ");
 				for (int j=0; j<baseMemoryBlock[i].rambyte.length; j++)
-					s+=baseMemoryBlock[i].rambyte[j]+" ";
-				state+=s;
-				System.out.println("saving block "+i);
+					s.append(baseMemoryBlock[i].rambyte[j]+" ");
+				state.append(s);
 			}
 		}
-		state+=":";
+		state.append(":");
 		for (int i=0; i<extendedMemoryBlock.length; i++)
 		{
 			if (extendedMemoryBlock[i].initialized)
 			{
-				String s="";
-				s+=i+" "+(extendedMemoryBlock[i].writeable?1:0)+" ";
+				System.out.println("saving extended block "+i);
+				StringBuilder s=new StringBuilder();
+				s.append(i+" "+(extendedMemoryBlock[i].writeable?1:0)+" ");
 				for (int j=0; j<extendedMemoryBlock[i].rambyte.length; j++)
-					s+=extendedMemoryBlock[i].rambyte[j]+" ";
-				state+=s;
-				System.out.println("saving block "+i);
+					s.append(extendedMemoryBlock[i].rambyte[j]+" ");
+				state.append(s);
 			}
 		}		
-		return state;
+		return state.toString();
 	}
 	
 	public void loadState(String state)
 	{
 		String[] states=state.split(":");
-		Scanner loader=new Scanner(states[0]);
+		if (!states[0].equals("PhysicalMemory"))
+		{
+			System.out.println("Error in load state: PhysicalMemory expected");
+			return;
+		}
+		Scanner loader=new Scanner(states[1]);
 		while(loader.hasNextInt())
 		{
 			int index=loader.nextInt();
 			baseMemoryBlock[index].writeable=loader.nextInt()==1;
 			baseMemoryBlock[index].initialize();
 			for (int j=0; j<baseMemoryBlock[index].rambyte.length; j++)
+			{
 				baseMemoryBlock[index].rambyte[j]=loader.nextByte();
+//				if (computer.video!=null)
+//					computer.video.updateVideoWrite(index*BASE_BLOCK_SIZE+j,baseMemoryBlock[index].rambyte[j]);
+			}
 			System.out.println("loaded block "+index);
 		}
-		loader=new Scanner(states[1]);
+		if (states.length==2)
+			return;
+		loader=new Scanner(states[2]);
 		while(loader.hasNextInt())
 		{
 			int index=loader.nextInt();
@@ -278,8 +290,8 @@ public class PhysicalMemory implements MemoryDevice
 		public byte getByte(int offset)
 		{
 			if(!initialized)
-//				return (byte)(-1);
-				initialize();
+				return (byte)(-1);
+//				initialize();
 			return rambyte[offset];
 		}
 		public void setByte(int offset, byte value)

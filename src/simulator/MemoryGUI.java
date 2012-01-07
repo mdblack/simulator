@@ -147,7 +147,7 @@ public class MemoryGUI extends AbstractGUI
 		else if (keys.charAt(0)=='d')
 			defaultFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.DATA,Integer.parseInt(keys.substring(1,keys.length()),16));
 		else if (keys.charAt(0)=='v')
-			defaultFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.DATA,computer.processor.linearMemory.virtualAddressLookup(Integer.parseInt("0"+keys.substring(1,keys.length()),16)));
+			defaultFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.DATA,computer.linearMemory.virtualAddressLookup(Integer.parseInt("0"+keys.substring(1,keys.length()),16)));
 		else
 			defaultFrame = new MemoryBlockGUI(computer,MemoryBlockGUI.NOTHING,Integer.parseInt(keys,16));
 	}

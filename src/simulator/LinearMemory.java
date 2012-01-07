@@ -3,6 +3,9 @@
 
 package simulator;
 
+import java.util.ArrayList;
+import java.util.Scanner;
+
 public class LinearMemory implements MemoryDevice
 {
 	Computer computer;
@@ -21,12 +24,168 @@ public class LinearMemory implements MemoryDevice
 	private PageTableEntry[] readSupervisorPageTable, readUserPageTable, writeSupervisorPageTable, writeUserPageTable;
 	//size of each page: 4k or 4M
 	private boolean[] pageSize;
+	
+	//page fault error codes
+	private static final int PF_RS_NOTPRESENT=0;
+	private static final int PF_RU_NOTPRESENT=4;
+	private static final int PF_WS_NOTPRESENT=2;
+	private static final int PF_WU_NOTPRESENT=6;
+	private static final int PF_RU_PROTECTION=5;
+	private static final int PF_WU_PROTECTION=7;
+	private static final int PF_WS_PROTECTION=3;
+	
+	//the non global pages are removed from the TLB on a task switch
+	//this keeps track of their indices
+	private ArrayList<Integer> nonGlobalPageList;
 
 	public LinearMemory(Computer computer)
 	{
 		this.computer=computer;
 		pagingDisabled=true;
+		nonGlobalPageList=new ArrayList<Integer>();
 		flush();
+	}
+	
+	public void loadState(String state)
+	{
+		Scanner s=new Scanner(state);
+		if (!s.next().equals("LinearMemory"))
+		{
+			System.out.println("Error in load state: LinearMemory expected");
+			return;
+		}
+		isSupervisor=s.nextInt()==1;
+		globalPagesEnabled=s.nextInt()==1;
+		pagingDisabled=s.nextInt()==1;
+		writeProtectUserPages=s.nextInt()==1;
+		pageSizeExtensions=s.nextInt()==1;
+		pageCacheEnabled=s.nextInt()==1;
+		directoryBaseAddress=s.nextInt();
+		lastPageFaultAddress=s.nextInt();
+		if(s.nextInt()!=0)
+		{
+			readSupervisorPageTable=new PageTableEntry[PAGES];
+			for (int i=0; i<PAGES; i++)
+			{
+				if (s.nextInt()!=0)
+					readSupervisorPageTable[i]=new PageTableEntry(s.nextInt());
+			}
+		}
+		if(s.nextInt()!=0)
+		{
+			writeSupervisorPageTable=new PageTableEntry[PAGES];
+			for (int i=0; i<PAGES; i++)
+			{
+				if (s.nextInt()!=0)
+					writeSupervisorPageTable[i]=new PageTableEntry(s.nextInt());
+			}
+		}
+		if(s.nextInt()!=0)
+		{
+			readUserPageTable=new PageTableEntry[PAGES];
+			for (int i=0; i<PAGES; i++)
+			{
+				if (s.nextInt()!=0)
+					readUserPageTable[i]=new PageTableEntry(s.nextInt());
+			}
+		}
+		if(s.nextInt()!=0)
+		{
+			writeUserPageTable=new PageTableEntry[PAGES];
+			for (int i=0; i<PAGES; i++)
+			{
+				if (s.nextInt()!=0)
+					writeUserPageTable[i]=new PageTableEntry(s.nextInt());
+			}
+		}
+		if (s.nextInt()!=0)
+		{
+			pageSize=new boolean[PAGES];
+			for (int i=0; i<PAGES; i++)
+				pageSize[i]=s.nextInt()==1;
+		}
+		nonGlobalPageList=new ArrayList<Integer>();
+		int ngpl=s.nextInt();
+		for (int i=0; i<ngpl; i++)
+			nonGlobalPageList.add(new Integer(s.nextInt()));
+	}
+	
+	public String saveState()
+	{
+		StringBuffer state=new StringBuffer();
+		state.append("LinearMemory ");
+		state.append((isSupervisor?1:0)+" ");
+		state.append((globalPagesEnabled?1:0)+" ");
+		state.append((pagingDisabled?1:0)+" ");
+		state.append((writeProtectUserPages?1:0)+" ");
+		state.append((pageSizeExtensions?1:0)+" ");
+		state.append((pageCacheEnabled?1:0)+" ");
+		state.append(directoryBaseAddress+" ");
+		state.append(lastPageFaultAddress+" ");
+		if (readSupervisorPageTable==null)
+			state.append(0+" ");
+		else
+		{
+			state.append(1+" ");
+			for (int i=0; i<readSupervisorPageTable.length; i++)
+			{
+				if (readSupervisorPageTable[i]==null)
+					state.append("0 ");
+				else
+					state.append("1 "+readSupervisorPageTable[i].physicalBaseAddress+" ");
+			}
+		}
+		if (writeSupervisorPageTable==null)
+			state.append(0+" ");
+		else
+		{
+			state.append(1+" ");
+			for (int i=0; i<writeSupervisorPageTable.length; i++)
+			{
+				if (writeSupervisorPageTable[i]==null)
+					state.append("0 ");
+				else
+					state.append("1 "+writeSupervisorPageTable[i].physicalBaseAddress+" ");
+			}
+		}
+		if (readUserPageTable==null)
+			state.append(0+" ");
+		else
+		{
+			state.append(1+" ");
+			for (int i=0; i<readUserPageTable.length; i++)
+			{
+				if (readUserPageTable[i]==null)
+					state.append("0 ");
+				else
+					state.append("1 "+readUserPageTable[i].physicalBaseAddress+" ");
+			}
+		}
+		if (writeUserPageTable==null)
+			state.append(0+" ");
+		else
+		{
+			state.append(1+" ");
+			for (int i=0; i<writeUserPageTable.length; i++)
+			{
+				if (writeUserPageTable[i]==null)
+					state.append("0 ");
+				else
+					state.append("1 "+writeUserPageTable[i].physicalBaseAddress+" ");
+			}
+		}
+		if (pageSize==null)
+			state.append(0+" ");
+		else
+		{
+			state.append(1+" ");
+			for (int i=0; i<pageSize.length; i++)
+				state.append((pageSize[i]?1:0)+" ");
+		}
+		state.append(nonGlobalPageList.size()+" ");
+		for(int i=0; i<nonGlobalPageList.size(); i++)
+			state.append(nonGlobalPageList.get(i)+" ");
+		return state.toString();
 	}
 	
 	public byte getByte(int address) 
@@ -82,7 +241,7 @@ public class LinearMemory implements MemoryDevice
 		public PageTableEntry(int address)
 		{
 			physicalBaseAddress=address;
-System.out.println("new page entry: "+address+" "+(quantity++));
+//			System.out.println("new page entry: "+address+" "+(quantity++));
 		}
 	}
 	
@@ -123,7 +282,7 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 
 	//given a virtual address, get the physical address
 	private int getPhysicalPageRead(int virtualAddress)
-	{
+	{		
 		//if paging is disabled, the virtual address becomes the physical address
 		if (pagingDisabled)
 			return virtualAddress;
@@ -203,7 +362,14 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 		int directoryAddress=directoryBaseAddress | (0xfff & ((virtualPageIndex>>>10)*4));
 		int directoryInformation=computer.physicalMemory.getDoubleWord(directoryAddress);
 		//is the directory there?
-		if ((directoryInformation&1)==0) panic("directory isn't there");
+		if ((directoryInformation&1)==0) 
+		{
+			panic("directory isn't there");
+			if (isSupervisor)
+				throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_RS_NOTPRESENT);
+			else
+				throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_RU_NOTPRESENT);
+		}
 		//extract information about the page table directory
 		//is it user or supervisor?
 		boolean directoryIsUser = (4&directoryInformation)!=0;
@@ -216,10 +382,21 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 			int pageTableEntryAddress=(directoryInformation&0xfffff000) | ((virtualPageIndex*4)&0xfff);
 			int pageTableEntry=computer.physicalMemory.getDoubleWord(pageTableEntryAddress);
 			//is it there?
-			if ((pageTableEntry&1)==0) panic("page table entry isn't there");
+			if ((pageTableEntry&1)==0) 
+			{
+				panic("page table entry isn't there");
+				if (isSupervisor)
+					throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_RS_NOTPRESENT);
+				else
+					throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_RU_NOTPRESENT);
+			}
 			boolean tableIsUser = (4&pageTableEntry)!=0;
 			//is a user accessing a supervisor page?
-			if ((!tableIsUser || !directoryIsUser) && !isSupervisor) panic("user trying to access a supervisor page");
+			if ((!tableIsUser || !directoryIsUser) && !isSupervisor)
+			{
+				panic("user trying to access a supervisor page");
+				throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_RU_PROTECTION);
+			}
 			//set bit 17 to 1
 			if ((pageTableEntry&0x20)==0)
 			{
@@ -241,7 +418,10 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 		else
 		{
 			if (!directoryIsUser && !isSupervisor)
+			{
 				panic("User is trying to access a supervisor directory entry");
+				throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_RU_PROTECTION);
+			}
 			if ((directoryInformation&0x20)==0)
 			{
 				directoryInformation|=0x20;
@@ -295,13 +475,22 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 		int directoryAddress=directoryBaseAddress | (0xfff & ((virtualPageIndex>>>10)*4));
 		int directoryInformation=computer.physicalMemory.getDoubleWord(directoryAddress);
 		//is the directory there?
-		if ((directoryInformation&1)==0) panic("directory isn't there");
+		if ((directoryInformation&1)==0)
+		{
+			panic("directory isn't there");
+			if (isSupervisor)
+				throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WS_NOTPRESENT);
+			else
+				throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WU_NOTPRESENT);
+		}
 
 		//extract information about the page table directory
 		//user or supervisor?
 		boolean directoryIsUser = (4&directoryInformation)!=0;
 		//is it 4M or 4k?
 		boolean directoryIs4MPage=((0x80&directoryInformation)!=0) && pageSizeExtensions;
+		//is it writeable?
+		boolean directoryReadWrite=(0x2&directoryInformation)!=0;
 		
 		if (!directoryIs4MPage)
 		{
@@ -309,10 +498,78 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 			int pageTableEntryAddress=(directoryInformation&0xfffff000) | ((virtualPageIndex*4)&0xfff);
 			int pageTableEntry=computer.physicalMemory.getDoubleWord(pageTableEntryAddress);
 			//is it there?
-			if ((pageTableEntry&1)==0) panic("page table entry isn't there");
+			if ((pageTableEntry&1)==0)
+			{
+				panic("page table entry isn't there");
+				if (isSupervisor)
+					throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WS_NOTPRESENT);
+				else
+					throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WU_NOTPRESENT);
+			}
 			boolean tableIsUser = (4&pageTableEntry)!=0;
 			//is a user accessing a supervisor page?
-			if ((!tableIsUser || !directoryIsUser) && !isSupervisor) panic("user trying to access a supervisor page");
+			if ((!tableIsUser || !directoryIsUser) && !isSupervisor)
+			{
+				panic("user trying to access a supervisor page");
+				throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WU_PROTECTION);
+			}
+			//is it writeable?
+			boolean tableIsReadWrite=(0x2&pageTableEntry)!=0;
+			boolean pageIsReadWrite=tableIsReadWrite||directoryReadWrite;
+			if (tableIsUser)
+				pageIsReadWrite=tableIsReadWrite&&directoryReadWrite;
+			//catch write protection violations
+			//user page
+			if (tableIsUser && directoryIsUser)
+			{
+				//write protected
+				if (!pageIsReadWrite)
+				{
+					//is the supervisor prevented from writing to a user page?
+					if (isSupervisor)
+					{
+						if (writeProtectUserPages)
+						{
+							panic("protection violation ws");
+							throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WS_PROTECTION);
+						}
+					}
+					//user is writing to a write protected page
+					else
+					{
+						panic("protection violation wu");
+						throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WU_PROTECTION);
+					}
+				}
+			}
+			//supervisor page
+			else
+			{
+				//is a user trying to write to a supervisor page?
+				if (pageIsReadWrite)
+				{
+					if (!isSupervisor)
+					{
+						panic("protection violation wu");
+						throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WU_PROTECTION);
+					}
+				}
+				//trying to write to a write protected supervisor page
+				else
+				{
+					if (isSupervisor)
+					{
+						panic("protection violation ws");
+						throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WS_PROTECTION);
+					}
+					else
+					{
+						panic("protection violation wu");
+						throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WU_PROTECTION);
+					}
+				}
+			}
+
 			//set bits 17 and 18 to 1
 			if ((pageTableEntry&0x60)!=0)
 			{
@@ -334,7 +591,61 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 		else
 		{
 			if (!directoryIsUser && !isSupervisor)
+			{
 				panic("User is trying to write a supervisor directory entry");
+				throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WU_PROTECTION);
+			}
+			//catch write protection violations
+			//user pages
+			if (directoryIsUser)
+			{
+				//is it write protected?
+				if(!directoryReadWrite)
+				{
+					//supervisor can't write if user pages are write protected 
+					if(isSupervisor)
+					{
+						if (writeProtectUserPages)
+						{
+							panic("protection violation ws");
+							throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WS_PROTECTION);
+						}
+					}
+					//user writing to a write protected page
+					else
+					{
+						panic("protection violation wu");
+						throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WU_PROTECTION);
+					}
+				}
+			}
+			else
+			{
+				//user writing to a supervisor page
+				if (directoryReadWrite)
+				{
+					if (!isSupervisor)
+					{
+						panic("protection violation wu");
+						throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WU_PROTECTION);
+					}
+				}
+				//writing to a write protected supervisor page
+				else
+				{
+					if (!isSupervisor)
+					{
+						panic("protection violation wu");
+						throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WU_PROTECTION);
+					}
+					else
+					{
+						panic("protection violation ws");
+						throw new Processor.Processor_Exception(computer.processor.PAGE_FAULT,PF_WS_PROTECTION);
+					}
+				}
+			}
+
 			if ((directoryInformation&0x60)==0)
 			{
 				directoryInformation|=0x60;
@@ -400,13 +711,17 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 			globalPagesEnabled=value;
 			flush();
 		}
-		panic("implement global pages");
+//		panic("implement global pages");
 	}
 	public void setWriteProtectUserPages(boolean value)
 	{
 		if (value)
 		{
-			panic("implement write protect user pages");
+			//clear out supervisor TLB to make sure we don't violate write protections
+			if (writeSupervisorPageTable!=null)
+				for (int i=0; i<PAGES; i++)
+					writeSupervisorPageTable[i]=null;
+//			panic("implement write protect user pages");
 		}
 		writeProtectUserPages=value;
 	}
@@ -414,7 +729,10 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 	public void setPageDirectoryBaseAddress(int address)
 	{
 		directoryBaseAddress=address&0xfffff000;
-		flush();
+		if (globalPagesEnabled)
+			nonGlobalFlush();
+		else
+			flush();
 	}
 	//obliterate the TLB page tables
 	public void flush()
@@ -428,10 +746,33 @@ System.out.println("new page entry: "+address+" "+(quantity++));
 		pageSize=new boolean[PAGES];
 		for (int i=0; i<PAGES; i++)
 			pageSize[i]=false;
+		
+		nonGlobalPageList.clear();
+	}
+	//task switch
+	//eliminate all TLB page table entries marked as non global
+	private void nonGlobalFlush()
+	{
+		for (Integer value: nonGlobalPageList)
+		{
+			//remove it from the four TLB tables (if present)
+			int index=value.intValue();
+			if (readSupervisorPageTable!=null)
+				readSupervisorPageTable[index]=null;
+			if (writeSupervisorPageTable!=null)
+				writeSupervisorPageTable[index]=null;
+			if (readUserPageTable!=null)
+				readUserPageTable[index]=null;
+			if (writeUserPageTable!=null)
+				writeUserPageTable[index]=null;
+			//set it back to a 4k page
+			pageSize[index]=false;
+		}
+		nonGlobalPageList.clear();
 	}
 	private void panic(String message)
 	{
-		System.out.println("PANIC in linear memory: "+message);
+		System.out.println("PANIC in linear memory at "+computer.icount+": "+message);
 		//System.exit(0);
 	}
 }

@@ -1,8 +1,8 @@
 package simulator;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.Scanner;
 
 public class Video extends IODevice
 {
@@ -132,6 +132,78 @@ public class Video extends IODevice
 		}
 	}
 
+	public void loadState(String state)
+	{
+		Scanner s=new Scanner(state);
+		if (!s.next().equals("Video"))
+		{
+			System.out.println("Error in load state: Video expected");
+			return;
+		}
+		for(int i=0; i<vram.length; i++)
+			vram[i]=s.nextByte();
+		for(int i=0; i<vramp1.length; i++)
+			vramp1[i]=s.nextByte();
+		for(int i=0; i<vramp2.length; i++)
+			vramp2[i]=s.nextByte();
+		for(int i=0; i<vramp3.length; i++)
+			vramp3[i]=s.nextByte();
+		for(int i=0; i<vramp4.length; i++)
+			vramp4[i]=s.nextByte();
+		for(int i=0; i<sequencerRegister.length; i++)
+			sequencerRegister[i]=s.nextInt();
+		for(int i=0; i<graphicsRegister.length; i++)
+			graphicsRegister[i]=s.nextInt();
+		for(int i=0; i<attributeRegister.length; i++)
+			attributeRegister[i]=s.nextInt();
+		for(int i=0; i<crtRegister.length; i++)
+			crtRegister[i]=s.nextInt();
+		latch_p1=s.nextByte();
+		latch_p2=s.nextByte();
+		latch_p3=s.nextByte();
+		latch_p4=s.nextByte();
+		sequencerRegisterIndex=s.nextInt();
+		graphicsRegisterIndex=s.nextInt();
+		attributeRegisterIndex=s.nextInt();
+		crtRegisterIndex=s.nextInt();
+		attributeRegisterFlipFlop=s.nextInt()==1;
+	}
+	
+	public String saveState()
+	{
+		StringBuilder state=new StringBuilder();
+		state.append("Video ");
+		for(int i=0; i<vram.length; i++)
+			state.append(vram[i]+" ");
+		for(int i=0; i<vramp1.length; i++)
+			state.append(vramp1[i]+" ");
+		for(int i=0; i<vramp2.length; i++)
+			state.append(vramp2[i]+" ");
+		for(int i=0; i<vramp3.length; i++)
+			state.append(vramp3[i]+" ");
+		for(int i=0; i<vramp4.length; i++)
+			state.append(vramp4[i]+" ");
+		for (int i=0; i<sequencerRegister.length; i++)
+			state.append(sequencerRegister[i]+" ");
+		for (int i=0; i<graphicsRegister.length; i++)
+			state.append(graphicsRegister[i]+" ");
+		for (int i=0; i<attributeRegister.length; i++)
+			state.append(attributeRegister[i]+" ");
+		for (int i=0; i<crtRegister.length; i++)
+			state.append(crtRegister[i]+" ");
+		state.append(latch_p1+" ");
+		state.append(latch_p2+" ");
+		state.append(latch_p3+" ");
+		state.append(latch_p4+" ");
+		state.append(sequencerRegisterIndex+" ");
+		state.append(graphicsRegisterIndex+" ");
+		state.append(attributeRegisterIndex+" ");
+		state.append(crtRegisterIndex+" ");
+		state.append(attributeRegisterFlipFlop?1:0);
+
+		return state.toString();
+	}
+	
 	public Video(Computer computer)
 	{
 		this.computer=computer;

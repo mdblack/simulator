@@ -364,7 +364,7 @@ public class RegisterGUI extends AbstractGUI
 				switch(typeBox.getSelectedIndex())
 				{
 				case 0: if (!computer.processor.isModeReal())
-							addrField.setText(valueToString(computer.processor.linearMemory.virtualAddressLookup(address))); break;
+							addrField.setText(valueToString(computer.linearMemory.virtualAddressLookup(address))); break;
 				case 1: addrField.setText(valueToString(computer.processor.cs.physicalAddress(address))); break;
 				case 2: addrField.setText(valueToString(computer.processor.ss.physicalAddress(address))); break;
 				case 3: addrField.setText(valueToString(computer.processor.ds.physicalAddress(address))); break;

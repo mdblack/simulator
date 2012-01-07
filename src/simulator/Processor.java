@@ -19,6 +19,7 @@ private Computer computer;
 //registers
 public Register eax, ebx, edx, ecx, esi, edi, esp, ebp, eip;
 public Register cr0, cr2, cr3, cr4;
+public Register dr0, dr1, dr2, dr3, dr4, dr5, dr6, dr7;
 
 public Segment cs, ds, ss, es, fs, gs;
 public Segment idtr, gdtr, ldtr, tss;
@@ -31,25 +32,14 @@ public int current_privilege_level;
 
 public int interruptFlags;
 
-//devices
-public IOPorts ioports;
-public InterruptController interruptController;
-
 private boolean addressDecoded=false;
 private boolean haltMode=false;
 public int lastInterrupt=-1;
 
-public LinearMemory linearMemory;
-
 public Processor(Computer computer)
 {
 	this.computer=computer;
-	this.ioports=computer.ioports;
-	interruptController=null;
-
 	processorGUICode=null;
-	
-	linearMemory=new LinearMemory(computer);
 
 	cs=new Segment(Segment.CS,computer.physicalMemory);
 	ds=new Segment(Segment.DS,computer.physicalMemory);
@@ -59,30 +49,39 @@ public Processor(Computer computer)
 	gs=new Segment(Segment.GS,computer.physicalMemory);
 
 	idtr=new Segment(Segment.IDTR,computer.physicalMemory);
-//	idtr=new Segment(Segment.IDTR,linearMemory);
+//	idtr=new Segment(Segment.IDTR,computer.linearMemory);
  	idtr.setDescriptorValue(0);
 	gdtr=new Segment(Segment.GDTR,computer.physicalMemory);
-//	gdtr=new Segment(Segment.GDTR,linearMemory);
+//	gdtr=new Segment(Segment.GDTR,computer.linearMemory);
 	gdtr.setDescriptorValue(0);
-	ldtr=new Segment(Segment.LDTR,linearMemory);
+	ldtr=new Segment(Segment.LDTR,computer.linearMemory);
 	ldtr.setDescriptorValue(0);
-	tss=new Segment(Segment.TSS,linearMemory);
+	tss=new Segment(Segment.TSS,computer.linearMemory);
 	tss.setDescriptorValue(0);
 
 	eax=new Register(Register.EAX,0);
 	ebx=new Register(Register.EBX,0);
 	ecx=new Register(Register.ECX,0);
-	edx=new Register(Register.EDX,0);
+	edx=new Register(Register.EDX,0x633);		//claim it's a Pentium
 	esp=new Register(Register.ESP,0);
 	ebp=new Register(Register.EBP,0);
 	esi=new Register(Register.ESI,0);
 	edi=new Register(Register.EDI,0);
-	eip=new Register(Register.EIP,0x0000fff0);
+	eip=new Register(Register.EIP,0x0000fff0);	//starts at FFFF0
 
 	cr0=new Register(Register.CR0,0);
 	cr2=new Register(Register.CR2,0);
 	cr3=new Register(Register.CR3,0);
 	cr4=new Register(Register.CR4,0);
+
+	dr0=new Register(Register.DR0,0);
+	dr1=new Register(Register.DR1,0);
+	dr2=new Register(Register.DR2,0);
+	dr3=new Register(Register.DR3,0);
+	dr4=new Register(Register.DR4,0);
+	dr5=new Register(Register.DR5,0);
+	dr6=new Register(Register.DR6,0xffff0ff0);
+	dr7=new Register(Register.DR7,0x00000700);
 
 	carry=new Flag(Flag.CARRY);
 	parity=new Flag(Flag.PARITY);
@@ -100,7 +99,6 @@ public Processor(Computer computer)
 	alignmentCheck=new Flag(Flag.OTHER);
 	idFlag=new Flag(Flag.OTHER);
 	setCPL(0);
-//	current_privilege_level=0;
 
 	fetchQueue=new FetchQueue();
 
@@ -113,6 +111,7 @@ public Processor(Computer computer)
 public String saveState()
 {
 	String state="";
+	state+="Processor:";
 	state+=cs.saveState()+":";
 	state+=ss.saveState()+":";
 	state+=ds.saveState()+":";
@@ -137,6 +136,14 @@ public String saveState()
 	state+=cr2.saveState()+":";
 	state+=cr3.saveState()+":";
 	state+=cr4.saveState()+":";
+	state+=dr0.saveState()+":";
+	state+=dr1.saveState()+":";
+	state+=dr2.saveState()+":";
+	state+=dr3.saveState()+":";
+	state+=dr4.saveState()+":";
+	state+=dr5.saveState()+":";
+	state+=dr6.saveState()+":";
+	state+=dr7.saveState()+":";
 
 	state+=carry.saveState()+":";
 	state+=parity.saveState()+":";
@@ -153,28 +160,36 @@ public String saveState()
 	state+=nestedTask.saveState()+":";
 	state+=alignmentCheck.saveState()+":";
 	state+=idFlag.saveState()+":";
-	state+=interruptFlags;
+	state+=interruptFlags+":";
+	state+=current_privilege_level;
 
 	return state;
 }
 
 public void loadState(String state)
 {
+	int s=0;
 	String[] states=state.split(":");
-	cs.loadState(states[0]); ss.loadState(states[1]); ds.loadState(states[2]); es.loadState(states[3]); fs.loadState(states[4]); gs.loadState(states[5]); idtr.loadState(states[6]); gdtr.loadState(states[7]); ldtr.loadState(states[8]); tss.loadState(states[9]);
-	eax.loadState(states[10]); ebx.loadState(states[11]); ecx.loadState(states[12]); edx.loadState(states[13]); esp.loadState(states[14]); ebp.loadState(states[15]); esi.loadState(states[16]); edi.loadState(states[17]); eip.loadState(states[18]); cr0.loadState(states[19]); cr2.loadState(states[20]); cr3.loadState(states[21]); cr4.loadState(states[22]);
-	carry.loadState(states[23]); parity.loadState(states[24]); auxiliaryCarry.loadState(states[25]); zero.loadState(states[26]); sign.loadState(states[27]); trap.loadState(states[28]); interruptEnable.loadState(states[29]); direction.loadState(states[30]); overflow.loadState(states[31]); interruptEnableSoon.loadState(states[32]); ioPrivilegeLevel1.loadState(states[33]); ioPrivilegeLevel0.loadState(states[34]); nestedTask.loadState(states[35]); alignmentCheck.loadState(states[36]); idFlag.loadState(states[37]);
-	interruptFlags=new Scanner(states[38]).nextInt();
+	if (!states[s++].equals("Processor"))
+	{
+		System.out.println("Error in load state: Processor expected");
+		return;
+	}
+	cs.loadState(states[s++]); ss.loadState(states[s++]); ds.loadState(states[s++]); es.loadState(states[s++]); fs.loadState(states[s++]); gs.loadState(states[s++]); idtr.loadState(states[s++]); gdtr.loadState(states[s++]); ldtr.loadState(states[s++]); tss.loadState(states[s++]);
+	eax.loadState(states[s++]); ebx.loadState(states[s++]); ecx.loadState(states[s++]); edx.loadState(states[s++]); esp.loadState(states[s++]); ebp.loadState(states[s++]); esi.loadState(states[s++]); edi.loadState(states[s++]); eip.loadState(states[s++]); cr0.loadState(states[s++]); cr2.loadState(states[s++]); cr3.loadState(states[s++]); cr4.loadState(states[s++]); dr0.loadState(states[s++]); dr1.loadState(states[s++]); dr2.loadState(states[s++]); dr3.loadState(states[s++]); dr4.loadState(states[s++]); dr5.loadState(states[s++]); dr6.loadState(states[s++]); dr7.loadState(states[s++]);
+	carry.loadState(states[s++]); parity.loadState(states[s++]); auxiliaryCarry.loadState(states[s++]); zero.loadState(states[s++]); sign.loadState(states[s++]); trap.loadState(states[s++]); interruptEnable.loadState(states[s++]); direction.loadState(states[s++]); overflow.loadState(states[s++]); interruptEnableSoon.loadState(states[s++]); ioPrivilegeLevel1.loadState(states[s++]); ioPrivilegeLevel0.loadState(states[s++]); nestedTask.loadState(states[s++]); alignmentCheck.loadState(states[s++]); idFlag.loadState(states[s++]);
+	interruptFlags=new Scanner(states[s++]).nextInt();
+	current_privilege_level=new Scanner(states[s++]).nextInt();
 }
 
 public void reset()
 {
-	linearMemory=new LinearMemory(computer);
-
+	computer.linearMemory.flush();
+	
 	eax.setValue(0);
 	ebx.setValue(0);
 	ecx.setValue(0);
-	edx.setValue(0);
+	edx.setValue(0x633);
 	esp.setValue(0);
 	ebp.setValue(0);
 	esi.setValue(0);
@@ -220,11 +235,6 @@ public void reset()
 	haltMode=false;
 }
 
-public void setInterruptController(InterruptController interruptController)
-{
-	this.interruptController=interruptController;
-}
-
 //executes a single instruction
 public void executeAnInstruction()
 {
@@ -242,17 +252,29 @@ public void executeAnInstruction()
 		return;
 	}
 
-	if(processorGUICode!=null) processorGUICode.pushFetch(eip.getValue());
-
-	fetchQueue.fetch();
-	decodeInstruction(cs.getDefaultSize());
-	executeInstruction();
-
-	if(processorGUICode!=null) 
+	try
 	{
-		if (computer.trace!=null) computer.trace.addProcessorCode(processorGUICode);
-		processorGUICode.updateMemoryGUI();
-		processorGUICode.updateGUI();
+	
+		if(processorGUICode!=null) processorGUICode.pushFetch(eip.getValue());
+	
+		fetchQueue.fetch();
+		decodeInstruction(cs.getDefaultSize());
+		executeInstruction();
+	
+		if(processorGUICode!=null) 
+		{
+			if (computer.trace!=null) computer.trace.addProcessorCode(processorGUICode);
+			processorGUICode.updateMemoryGUI();
+			processorGUICode.updateGUI();
+		}
+	}
+	catch(Processor_Exception e)
+	{
+		handleProcessorException(e);
+	}
+	catch(NullPointerException e)
+	{
+		e.printStackTrace();
 	}
 }
 
@@ -296,12 +318,12 @@ public void setCR0(int value)
 	}
 	else
 	{
-		cs.memory=linearMemory;
-		ss.memory=linearMemory;
-		ds.memory=linearMemory;
-		es.memory=linearMemory;
-		fs.memory=linearMemory;
-		gs.memory=linearMemory;
+		cs.memory=computer.linearMemory;
+		ss.memory=computer.linearMemory;
+		ds.memory=computer.linearMemory;
+		es.memory=computer.linearMemory;
+		fs.memory=computer.linearMemory;
+		gs.memory=computer.linearMemory;
 		if(processorGUICode!=null) processorGUICode.push(GUICODE.MODE_PROTECTED);
 //		System.out.println("Switching to Protected Mode");
 //		System.out.printf("New segment bases: CS: %x, SS: %x, DS: %x, ES: %x, FS: %x, GS: %x\n",cs.getBase(),ss.getBase(),ds.getBase(),es.getBase(),fs.getBase(),gs.getBase());
@@ -321,19 +343,19 @@ public void setCR0(int value)
 	if ((changedBits&0x10000)!=0)
 	{
 		panic("implement CR0 write protect");
-		linearMemory.setWriteProtectUserPages((value&0x10000)!=0);
+		computer.linearMemory.setWriteProtectUserPages((value&0x10000)!=0);
 	}
 	if ((changedBits&0x40000000)!=0)
 	{
 		//page caching
-		linearMemory.setPagingEnabled((value&0x80000000)!=0);
-		linearMemory.setPageCacheEnabled((value&0x40000000)==0);
+		computer.linearMemory.setPagingEnabled((value&0x80000000)!=0);
+		computer.linearMemory.setPageCacheEnabled((value&0x40000000)==0);
 	}	
 	if ((changedBits&0x80000000)!=0)
 	{
 		//paging
-		linearMemory.setPagingEnabled((value&0x80000000)!=0);
-		linearMemory.setPageCacheEnabled((value&0x40000000)==0);
+		computer.linearMemory.setPagingEnabled((value&0x80000000)!=0);
+		computer.linearMemory.setPageCacheEnabled((value&0x40000000)==0);
 	}
 }
 public void setCR2(int value)
@@ -345,16 +367,16 @@ public void setCR2(int value)
 public void setCR3(int value)
 {
 	cr3.setValue(value);
-	linearMemory.setPageDirectoryBaseAddress(value);
-	linearMemory.setPageCacheEnabled((value&0x10)==0);
+	computer.linearMemory.setPageDirectoryBaseAddress(value);
+	computer.linearMemory.setPageCacheEnabled((value&0x10)==0);
 //	if ((value&0x8)==0)
 //		panic("implement CR3 writes transparent");
 }
 public void setCR4(int value)
 {
 	cr4.setValue((cr4.getValue()&~0x5f)|(value&0x5f));
-	linearMemory.setGlobalPagesEnabled((value&0x80)!=0);
-	linearMemory.setPageSizeExtensionsEnabled((value&0x10)!=0);
+	computer.linearMemory.setGlobalPagesEnabled((value&0x80)!=0);
+	computer.linearMemory.setPageSizeExtensionsEnabled((value&0x10)!=0);
 }
 
 public boolean isModeReal()
@@ -366,14 +388,14 @@ public boolean isModeReal()
 private void setCPL(int cpl)
 {
 	current_privilege_level=cpl;
-	linearMemory.setSupervisor(cpl==0);
+	computer.linearMemory.setSupervisor(cpl==0);
 }
 
 //models a register
 //public class Register extends MonitoredRegister
 public class Register
 {
-	static final int EAX=100, EBX=101, ECX=102, EDX=103, ESI=104, EDI=105, ESP=106, EBP=107, CR0=108, CR2=109, CR3=110, CR4=111, EIP=112;
+	static final int EAX=100, EBX=101, ECX=102, EDX=103, ESI=104, EDI=105, ESP=106, EBP=107, CR0=108, CR2=109, CR3=110, CR4=111, EIP=112, DR0=113, DR1=114, DR2=115, DR3=116, DR4=117, DR5=118, DR6=119, DR7=120;
 	int id;
 	int value;
 	
@@ -746,7 +768,7 @@ public class Flag
 //public class Segment extends MonitoredRegister
 public class Segment
 {
-	public static final int CS=100,SS=101,DS=102,ES=103,FS=104,GS=105,IDTR=106,GDTR=107,LDTR=108,TSS=109;
+	public static final int CS=100,SS=101,DS=102,ES=103,FS=104,GS=105,IDTR=106,GDTR=107,LDTR=108,TSS=109,TEMPCS=200;
 
 	private int value;
 	private int id;
@@ -820,8 +842,8 @@ public class Segment
 	public void setProtectedValue(int value)
 	{
 		//first get the descriptor
-		boolean sup=linearMemory.isSupervisor;
-		linearMemory.setSupervisor(true);
+		boolean sup=computer.linearMemory.isSupervisor;
+		computer.linearMemory.setSupervisor(true);
 		if ((value&4)==0)
 		{
 			descriptor=gdtr.loadQuadWord(value&0xfff8);
@@ -831,12 +853,12 @@ public class Segment
 			if (ldtr==null)
 			{
 				System.out.println("LDTR is null");
-				throw GENERAL_PROTECTION;
+				throw new Processor_Exception(GENERAL_PROTECTION);
 			}
 			descriptor=ldtr.loadQuadWord(value&0xfff8);
 		}
 		setProtectedValue(value,descriptor);
-		linearMemory.setSupervisor(sup);
+		computer.linearMemory.setSupervisor(sup);
 	}
 
 	public void setProtectedValue(int value, long descriptor)
@@ -875,6 +897,24 @@ public class Segment
 	{
 		return defaultSize;
 	}
+	//types:
+	//1: tss-16, 2: ldt, 3: tss-16 busy, 4: call-16, 5: task, 6: intr-16, 7: trap-16
+	//9: tss-32, b: tss-32 busy, c: call-32, e: intr-32
+	//10: data r/o, 11: data r/o accessed, 12: data r/w, 13: data r/w accessed
+	//14, 15, 16, 17: same as 10-13, but expanding downwards
+	//18: code x/o, 19: code x/o accessed, 1a: code r/x, 1b: code r/x accessed
+	//1c, 1d, 1e, 1f: same as 18-1b, but conforming
+	public int getType()
+	{
+		return((int)((descriptor & 0x1f0000000000L)>>>40));
+	}
+	//like getType, but for provided descriptor
+	//this is really a static method
+	public int getType(long descriptor)
+	{
+		return((int)((descriptor & 0x1f0000000000L)>>>40));		
+	}
+	
 	public int address(int offset)
 	{
 //		return (0xffff0&base)+(0xffff&offset);
@@ -884,7 +924,7 @@ public class Segment
 	{
 		if(memory==computer.physicalMemory)
 			return base+offset;
-		return linearMemory.virtualAddressLookup(base+offset);
+		return computer.linearMemory.virtualAddressLookup(base+offset);
 	}
 	public byte loadByte(int offset)
 	{
@@ -977,16 +1017,35 @@ public void setFlags(int code)
 
 public void handleProcessorException(Processor_Exception e)
 {
-	if (e.vector==PAGE_FAULT.vector)
+	try
 	{
-		setCR2(linearMemory.lastPageFaultAddress);
-		System.out.println("A page fault exception just happened: "+e.vector);
+		if (e.vector==PAGE_FAULT.vector)
+		{
+			setCR2(computer.linearMemory.lastPageFaultAddress);
+			System.out.println("A page fault exception just happened: "+e.vector);
+		}
+		//REMOVE THIS LINE WHEN I'M CONFIDENT THAT EXCEPTIONS WORK
+	//	panic("A processor exception happened "+e.vector);
+		System.out.println("A Processor Exception just happened: "+e.vector);
+		System.out.printf("CS: %x, IP: %x\n",cs.getBase(),eip.getValue());
+		if(processorGUICode!=null) processorGUICode.push(GUICODE.EXCEPTION,e.vector);
+	    handleInterrupt(e.vector,e.haserrorcode,e.errorcode);
 	}
-	//REMOVE THIS LINE WHEN I'M CONFIDENT THAT EXCEPTIONS WORK
-	panic("A processor exception happened "+e.vector);
-	System.out.println("A Processor Exception just happened: "+e.vector);
-	if(processorGUICode!=null) processorGUICode.push(GUICODE.EXCEPTION,e.vector);
-    handleInterrupt(e.vector);
+	
+	catch(Processor_Exception e2)
+	{
+		if (e.vector==DOUBLE_FAULT.vector)
+		{
+			panic("A triple fault happened "+e2);
+			System.exit(0);
+		}
+		else
+		{
+			System.out.println("A double fault happened: "+e2);
+			handleProcessorException(DOUBLE_FAULT);
+		}
+	}
+
 }
 
 public void waitForInterrupt()
@@ -1011,7 +1070,7 @@ public void processInterrupts()
 	interruptFlags &= ~0x1;
 		//get the interrupt
 	haltMode=false;
-	lastInterrupt=interruptController.cpuGetInterrupt();
+	lastInterrupt=computer.interruptController.cpuGetInterrupt();
 	handleInterrupt(lastInterrupt);
 }
 
@@ -1026,8 +1085,11 @@ public void clearInterrupt()
 {
 	interruptFlags &= ~ 0x1;
 }
-	//deal with a real mode interrupt
 public void handleInterrupt(int vector)
+{
+	handleInterrupt(vector,false,0);
+}
+public void handleInterrupt(int vector, boolean haserrorcode, int errorcode)
 {
 	int newIP=0, newSegment=0;
 	long descriptor=0;
@@ -1051,6 +1113,11 @@ public void handleInterrupt(int vector)
 		ss.storeWord(sesp&0xffff, (short)cs.getValue());
 		sesp-=2;
 		ss.storeWord(sesp&0xffff, (short)eip.getValue());
+		if (haserrorcode)
+		{
+			sesp-=2;
+			ss.storeWord(sesp&0xffff, (short)errorcode);
+		}
 		esp.setValue((0xffff0000 & esp.getValue()) | (sesp & 0xffff));
 			//change CS and IP to the ISR's values
 		cs.setValue(newSegment);
@@ -1058,59 +1125,98 @@ public void handleInterrupt(int vector)
 	}
 	else
 	{
+		System.out.println("Protected mode interrupt at icount "+computer.icount+": "+vector);
+		
 		//get the new CS:EIP from the IDT
-		boolean sup=linearMemory.isSupervisor;
-		linearMemory.setSupervisor(true);
+		
+		//set linear memory supervisor mode temporarily so we don't get page protection faults
+		boolean sup=computer.linearMemory.isSupervisor;
+		computer.linearMemory.setSupervisor(true);
+		
+		//idtr interrupt vector
 		vector=vector*8;
 		descriptor=idtr.loadQuadWord(vector);
-		int segIndex=(int)((descriptor>>16)&0xffff);
-		if ((segIndex&4)!=0)
-			descriptor=ldtr.loadQuadWord(segIndex&0xfff8);
-		else
-			descriptor=gdtr.loadQuadWord(segIndex&0xfff8);
-		linearMemory.setSupervisor(sup);
+		//this will be the new CS selector value
+		newSegment=(int)((descriptor>>16)&0xffff);
+		//create a temporary code segment to get the dpl because we haven't backed up CS yet
+		Segment tempSeg=new Segment(Segment.TEMPCS,computer.linearMemory);
+		tempSeg.setProtectedValue(newSegment);
+		//put linear memory back to the mode it was in
+		computer.linearMemory.setSupervisor(sup);
 		
-		int dpl=(int)((descriptor>>45)&0x3);
-		newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
-		newSegment = (int)((descriptor>>16)&0xffff);
+		//type of idtr entry (not CS)
+		int idtrType=tempSeg.getType(descriptor);
+		//type of CS segment
+		int segType=tempSeg.getType();
+		if (segType<0x18||segType>0x1b)
+			panic("Unimplemented code segment type "+segType);
 		
-		if (dpl<current_privilege_level)
+		//32-bit interrupt
+		if (idtrType==0xe)
 		{
-			int stackAddress=dpl*8+4;
-			int newSS=0xffff&(tss.loadWord(stackAddress+4));
-			int newSP=tss.loadDoubleWord(stackAddress);
-			int oldSS=ss.getValue();
-			int oldSP=esp.getValue();
-			ss.setValue(newSS);
-			esp.setValue(newSP);
-	
-			//save SS:ESP on the stack
-			int sesp1 = esp.getValue();
-			sesp1-=4;
-			ss.storeDoubleWord(sesp1, oldSS);
-			sesp1-=4;
-			ss.storeDoubleWord(sesp1, oldSP);
-			esp.setValue(sesp1);
-		}
+			//get the new CS's privilege level
+			int dpl=tempSeg.dpl;
+	//		int dpl=(int)((descriptor>>45)&0x3);
+			//get the new IP from the IDTR entry
+			newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
+	//		newSegment = (int)((descriptor>>16)&0xffff);
+			
+			System.out.println("old IP: "+eip.getValue()+" old segment: "+cs.getBase()+" new IP: "+newIP+" new Segment: "+newSegment);
+			
+			//if the interrupt brings us more privilege, we get a new stack segment
+			if (dpl<current_privilege_level)
+			{
+				System.out.println("different privilege level");
+				
+				int stackAddress=dpl*8+4;
+				int newSS=0xffff&(tss.loadWord(stackAddress+4));
+				int newSP=tss.loadDoubleWord(stackAddress);
+				int oldSS=ss.getValue();
+				int oldSP=esp.getValue();
+				ss.setValue(newSS);
+				esp.setValue(newSP);
 		
-		//save the flags on the stack
-		int sesp=esp.getValue();
-		int eflags = getFlags();
-		ss.storeDoubleWord(sesp, eflags);
-			//disable interrupts
-		interruptEnable.clear();
-		interruptEnableSoon.clear();
-			//save CS:IP on the stack
-		sesp-=4;
-		ss.storeDoubleWord(sesp, cs.getValue());
-		sesp-=4;
-		ss.storeDoubleWord(sesp, eip.getValue());
-		esp.setValue(sesp);
-			//change CS and IP to the ISR's values
-		cs.setProtectedValue(newSegment,descriptor);
-		eip.setValue(newIP);
-		setCPL(dpl);
-//		current_privilege_level=dpl;
+				//save SS:ESP on the stack
+				int sesp1 = esp.getValue();
+				sesp1-=4;
+				ss.storeDoubleWord(sesp1, oldSS);
+				sesp1-=4;
+				ss.storeDoubleWord(sesp1, oldSP);
+				esp.setValue(sesp1);
+			}
+			
+			//save the flags on the stack
+			int sesp=esp.getValue();
+			int eflags = getFlags();
+			ss.storeDoubleWord(sesp, eflags);
+				//disable interrupts
+			interruptEnable.clear();
+			interruptEnableSoon.clear();
+				//save CS:IP on the stack
+			sesp-=4;
+			ss.storeDoubleWord(sesp, cs.getValue());
+			sesp-=4;
+			ss.storeDoubleWord(sesp, eip.getValue());
+			//if the interrupt was an exception with an error code, put that on the stack too
+			if (haserrorcode)
+			{
+				sesp-=4;
+				ss.storeDoubleWord(sesp, errorcode);
+			}
+			esp.setValue(sesp);
+				//change CS and IP to the ISR's values
+	//		cs.setProtectedValue(newSegment,descriptor);
+			//generate a new CS from the selector (this involves a gdt/ldt lookup)
+			cs.setProtectedValue(newSegment);
+			eip.setValue(newIP);
+			//change the privilege level
+			setCPL(dpl);
+	//		current_privilege_level=dpl;
+		}
+		else
+		{
+			panic("Unimplemented idtr type: "+idtrType);
+		}
 	}
 
 	if(processorGUICode!=null) processorGUICode.push(GUICODE.HARDWARE_INTERRUPT,vector);
@@ -1235,8 +1341,8 @@ public void executeMicroInstructions()
 	MICROCODE microcode;
 	boolean op32,addr32;
 
-	try
-	{
+//	try
+//	{
 	while (codesHandled < codeLength)
 	{
 	microcode=getCode();
@@ -1293,6 +1399,12 @@ public void executeMicroInstructions()
 	case LOAD0_CR2: reg0 = cr2.getValue(); break;
 	case LOAD0_CR3: reg0 = cr3.getValue(); break;
 	case LOAD0_CR4: reg0 = cr4.getValue(); break;
+	case LOAD0_DR0: reg0 = dr0.getValue(); break;
+	case LOAD0_DR1: reg0 = dr1.getValue(); break;
+	case LOAD0_DR2: reg0 = dr2.getValue(); break;
+	case LOAD0_DR3: reg0 = dr3.getValue(); break;
+	case LOAD0_DR6: reg0 = dr6.getValue(); break;
+	case LOAD0_DR7: reg0 = dr7.getValue(); break;
 
 	case LOAD1_AX: reg1 = eax.getValue() & 0xffff; break;
 	case LOAD1_BX: reg1 = ebx.getValue() & 0xffff; break;
@@ -1372,6 +1484,12 @@ public void executeMicroInstructions()
 	case STORE0_CR2: setCR2(reg0); break;
 	case STORE0_CR3: setCR3(reg0); break;
 	case STORE0_CR4: setCR4(reg0); break;
+	case STORE0_DR0: dr0.setValue(reg0); break;
+	case STORE0_DR1: dr1.setValue(reg0); break;
+	case STORE0_DR2: dr2.setValue(reg0); break;
+	case STORE0_DR3: dr3.setValue(reg0); break;
+	case STORE0_DR6: dr6.setValue(reg0); break;
+	case STORE0_DR7: dr7.setValue(reg0); break;
 
 	case STORE1_AX: eax.setLower16Value(0xffff & reg1); break;
 	case STORE1_BX: ebx.setLower16Value(0xffff & reg1); break;
@@ -1418,6 +1536,7 @@ public void executeMicroInstructions()
 	case LOAD1_MEM_DOUBLE:	reg1 = seg.loadDoubleWord(addr); break;
 	case STORE0_MEM_DOUBLE:	seg.storeDoubleWord(addr,reg0); break;
 	case STORE1_MEM_DOUBLE:	seg.storeDoubleWord(addr,reg1); break;
+	case LOAD0_MEM_QUAD:	reg0l = seg.loadQuadWord(addr); break;
 
 	//addressing
 	case ADDR_AX:	addr += (short)eax.getValue(); break;
@@ -1529,13 +1648,13 @@ public void executeMicroInstructions()
 	case OP_IRET:	reg0 = iret(op32,addr32); break;
 
 	//input/output	
-	case OP_IN_08:	reg0 = 0xff & ioports.ioPortReadByte(reg0); break;
-	case OP_IN_16_32:	if (!op32) reg0 = 0xffff & ioports.ioPortReadWord(reg0);
-				else reg0 = ioports.ioPortReadLong(reg0); 
+	case OP_IN_08:	reg0 = 0xff & computer.ioports.ioPortReadByte(reg0); break;
+	case OP_IN_16_32:	if (!op32) reg0 = 0xffff & computer.ioports.ioPortReadWord(reg0);
+				else reg0 = computer.ioports.ioPortReadLong(reg0); 
 				break;
-	case OP_OUT_08:	ioports.ioPortWriteByte(reg0, reg1); break;
-	case OP_OUT_16_32:	if (!op32) ioports.ioPortWriteWord(reg0, reg1);
-				else ioports.ioPortWriteLong(reg0, reg1); 
+	case OP_OUT_08:	computer.ioports.ioPortWriteByte(reg0, reg1); break;
+	case OP_OUT_16_32:	if (!op32) computer.ioports.ioPortWriteWord(reg0, reg1);
+				else computer.ioports.ioPortWriteLong(reg0, reg1); 
 				break;
 
 	//arithmetic
@@ -1956,6 +2075,14 @@ public void executeMicroInstructions()
 			if ((index < lower) || (index > (upper + 2)))
 				throw BOUND_RANGE;
 		}
+		else
+		{
+			int lower=(int)reg0l;
+			int upper=(int)(reg0l>>32);
+			int index=reg1;
+			if ((index<lower)||(index>upper+4))
+				throw BOUND_RANGE;
+		}
 	} break;
 
 
@@ -2165,12 +2292,12 @@ public void executeMicroInstructions()
 	case OP_CPUID: cpuid(); break;
 
 	case OP_LGDT:	
-		gdtr.memory=linearMemory; 
+		gdtr.memory=computer.linearMemory; 
 		gdtr.setDescriptorValue(op32? reg1:(reg1&0x00ffffff),reg0); 
 		System.out.printf("New GDT starts at %x\n", gdtr.getBase()); 
 		break;
 	case OP_LIDT:
-		idtr.memory=linearMemory;
+		idtr.memory=computer.linearMemory;
 		idtr.setDescriptorValue(op32? reg1:(reg1&0x00ffffff),reg0); 
 		break;
 	case OP_SGDT:	if (op32) reg1=gdtr.getBase(); else reg1=gdtr.getBase()&0x00ffffff; reg0=gdtr.getLimit(); break;
@@ -2258,12 +2385,6 @@ public void executeMicroInstructions()
 
 	if(processorGUICode!=null) processorGUICode.pushMicrocode(microcode,reg0,reg1,reg2,addr,displacement,condition);
 	}
-	}
-	catch (Processor_Exception e)
-	{
-		handleProcessorException(e);
-	}
-
 }
 
 private void jump_08(byte offset)
@@ -2820,8 +2941,8 @@ private void intr_protected(int vector,boolean op32, boolean addr32)
 		panic("Only handling 32 bit mode protected interrupts");
 	
 	//get the new CS:EIP from the IDT
-	boolean sup=linearMemory.isSupervisor;
-	linearMemory.setSupervisor(true);
+	boolean sup=computer.linearMemory.isSupervisor;
+	computer.linearMemory.setSupervisor(true);
 	vector=vector*8;
 	descriptor=idtr.loadQuadWord(vector);
 	int segIndex=(int)((descriptor>>16)&0xffff);
@@ -2830,7 +2951,7 @@ private void intr_protected(int vector,boolean op32, boolean addr32)
 		newSegmentDescriptor=ldtr.loadQuadWord(segIndex&0xfff8);
 	else
 		newSegmentDescriptor=gdtr.loadQuadWord(segIndex&0xfff8);
-	linearMemory.setSupervisor(sup);
+	computer.linearMemory.setSupervisor(sup);
 	
 	dpl=(int)((newSegmentDescriptor>>45)&0x3);
 	newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
@@ -2957,11 +3078,11 @@ private void ins(int port, int b, boolean addr32)
 	{
 		int addr = edi.getValue() & 0xffff;
 		if (b==1)
-			es.storeByte(addr & 0xffff, (byte)ioports.ioPortReadByte(port));
+			es.storeByte(addr & 0xffff, (byte)computer.ioports.ioPortReadByte(port));
 		else if (b==2)
-			es.storeWord(addr & 0xffff, (short)ioports.ioPortReadWord(port));
+			es.storeWord(addr & 0xffff, (short)computer.ioports.ioPortReadWord(port));
 		else
-			es.storeDoubleWord(addr & 0xffff, ioports.ioPortReadLong(port));
+			es.storeDoubleWord(addr & 0xffff, computer.ioports.ioPortReadLong(port));
 		if (direction.read()) 
 			addr -= b;
 		else
@@ -2973,11 +3094,11 @@ private void ins(int port, int b, boolean addr32)
 	{
 		int addr = edi.getValue();
 		if (b==1)
-			es.storeByte(addr, (byte)ioports.ioPortReadByte(port));
+			es.storeByte(addr, (byte)computer.ioports.ioPortReadByte(port));
 		else if (b==2)
-			es.storeWord(addr, (short)ioports.ioPortReadWord(port));
+			es.storeWord(addr, (short)computer.ioports.ioPortReadWord(port));
 		else
-			es.storeDoubleWord(addr, ioports.ioPortReadLong(port));
+			es.storeDoubleWord(addr, computer.ioports.ioPortReadLong(port));
 		if (direction.read()) 
 			addr -= b;
 		else
@@ -2997,11 +3118,11 @@ private void rep_ins(int port, int b, boolean addr32)
 		while (count != 0) 
 		{
 			if (b==1)
-				es.storeByte(addr & 0xffff, (byte)ioports.ioPortReadByte(port));		
+				es.storeByte(addr & 0xffff, (byte)computer.ioports.ioPortReadByte(port));		
 			else if (b==2)
-				es.storeWord(addr & 0xffff, (short)ioports.ioPortReadWord(port));		
+				es.storeWord(addr & 0xffff, (short)computer.ioports.ioPortReadWord(port));		
 			else
-				es.storeDoubleWord(addr & 0xffff, ioports.ioPortReadLong(port));		
+				es.storeDoubleWord(addr & 0xffff, computer.ioports.ioPortReadLong(port));		
 			count--;
 			if (direction.read())
 				addr -= b;
@@ -3019,11 +3140,11 @@ private void rep_ins(int port, int b, boolean addr32)
 		while (count != 0) 
 		{
 			if (b==1)
-				es.storeByte(addr, (byte)ioports.ioPortReadByte(port));		
+				es.storeByte(addr, (byte)computer.ioports.ioPortReadByte(port));		
 			else if (b==2)
-				es.storeWord(addr, (short)ioports.ioPortReadWord(port));		
+				es.storeWord(addr, (short)computer.ioports.ioPortReadWord(port));		
 			else
-				es.storeDoubleWord(addr, ioports.ioPortReadLong(port));		
+				es.storeDoubleWord(addr, computer.ioports.ioPortReadLong(port));		
 			count--;
 			if (direction.read())
 				addr -= b;
@@ -3043,11 +3164,11 @@ private void outs(int port, Segment seg, int b, boolean addr32)
 		int addr = esi.getValue() & 0xffff;
 	
 		if (b==1)
-			ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr&0xffff));
+			computer.ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr&0xffff));
 		else if (b==2)
-			ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr&0xffff));
+			computer.ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr&0xffff));
 		else
-			ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr&0xffff));
+			computer.ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr&0xffff));
 	
 		if (direction.read()) 
 			addr -= b;
@@ -3062,11 +3183,11 @@ if (esi.getValue()==0x3ffff) System.out.println("outs addr16 "+esi.getValue()+" 
 		int addr = esi.getValue();
 		
 		if (b==1)
-			ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr));
+			computer.ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr));
 		else if (b==2)
-			ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr));
+			computer.ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr));
 		else
-			ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr));
+			computer.ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr));
 	
 		if (direction.read()) 
 			addr -= b;
@@ -3088,11 +3209,11 @@ private void rep_outs(int port, Segment seg, int b, boolean addr32)
 		while (count != 0) 
 		{
 			if (b==1)
-				ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr&0xffff));
+				computer.ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr&0xffff));
 			else if (b==2)
-				ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr&0xffff));
+				computer.ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr&0xffff));
 			else
-				ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr&0xffff));
+				computer.ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr&0xffff));
 			count--;
 			if (direction.read())
 				addr -= b;
@@ -3110,11 +3231,11 @@ private void rep_outs(int port, Segment seg, int b, boolean addr32)
 		while (count != 0) 
 		{
 			if (b==1)
-				ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr));
+				computer.ioports.ioPortWriteByte(port, 0xff & seg.loadByte(addr));
 			else if (b==2)
-				ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr));
+				computer.ioports.ioPortWriteWord(port, 0xffff & seg.loadWord(addr));
 			else
-				ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr));
+				computer.ioports.ioPortWriteLong(port, seg.loadDoubleWord(addr));
 			count--;
 			if (direction.read())
 				addr -= b;
@@ -4335,7 +4456,7 @@ public void initializeDecoder()
 //this routine will eventually be turned into a normal exception
 public void panic(String reason)
 {
-	System.out.println("PANIC: "+reason);
+	System.out.println("Processor PANIC: "+reason);
 	System.out.println("icount = "+computer.icount);
 	//System.exit(0);
 }
@@ -4837,6 +4958,17 @@ private void effective_double(int modrm, int sib, int displacement, int operand)
 	}
 }
 
+private void effective_quad(int modrm, int sib, int displacement, int operand)
+{
+	if ((modrm & 0xc7)>=0xc0 && (modrm & 0xc7)<=0xc7)
+		panic("Invalid modrm for effective quad");
+	else
+	{
+		decode_memory(modrm, sib, displacement);
+		pushCode(MICROCODE.LOAD0_MEM_QUAD);
+	}
+}
+
 private void register_byte(int modrm, int operand)
 {
 	pushCode(modrmRegisterTable[operand*9+((modrm&0x38)>>3)]);
@@ -4913,6 +5045,64 @@ private void store0_Cd(int modrm)
 		case 0x18: pushCode(MICROCODE.STORE0_CR3); break;
 		case 0x20: pushCode(MICROCODE.STORE0_CR4); break;
 		default: panic("Bad load0 Cd");
+	}
+}
+
+private void load0_Dd(int modrm)
+{
+	switch(modrm&0x38)
+	{
+	case 0x00: pushCode(MICROCODE.LOAD0_DR0); break;
+	case 0x08: pushCode(MICROCODE.LOAD0_DR1); break;
+	case 0x10: pushCode(MICROCODE.LOAD0_DR2); break;
+	case 0x18: pushCode(MICROCODE.LOAD0_DR3); break;
+	case 0x30: pushCode(MICROCODE.LOAD0_DR6); break;
+	case 0x38: pushCode(MICROCODE.LOAD0_DR7); break;
+	default: panic("Bad load0 Dd");
+	}
+}
+
+private void store0_Dd(int modrm)
+{
+	switch(modrm&0x38)
+	{
+	case 0x00: pushCode(MICROCODE.STORE0_DR0); break;
+	case 0x08: pushCode(MICROCODE.STORE0_DR1); break;
+	case 0x10: pushCode(MICROCODE.STORE0_DR2); break;
+	case 0x18: pushCode(MICROCODE.STORE0_DR3); break;
+	case 0x30: pushCode(MICROCODE.STORE0_DR6); break;
+	case 0x38: pushCode(MICROCODE.STORE0_DR7); break;
+	default: panic("Bad store0 Dd");
+	}
+}
+
+private void load1_Gd(int modrm)
+{
+	switch(modrm&0x38)
+	{
+	case 0x00: pushCode(MICROCODE.LOAD1_EAX); break;
+	case 0x08: pushCode(MICROCODE.LOAD1_ECX); break;
+	case 0x10: pushCode(MICROCODE.LOAD1_EDX); break;
+	case 0x18: pushCode(MICROCODE.LOAD1_EBX); break;
+	case 0x20: pushCode(MICROCODE.LOAD1_ESP); break;
+	case 0x28: pushCode(MICROCODE.LOAD1_EBP); break;
+	case 0x30: pushCode(MICROCODE.LOAD1_ESI); break;
+	case 0x38: pushCode(MICROCODE.LOAD1_EDI); break;
+	}
+}
+
+private void load1_Gw(int modrm)
+{
+	switch(modrm&0x38)
+	{
+	case 0x00: pushCode(MICROCODE.LOAD1_AX); break;
+	case 0x08: pushCode(MICROCODE.LOAD1_CX); break;
+	case 0x10: pushCode(MICROCODE.LOAD1_DX); break;
+	case 0x18: pushCode(MICROCODE.LOAD1_BX); break;
+	case 0x20: pushCode(MICROCODE.LOAD1_SP); break;
+	case 0x28: pushCode(MICROCODE.LOAD1_BP); break;
+	case 0x30: pushCode(MICROCODE.LOAD1_SI); break;
+	case 0x38: pushCode(MICROCODE.LOAD1_DI); break;
 	}
 }
 
@@ -5259,7 +5449,11 @@ private void decodeIrregularOperand(int opcode, int modrm, int sib, int displace
 				break;
 			case 0xf20:
 				load0_Cd(modrm); break;
+			case 0xf21:
+				load0_Dd(modrm); break;
 			case 0xf22:
+				load0_Rd(modrm); break;
+			case 0xf23:
 				load0_Rd(modrm); break;
 			//bt btr bts btc
 			case 0xfab: case 0xfa3: case 0xfbb: case 0xfb3: case 0xfba:
@@ -5293,6 +5487,12 @@ private void decodeIrregularOperand(int opcode, int modrm, int sib, int displace
 					default: decode_memory(modrm, sib, displacement); break;
 					}					
 				}
+				break;
+			case 0x62:
+				if (isCode(MICROCODE.PREFIX_OPCODE_32BIT))
+					effective_quad(modrm,sib,displacement,operand);
+				else
+					effective_double(modrm, sib, displacement, operand);
 				break;
 			default:
 				panic("Need to decode irregular input 0 operand: "+opcode);
@@ -5383,33 +5583,16 @@ private void decodeIrregularOperand(int opcode, int modrm, int sib, int displace
 			//bt, btr, bts, btc
 			case 0xfab: case 0xfa3: case 0xfbb: case 0xfb3:
 				if (isCode(MICROCODE.PREFIX_OPCODE_32BIT))
-				{
-					switch(modrm&0x38)
-					{
-					case 0x00: pushCode(MICROCODE.LOAD1_EAX); break;
-					case 0x08: pushCode(MICROCODE.LOAD1_ECX); break;
-					case 0x10: pushCode(MICROCODE.LOAD1_EDX); break;
-					case 0x18: pushCode(MICROCODE.LOAD1_EBX); break;
-					case 0x20: pushCode(MICROCODE.LOAD1_ESP); break;
-					case 0x28: pushCode(MICROCODE.LOAD1_EBP); break;
-					case 0x30: pushCode(MICROCODE.LOAD1_ESI); break;
-					case 0x38: pushCode(MICROCODE.LOAD1_EDI); break;
-					}
-				}
+					load1_Gd(modrm);
 				else
-				{
-					switch(modrm&0x38)
-					{
-					case 0x00: pushCode(MICROCODE.LOAD1_AX); break;
-					case 0x08: pushCode(MICROCODE.LOAD1_CX); break;
-					case 0x10: pushCode(MICROCODE.LOAD1_DX); break;
-					case 0x18: pushCode(MICROCODE.LOAD1_BX); break;
-					case 0x20: pushCode(MICROCODE.LOAD1_SP); break;
-					case 0x28: pushCode(MICROCODE.LOAD1_BP); break;
-					case 0x30: pushCode(MICROCODE.LOAD1_SI); break;
-					case 0x38: pushCode(MICROCODE.LOAD1_DI); break;
-					}					
-				}
+					load1_Gw(modrm);
+				break;
+			//bound
+			case 0x62:
+				if (isCode(MICROCODE.PREFIX_OPCODE_32BIT))
+					load1_Gd(modrm);
+				else
+					load1_Gw(modrm);
 				break;
 			default:
 				panic("Need to decode irregular input 1 operand: "+opcode);
@@ -5529,8 +5712,12 @@ private void decodeIrregularOperand(int opcode, int modrm, int sib, int displace
 				break;
 			case 0xf20:
 				store0_Rd(modrm); break;
+			case 0xf21:
+				store0_Dd(modrm); break;
 			case 0xf22:
 				store0_Cd(modrm); break;
+			case 0xf23:
+				store0_Dd(modrm); break;
 			case 0xf31:
 				pushCode(MICROCODE.STORE0_EAX); break;				
 			default:
@@ -5949,14 +6136,26 @@ public final Processor_Exception ALIGNMENT_CHECK = new Processor_Exception(0x11)
 public final Processor_Exception MACHINE_CHECK = new Processor_Exception(0x12);
 public final Processor_Exception SIMD_FLOATING_POINT = new Processor_Exception(0x13);
 
-public class Processor_Exception extends RuntimeException
+public static class Processor_Exception extends RuntimeException
 {
 	private static final long serialVersionUID = 1L;
 	int vector;
+	boolean haserrorcode=false;
+	int errorcode;
 
 	public Processor_Exception(int vector)
 	{
 		this.vector=vector;
+	}
+	public Processor_Exception(Processor_Exception e)
+	{
+		vector=e.vector;
+	}
+	public Processor_Exception(Processor_Exception e, int errorcode)
+	{
+		vector=e.vector;
+		haserrorcode=true;
+		this.errorcode=errorcode;
 	}
 }
 
@@ -6964,7 +7163,7 @@ enum MICROCODE
 {
 PREFIX_LOCK, PREFIX_REPNE, PREFIX_REPE, PREFIX_CS, PREFIX_SS, PREFIX_DS, PREFIX_ES, PREFIX_FS, PREFIX_GS, PREFIX_OPCODE_32BIT, PREFIX_ADDRESS_32BIT,
 
-LOAD0_AX, LOAD0_AL, LOAD0_AH, LOAD0_BX, LOAD0_BL, LOAD0_BH, LOAD0_CX, LOAD0_CL, LOAD0_CH, LOAD0_DX, LOAD0_DL, LOAD0_DH, LOAD0_SP, LOAD0_BP, LOAD0_SI, LOAD0_DI, LOAD0_CS, LOAD0_SS, LOAD0_DS, LOAD0_ES, LOAD0_FS, LOAD0_GS, LOAD0_FLAGS, LOAD1_AX, LOAD1_AL, LOAD1_AH, LOAD1_BX, LOAD1_BL, LOAD1_BH, LOAD1_CX, LOAD1_CL, LOAD1_CH, LOAD1_DX, LOAD1_DL, LOAD1_DH, LOAD1_SP, LOAD1_BP, LOAD1_SI, LOAD1_DI, LOAD1_CS, LOAD1_SS, LOAD1_DS, LOAD1_ES, LOAD1_FS, LOAD1_GS, LOAD1_FLAGS, STORE0_AX, STORE0_AL, STORE0_AH, STORE0_BX, STORE0_BL, STORE0_BH, STORE0_CX, STORE0_CL, STORE0_CH, STORE0_DX, STORE0_DL, STORE0_DH, STORE0_SP, STORE0_BP, STORE0_SI, STORE0_DI, STORE0_CS, STORE0_SS, STORE0_DS, STORE0_ES, STORE0_FS, STORE0_GS, STORE1_AX, STORE1_AL, STORE1_AH, STORE1_BX, STORE1_BL, STORE1_BH, STORE1_CX, STORE1_CL, STORE1_CH, STORE1_DX, STORE1_DL, STORE1_DH, STORE1_SP, STORE1_BP, STORE1_SI, STORE1_DI, STORE1_CS, STORE1_SS, STORE1_DS, STORE1_ES, STORE1_FS, STORE1_GS, STORE1_FLAGS, LOAD0_MEM_BYTE, LOAD0_MEM_WORD, STORE0_MEM_BYTE, STORE0_MEM_WORD, LOAD1_MEM_BYTE, LOAD1_MEM_WORD, STORE1_MEM_BYTE, STORE1_MEM_WORD, STORE1_ESP, STORE0_FLAGS, LOAD0_IB, LOAD0_IW, LOAD1_IB, LOAD1_IW, LOAD_SEG_CS, LOAD_SEG_SS, LOAD_SEG_DS, LOAD_SEG_ES, LOAD_SEG_FS, LOAD_SEG_GS, LOAD0_ADDR, LOAD0_EAX, LOAD0_EBX, LOAD0_ECX, LOAD0_EDX, LOAD0_ESI, LOAD0_EDI, LOAD0_EBP, LOAD0_ESP, LOAD1_EAX, LOAD1_EBX, LOAD1_ECX, LOAD1_EDX, LOAD1_ESI, LOAD1_EDI, LOAD1_EBP, LOAD1_ESP, STORE0_EAX, STORE0_EBX, STORE0_ECX, STORE0_EDX, STORE0_ESI, STORE0_EDI, STORE0_ESP, STORE0_EBP, STORE1_EAX, STORE1_EBX, STORE1_ECX, STORE1_EDX, STORE1_ESI, STORE1_EDI, STORE1_EBP, LOAD0_MEM_DOUBLE, LOAD1_MEM_DOUBLE, STORE0_MEM_DOUBLE, STORE1_MEM_DOUBLE, LOAD0_EFLAGS, LOAD1_EFLAGS, STORE0_EFLAGS, STORE1_EFLAGS, LOAD0_ID, LOAD1_ID, LOAD0_CR0, LOAD0_CR2, LOAD0_CR3, LOAD0_CR4, STORE0_CR0, STORE0_CR2, STORE0_CR3, STORE0_CR4,
+LOAD0_AX, LOAD0_AL, LOAD0_AH, LOAD0_BX, LOAD0_BL, LOAD0_BH, LOAD0_CX, LOAD0_CL, LOAD0_CH, LOAD0_DX, LOAD0_DL, LOAD0_DH, LOAD0_SP, LOAD0_BP, LOAD0_SI, LOAD0_DI, LOAD0_CS, LOAD0_SS, LOAD0_DS, LOAD0_ES, LOAD0_FS, LOAD0_GS, LOAD0_FLAGS, LOAD1_AX, LOAD1_AL, LOAD1_AH, LOAD1_BX, LOAD1_BL, LOAD1_BH, LOAD1_CX, LOAD1_CL, LOAD1_CH, LOAD1_DX, LOAD1_DL, LOAD1_DH, LOAD1_SP, LOAD1_BP, LOAD1_SI, LOAD1_DI, LOAD1_CS, LOAD1_SS, LOAD1_DS, LOAD1_ES, LOAD1_FS, LOAD1_GS, LOAD1_FLAGS, STORE0_AX, STORE0_AL, STORE0_AH, STORE0_BX, STORE0_BL, STORE0_BH, STORE0_CX, STORE0_CL, STORE0_CH, STORE0_DX, STORE0_DL, STORE0_DH, STORE0_SP, STORE0_BP, STORE0_SI, STORE0_DI, STORE0_CS, STORE0_SS, STORE0_DS, STORE0_ES, STORE0_FS, STORE0_GS, STORE1_AX, STORE1_AL, STORE1_AH, STORE1_BX, STORE1_BL, STORE1_BH, STORE1_CX, STORE1_CL, STORE1_CH, STORE1_DX, STORE1_DL, STORE1_DH, STORE1_SP, STORE1_BP, STORE1_SI, STORE1_DI, STORE1_CS, STORE1_SS, STORE1_DS, STORE1_ES, STORE1_FS, STORE1_GS, STORE1_FLAGS, LOAD0_MEM_BYTE, LOAD0_MEM_WORD, STORE0_MEM_BYTE, STORE0_MEM_WORD, LOAD1_MEM_BYTE, LOAD1_MEM_WORD, STORE1_MEM_BYTE, STORE1_MEM_WORD, STORE1_ESP, STORE0_FLAGS, LOAD0_IB, LOAD0_IW, LOAD1_IB, LOAD1_IW, LOAD_SEG_CS, LOAD_SEG_SS, LOAD_SEG_DS, LOAD_SEG_ES, LOAD_SEG_FS, LOAD_SEG_GS, LOAD0_ADDR, LOAD0_EAX, LOAD0_EBX, LOAD0_ECX, LOAD0_EDX, LOAD0_ESI, LOAD0_EDI, LOAD0_EBP, LOAD0_ESP, LOAD1_EAX, LOAD1_EBX, LOAD1_ECX, LOAD1_EDX, LOAD1_ESI, LOAD1_EDI, LOAD1_EBP, LOAD1_ESP, STORE0_EAX, STORE0_EBX, STORE0_ECX, STORE0_EDX, STORE0_ESI, STORE0_EDI, STORE0_ESP, STORE0_EBP, STORE1_EAX, STORE1_EBX, STORE1_ECX, STORE1_EDX, STORE1_ESI, STORE1_EDI, STORE1_EBP, LOAD0_MEM_DOUBLE, LOAD1_MEM_DOUBLE, STORE0_MEM_DOUBLE, STORE1_MEM_DOUBLE, LOAD0_EFLAGS, LOAD1_EFLAGS, STORE0_EFLAGS, STORE1_EFLAGS, LOAD0_ID, LOAD1_ID, LOAD0_CR0, LOAD0_CR2, LOAD0_CR3, LOAD0_CR4, STORE0_CR0, STORE0_CR2, STORE0_CR3, STORE0_CR4, LOAD0_DR0, LOAD0_DR1, LOAD0_DR2, LOAD0_DR3, LOAD0_DR6, LOAD0_DR7, STORE0_DR0, STORE0_DR1, STORE0_DR2, STORE0_DR3, STORE0_DR6, STORE0_DR7, LOAD0_MEM_QUAD,
 
 LOAD2_AL, LOAD2_CL, LOAD2_AX, LOAD2_EAX, LOAD2_IB,
 
@@ -7058,7 +7257,7 @@ public static final int[][] inputTable1 = new int[][]
 //register byte
 {0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0x84, 0x86, 0xfb0},
 //register word
-{0x01, 0x09, 0x11, 0x19, 0x21, 0x29, 0x31, 0x39, 0x85, 0x87, 0x62, 0xfa4, 0xfac, 0xfa5, 0xfad, 0xfb1},
+{0x01, 0x09, 0x11, 0x19, 0x21, 0x29, 0x31, 0x39, 0x85, 0x87, 0xfa4, 0xfac, 0xfa5, 0xfad, 0xfb1},
 //immediate byte
 {0x04, 0x0c, 0x14, 0x1c, 0x24, 0x2c, 0x34, 0x3c, 0xa8, 0x80, 0x82, 0xc0, 0xc1},
 //immediate word

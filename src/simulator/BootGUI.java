@@ -12,15 +12,15 @@ public class BootGUI extends AbstractGUI
 //	public static final String DISKC_DEFAULT_NAME="programming.img";
 	public static final String DISKC_DEFAULT_NAME="l.iso";
 	public static final String DISKD_DEFAULT_NAME="hd.img";
-//	public static final int DISKC_DEFAULT_CYLINDERS=306;
-//	public static final int DISKC_DEFAULT_HEADS=4;
-//	public static final int DISKC_DEFAULT_SECTORS=17;
-	public static final int DISKC_DEFAULT_CYLINDERS=2;
-	public static final int DISKC_DEFAULT_HEADS=16;
-	public static final int DISKC_DEFAULT_SECTORS=63;
+	public static final int DISKC_DEFAULT_CYLINDERS=306;
+	public static final int DISKC_DEFAULT_HEADS=4;
+	public static final int DISKC_DEFAULT_SECTORS=17;
 	public static final int DISKD_DEFAULT_CYLINDERS=615;
 	public static final int DISKD_DEFAULT_HEADS=6;
 	public static final int DISKD_DEFAULT_SECTORS=17;
+	public static final int CD_DEFAULT_CYLINDERS=2;
+	public static final int CD_DEFAULT_HEADS=16;
+	public static final int CD_DEFAULT_SECTORS=63;
 
 	public static final int ROWHEIGHT=20;
 	public static final int TEXTWIDTH=150;
@@ -41,7 +41,7 @@ public class BootGUI extends AbstractGUI
 	JCheckBox[] includeBox,guiincludeBox;
 	JTextField[] diskField;
 	JTextField[] cField,hField,sField;
-	JCheckBox[] includeDriveBox, diskguiincludeBox, sectorguiincludeBox;
+	JCheckBox[] includeDriveBox, diskguiincludeBox, sectorguiincludeBox, cdBox;
 	JCheckBox singlestepbox;
 	JTextField breakfield;
 
@@ -51,6 +51,11 @@ public class BootGUI extends AbstractGUI
 	public void loadState(String state)
 	{
 		Scanner loader=new Scanner(state);
+		if (!loader.next().equals("Settings"))
+		{
+			System.out.println("Error in load state: Settings expected");
+			return;
+		}		
 		for (int i=0; i<deviceIncluded.length; i++)
 			deviceIncluded[i]=loader.nextInt()==1;
 		for (int i=0; i<diskIncluded.length; i++)
@@ -67,12 +72,13 @@ public class BootGUI extends AbstractGUI
 			sectors[i]=loader.nextInt();
 		bootFromFloppy=loader.nextInt()==1;
 		bootImageName=loader.next();
+		bootImageName=bootImageName.substring(5,bootImageName.length());
 		System.out.println("loaded bootgui");
 	}
 	
 	public String saveState()
 	{
-		String state="";
+		String state="Settings ";
 		for (int i=0; i<deviceIncluded.length; i++)
 			state+=(deviceIncluded[i]?1:0)+" ";
 		for (int i=0; i<diskIncluded.length; i++)
@@ -87,7 +93,7 @@ public class BootGUI extends AbstractGUI
 			state+=heads[i]+" ";
 		for (int i=0; i<sectors.length; i++)
 			state+=sectors[i]+" ";
-		state+=(bootFromFloppy?1:0)+" "+bootImageName;
+		state+=(bootFromFloppy?1:0)+" boot:"+bootImageName;
 
 		return state;
 	}
@@ -188,6 +194,7 @@ public class BootGUI extends AbstractGUI
 		includeDriveBox = new JCheckBox[4];
 		diskguiincludeBox = new JCheckBox[4];
 		sectorguiincludeBox = new JCheckBox[4];
+		cdBox=new JCheckBox[2];
 		cField=new JTextField[4];
 		hField=new JTextField[4];
 		sField=new JTextField[4];
@@ -206,11 +213,14 @@ public class BootGUI extends AbstractGUI
 			sectorguiincludeBox[i]=new JCheckBox();
 			sectorguiincludeBox[i].setBounds(10+ROWHEIGHT+10+(TEXTWIDTH+10)*2+NTEXTWIDTH*3+30+ROWHEIGHT+10,ROWHEIGHT*(deviceName.length+2+i)+1,ROWHEIGHT-2,ROWHEIGHT-2);
 			guicomponent.add(sectorguiincludeBox[i]);
-
-			if (computer.computerGUI.singleFrame)
+			
+			if (i>=2)
 			{
-//				diskguiincludeBox[i].setSelected(true);
-//				sectorguiincludeBox[i].setSelected(true);
+				cdBox[i-2]=new JCheckBox();
+				cdBox[i-2].setBounds(10+TEXTWIDTH,ROWHEIGHT*(deviceName.length+2+i)+1,ROWHEIGHT-2,ROWHEIGHT-2);
+				guicomponent.add(cdBox[i-2]);
+				if (i==2)
+					cdBox[i-2].setSelected(true);
 			}
 
 			JLabel name = new JLabel();
@@ -305,6 +315,7 @@ public class BootGUI extends AbstractGUI
 		g.drawString("Include device",10,ROWHEIGHT-4);
 		g.drawString("Show GUI",10+ROWHEIGHT+10+TEXTWIDTH+10,ROWHEIGHT-4);
 		g.drawString("Include drive",10,ROWHEIGHT*(deviceName.length+2)+1-4);
+		g.drawString("CD?",10+TEXTWIDTH,ROWHEIGHT*(deviceName.length+2)+1-4);
 		g.drawString("Cylinders",10+ROWHEIGHT+10+(TEXTWIDTH+10)*2,ROWHEIGHT*(deviceName.length+2)+1-4);
 		g.drawString("Heads",10+ROWHEIGHT+10+(TEXTWIDTH+10)*2+NTEXTWIDTH*1+10,ROWHEIGHT*(deviceName.length+2)+1-4);
 		g.drawString("Sectors",10+ROWHEIGHT+10+(TEXTWIDTH+10)*2+NTEXTWIDTH*2+20,ROWHEIGHT*(deviceName.length+2)+1-4);
@@ -319,6 +330,8 @@ public class BootGUI extends AbstractGUI
 			if (includeBox[i]!=null) deviceIncluded[i]=includeBox[i].isSelected();
 			if (guiincludeBox[i]!=null) deviceGUI[i]=guiincludeBox[i].isSelected();
 		}
+		isCD[2]=cdBox[0].isSelected();
+		isCD[3]=cdBox[1].isSelected();
 		for (int i=0; i<4; i++)
 		{
 			diskIncluded[i]=includeDriveBox[i].isSelected();
@@ -328,13 +341,18 @@ public class BootGUI extends AbstractGUI
 			cylinders[i]=Integer.parseInt(cField[i].getText());
 			heads[i]=Integer.parseInt(hField[i].getText());
 			sectors[i]=Integer.parseInt(sField[i].getText());
+			
+			if (i>2 && isCD[i])
+			{
+				cylinders[i]=CD_DEFAULT_CYLINDERS;
+				heads[i]=CD_DEFAULT_HEADS;
+				sectors[i]=CD_DEFAULT_SECTORS;
+			}
 		}
 		if (!breakfield.getText().equals(""))
 			computer.breakpointGUI=new BreakpointGUI(computer, breakfield.getText());
 		
-		isCD[2]=true;
-		
-		
+				
 		if (singlestepbox.isSelected())
 		{
 			computer.debugMode=true;
@@ -375,6 +393,7 @@ public class BootGUI extends AbstractGUI
 				if (computer.computerGUI.singleFrame)
 					computer.computerGUI.removeComponent(bootgui);
 				updateCheckBoxes();
+
 				computer.stepLock.lockResume();
 			}
 			else if (e.getActionCommand().equals("Boot No Disk"))

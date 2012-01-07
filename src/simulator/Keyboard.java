@@ -1,5 +1,7 @@
 package simulator;
 
+import java.util.Scanner;
+
 public class Keyboard extends IODevice
 {
 	public static final int QUEUE_SIZE=256;
@@ -19,6 +21,45 @@ public class Keyboard extends IODevice
 		status=(byte)0x18;	//keyboard is unlocked and last command was a write
 		buffer=new KeyboardBuffer();
 		computer.ioports.requestPorts(this, new int[]{0x60,0x64},"Keyboard",new String[]{"Data","Command"});
+	}
+	
+	public String saveState()
+	{
+		String state="";
+		state+="Keyboard ";
+		state+=mode+" ";
+		state+=status+" ";
+		state+=commandWrite+" ";
+		state+=keyboardWriteCommand+" ";
+
+		for (int i=0; i<buffer.data.length; i++)
+			state+=buffer.data[i]+" ";
+		state+=buffer.readPosition+" ";
+		state+=buffer.writePosition+" ";
+		state+=buffer.length+" ";
+		state+=(buffer.mutex?1:0);
+		return state;
+	}
+	
+	public void loadState(String state)
+	{
+		Scanner s=new Scanner(state);
+		if (!s.next().equals("Keyboard"))
+		{
+			System.out.println("Error in load state: Keyboard expected");
+			return;
+		}
+
+		mode=s.nextInt();
+		status=s.nextByte();
+		commandWrite=s.nextByte();
+		keyboardWriteCommand=s.nextInt();
+		for (int i=0; i<buffer.data.length; i++)
+			buffer.data[i]=s.nextByte();
+		buffer.readPosition=s.nextInt();
+		buffer.writePosition=s.nextInt();
+		buffer.length=s.nextInt();
+		buffer.mutex=s.nextInt()==1;
 	}
 
 	public byte ioPortReadByte(int address)
@@ -158,7 +199,7 @@ public class Keyboard extends IODevice
 		public int readPosition;
 		public int writePosition;
 		public int length;
-		private boolean mutex;
+		public boolean mutex;
 
 		public KeyboardBuffer()
 		{

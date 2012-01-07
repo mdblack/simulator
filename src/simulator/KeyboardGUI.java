@@ -54,7 +54,7 @@ public class KeyboardGUI extends AbstractGUI
 
 	private String status="";
 
-	private int slowModeSleepDuration=200;
+//	private int slowModeSleepDuration=200;
 
 	private Key[] keys = new Key[NUMBER_OF_KEYS];
 	public KeyboardBufferComponent keyboardbuffercomponent;

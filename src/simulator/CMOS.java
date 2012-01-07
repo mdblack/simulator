@@ -18,13 +18,18 @@ public class CMOS extends IODevice
 	public void loadState(String state)
 	{
 		Scanner loader=new Scanner(state);
+		if (!loader.next().equals("CMOS"))
+		{
+			System.out.println("Error in load state: CMOS expected");
+			return;
+		}
 		for (int i=0; i<cmosdata.length; i++)
 			cmosdata[i]=loader.nextByte();
 		cmosindex=loader.nextByte();
 	}
 	public String saveState()
 	{
-		String state="";
+		String state="CMOS ";
 		for (int i=0; i<cmosdata.length; i++)
 			state+=cmosdata[i]+" ";
 		state+=cmosindex;
@@ -34,7 +39,6 @@ public class CMOS extends IODevice
 	public CMOS(Computer computer)
 	{
 		this.computer=computer;
-		Processor cpu=computer.processor;
 		
 		cmosdata=new byte[128];
 
@@ -133,6 +137,13 @@ public class CMOS extends IODevice
 				cmosdata[0x2c]=(byte)computer.harddrive.drive[1].getSectors();
 			}
 		}
+		
+		//dummy RTC registers
+		cmosdata[0xa]=0x26;
+		cmosdata[0xb]=2;
+		cmosdata[0xc]=0;
+		cmosdata[0xd]=(byte)0x80;
+		
 		computer.ioports.requestPorts(this,new int[]{0x70,0x71},"CMOS",new String[]{"Select","Data"});
 	}
 

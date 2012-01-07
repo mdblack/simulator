@@ -72,7 +72,7 @@ public class Disk
 
 	public Disk(URL disk_url)
 	{
-System.out.println(""+disk_url);
+//		System.out.println(""+disk_url);
 		TempQueue.reset();
 		try
 		{
