@@ -1,6 +1,7 @@
 package simulator;
 import java.awt.*;
 import java.awt.event.*;
+
 import javax.swing.*;
 import java.io.*;
 import java.util.Scanner;
@@ -92,6 +93,8 @@ public class ControlBuilder extends AbstractGUI
 			selectedRow=-1;
 		else
 			selectedRow=e.getY()/ROWHEIGHT;
+		if ((getSelectedVector().elementAt(getSelectedIndex())).type==2)
+			((ControlInstruction)(getSelectedVector().elementAt(getSelectedIndex()))).doHighlight();
 		repaint();
 	}
 
@@ -402,83 +405,203 @@ public class ControlBuilder extends AbstractGUI
 		public JLabel[] controlOutputName;
 		public JCheckBox[] controlOutputBox;
 		private int[] controlOutputType;
-		private boolean highlight;
+		DatapathBuilder.Block[] blockpath=null;
 
+		public ArrayList<String> microcodes;
+		
+		public boolean valid=false;
+		
+		//illuminate all the block paths
+		public void doHighlight()
+		{
+			computer.datapathBuilder.unselectAll();
+			for (String microcode:microcodes)
+			{
+				String[] nameParts=microcode.split(" ");
+				if (nameParts.length>=2)
+				{
+					blockpath=computer.datapathBuilder.tracePath(nameParts[0], nameParts[nameParts.length-1]);
+					if (blockpath!=null)
+						for (int i=0; i<blockpath.length; i++)
+							blockpath[i].selected=true;
+				}
+			}
+			computer.datapathBuilder.repaint();
+		}
+		
+		public boolean modifyControlInstruction(String name)
+		{
+			//decode the name: should consist of two elements: start block, end block, or no elements for user selection
+			String[] nameParts=name.split(" ");
+			if (nameParts.length>=2)
+			{
+				blockpath=computer.datapathBuilder.tracePath(nameParts[0], nameParts[nameParts.length-1]);
+				if (blockpath!=null)
+				{
+					//highlight the blocks on the path
+					computer.datapathBuilder.unselectAll();
+					for (int i=0; i<blockpath.length; i++)
+						blockpath[i].selected=true;
+					computer.datapathBuilder.repaint();
+				}
+				else
+					return false;
+				//set the muxes
+				for (int i=0; i<blockpath.length; i++)
+				{
+					if(blockpath[i].type.equals("multiplexor"))
+					{
+						for (int j=0; j<controlOutputName.length; j++)
+						{
+							if (blockpath[i].name.equals(controlOutputName[j].getText()))
+							{
+								DatapathBuilder.Block[] muxinputs=blockpath[i].getInputBlocks();
+								for (int k=0; k<muxinputs.length; k++)
+								{
+									if (muxinputs[k]==blockpath[i+1])
+									{
+										//is there a conflict?
+										if (controlOutputList[j].getSelectedIndex()!=k+1 && controlOutputList[j].getSelectedIndex()!=0)
+											return false;
+										//set the mux
+										controlOutputList[j].setSelectedIndex(k+1);
+									}
+								}
+								
+							}
+						}
+					}
+				}
+				//check the registers
+				for (int j=0; j<controlOutputName.length; j++)
+				{
+					if (blockpath[0].name.equals(controlOutputName[j].getText()))
+					{
+						if (controlOutputBox[j]!=null)
+							controlOutputBox[j].setSelected(true);
+					}
+				}
+				microcodes.add(name);
+				return true;
+			}
+			else
+				return false;
+		}
+		
 		public ControlInstruction(String name)
 		{
 			super(name,2);
-			if (computer.datapathBuilder!=null)
+			if (computer.datapathBuilder==null)
+				return;
+			
+			microcodes=new ArrayList<String>();
+			
+			//decode the name: should consist of two elements: start block, end block, or no elements for user selection
+			String[] nameParts=name.split(" ");
+			if (nameParts.length>=2)
+				blockpath=computer.datapathBuilder.tracePath(nameParts[0], nameParts[nameParts.length-1]);
+			//don't add a row if there is an invalid path specified
+			if (blockpath==null && !name.equals("")) 
+				return;
+			
+			valid=true;
+			
+			String[] ci=computer.datapathBuilder.controlOutputs();
+			controlInputList=new JList[ci.length];
+			controlInputListPane=new JScrollPane[ci.length];
+			controlInputName=new JLabel[ci.length];
+			
+			for (int i=0; i<ci.length; i++)
 			{
-				String[] ci=computer.datapathBuilder.controlOutputs();
-				controlInputList=new JList[ci.length];
-				controlInputListPane=new JScrollPane[ci.length];
-				controlInputName=new JLabel[ci.length];
-				for (int i=0; i<ci.length; i++)
-				{
-					int w=Integer.parseInt(ci[i].substring(0,ci[i].indexOf(" ")));
-					String n=ci[i].substring(ci[i].indexOf(" ")+1,ci[i].length());
-					controlInputName[i]=new JLabel(n);
-					controlInputName[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i+TEXTWIDTH,row*ROWHEIGHT+1,LABELWIDTH-3,ROWHEIGHT-2);
-					String[] v=new String[(int)Math.pow(2,w)+1];
-					v[0]="X";
-					for (int j=0; j<Math.pow(2,w); j++)
-						v[1+j]=Integer.toHexString(j);
-					controlInputList[i]=new JList(v);
-					controlInputList[i].setSelectedIndex(0);
-					controlInputListPane[i]=new JScrollPane(controlInputList[i]);
-					controlInputListPane[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
-					computer.controlBuilder.guiComponent.add(controlInputName[i]);
-					computer.controlBuilder.guiComponent.add(controlInputListPane[i]);
-				}
-
-				String[] co=computer.datapathBuilder.controlInputs();
-				controlOutputName=new JLabel[co.length];
-				controlOutputList=new JList[co.length];
-				controlOutputListPane=new JScrollPane[co.length];
-				controlOutputBox=new JCheckBox[co.length];
-				controlOutputType=new int[co.length];
-				for (int i=0; i<co.length; i++)
-				{
-					int w=Integer.parseInt(co[i].substring(0,co[i].indexOf(" ")));
-					String n=co[i].substring(co[i].indexOf(" ")+1,co[i].length());
-					String t=n.substring(0,n.indexOf(" "));
-					n=n.substring(n.indexOf(" ")+1,n.length());
-					controlOutputName[i]=new JLabel(n);
-					controlOutputName[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*ci.length+GAPWIDTH*2+(LABELWIDTH+TEXTWIDTH)*i+TEXTWIDTH,row*ROWHEIGHT+1,LABELWIDTH-3,ROWHEIGHT-2);
-					computer.controlBuilder.guiComponent.add(controlOutputName[i]);
-					if (t.equals("mux"))
-					{
-						String[] v=new String[w+1];
-						for (int j=0; j<w; j++)
-							v[j+1]=Integer.toHexString(j);
-						v[0]="X";
-						controlOutputList[i]=new JList(v);
-						controlOutputList[i].setSelectedIndex(0);
-						controlOutputListPane[i]=new JScrollPane(controlOutputList[i]);
-						controlOutputListPane[i].setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-						controlOutputType[i]=1;
-					}
-					else if (t.equals("alu"))
-					{
-						String[] v=new String[]{"X","+","-","*","/","AND","OR","XOR","NAND","NOR","XNOR","NOT","==","<","<=",">",">=",">>","<<","+1","-1","==0?","!=0?","0","IN1","IN2","NOP"};
-						controlOutputList[i]=new JList(v);
-						controlOutputList[i].setSelectedIndex(0);
-						controlOutputListPane[i]=new JScrollPane(controlOutputList[i]);
-						controlOutputListPane[i].setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-						controlOutputType[i]=2;
-					}
-					else
-					{
-						controlOutputBox[i]=new JCheckBox();
-						controlOutputListPane[i]=new JScrollPane(controlOutputBox[i]);
-						controlOutputListPane[i].setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
-						controlOutputListPane[i].setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-						controlOutputType[i]=3;
-					}
-					controlOutputListPane[i].setBounds(field1width()+GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
-					computer.controlBuilder.guiComponent.add(controlOutputListPane[i]);
-				}
+				int w=Integer.parseInt(ci[i].substring(0,ci[i].indexOf(" ")));
+				String n=ci[i].substring(ci[i].indexOf(" ")+1,ci[i].length());
+				controlInputName[i]=new JLabel(n);
+				controlInputName[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i+TEXTWIDTH,row*ROWHEIGHT+1,LABELWIDTH-3,ROWHEIGHT-2);
+				String[] v=new String[(int)Math.pow(2,w)+1];
+				v[0]="X";
+				for (int j=0; j<Math.pow(2,w); j++)
+					v[1+j]=Integer.toHexString(j);
+				controlInputList[i]=new JList(v);
+				controlInputList[i].setSelectedIndex(0);
+				controlInputListPane[i]=new JScrollPane(controlInputList[i]);
+				controlInputListPane[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
+				computer.controlBuilder.guiComponent.add(controlInputName[i]);
+				computer.controlBuilder.guiComponent.add(controlInputListPane[i]);
 			}
+
+			String[] co=computer.datapathBuilder.controlInputs();
+			controlOutputName=new JLabel[co.length];
+			controlOutputList=new JList[co.length];
+			controlOutputListPane=new JScrollPane[co.length];
+			controlOutputBox=new JCheckBox[co.length];
+			controlOutputType=new int[co.length];
+			for (int i=0; i<co.length; i++)
+			{
+				int w=Integer.parseInt(co[i].substring(0,co[i].indexOf(" ")));
+				String n=co[i].substring(co[i].indexOf(" ")+1,co[i].length());
+				String t=n.substring(0,n.indexOf(" "));
+				n=n.substring(n.indexOf(" ")+1,n.length());
+				controlOutputName[i]=new JLabel(n);
+				controlOutputName[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*ci.length+GAPWIDTH*2+(LABELWIDTH+TEXTWIDTH)*i+TEXTWIDTH,row*ROWHEIGHT+1,LABELWIDTH-3,ROWHEIGHT-2);
+				computer.controlBuilder.guiComponent.add(controlOutputName[i]);
+				if (t.equals("mux"))
+				{
+					String[] v=new String[w+1];
+					for (int j=0; j<w; j++)
+						v[j+1]=Integer.toHexString(j);
+					v[0]="X";
+					controlOutputList[i]=new JList(v);
+					controlOutputList[i].setSelectedIndex(0);
+					controlOutputListPane[i]=new JScrollPane(controlOutputList[i]);
+					controlOutputListPane[i].setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+					controlOutputType[i]=1;
+					
+					if (blockpath!=null)
+					{
+						for (int j=0; j<blockpath.length; j++)
+						{
+							if (blockpath[j].name.equals(n))
+							{
+								DatapathBuilder.Block[] muxinputs=blockpath[j].getInputBlocks();
+								for (int k=0; k<muxinputs.length; k++)
+								{
+									if (muxinputs[k]==blockpath[j+1])
+										controlOutputList[i].setSelectedIndex(k+1);
+								}
+								break;
+							}
+						}
+					}
+				}
+				else if (t.equals("alu"))
+				{
+					String[] v=new String[]{"X","+","-","*","/","AND","OR","XOR","NAND","NOR","XNOR","NOT","==","<","<=",">",">=",">>","<<","+1","-1","==0?","!=0?","0","IN1","IN2","NOP"};
+					controlOutputList[i]=new JList(v);
+					controlOutputList[i].setSelectedIndex(0);
+					controlOutputListPane[i]=new JScrollPane(controlOutputList[i]);
+					controlOutputListPane[i].setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+					controlOutputType[i]=2;
+				}
+				else
+				{
+					controlOutputBox[i]=new JCheckBox();
+					controlOutputListPane[i]=new JScrollPane(controlOutputBox[i]);
+					controlOutputListPane[i].setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+					controlOutputListPane[i].setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+					controlOutputType[i]=3;
+				}
+				controlOutputListPane[i].setBounds(field1width()+GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
+				computer.controlBuilder.guiComponent.add(controlOutputListPane[i]);
+			}
+			modifyControlInstruction(name);
+		}
+
+		public boolean isUnconditional()
+		{
+			for (int i=0; i<controlInputList.length; i++)
+				if (controlInputList[i].getSelectedIndex()>0)
+					return false;
+			return true;
 		}
 
 		public void remove()
@@ -529,9 +652,7 @@ public class ControlBuilder extends AbstractGUI
 				if (s==null || s.equals("") || s.equals("X"))
 					continue;
 				
-				DatapathBuilder.Block b=computer.datapathBuilder.first;
-				while(b!=null && !b.name.equals(controlInputName[i].getText()))
-					b=b.next;
+				DatapathBuilder.Block b=computer.datapathBuilder.getBlock(controlInputName[i].getText());
 				if (Long.toHexString(b.getValue()).equals(s))
 					continue;
 				return false;
@@ -553,9 +674,7 @@ public class ControlBuilder extends AbstractGUI
 						s="";
 				}
 
-				DatapathBuilder.Block b=computer.datapathBuilder.first;
-				while(b!=null && !b.name.equals(controlOutputName[i].getText()))
-					b=b.next;
+				DatapathBuilder.Block b=computer.datapathBuilder.getBlock(controlOutputName[i].getText());
 				if (s==null && controlOutputBox[i].isSelected())
 					b.clockSetting=true;
 				else if (s!=null && !s.equals("X")&&!s.equals(""))
@@ -711,9 +830,7 @@ public class ControlBuilder extends AbstractGUI
 				if (s==null || s.equals("") || s.equals("X"))
 					continue;
 				
-				DatapathBuilder.Block b=computer.datapathBuilder.first;
-				while(b!=null && !b.name.equals(controlInputName[i].getText()))
-					b=b.next;
+				DatapathBuilder.Block b=computer.datapathBuilder.getBlock(controlInputName[i].getText());
 				if (Long.toHexString(b.value).equals(s))
 					continue;
 				return false;
@@ -885,7 +1002,7 @@ public class ControlBuilder extends AbstractGUI
 		}
 	}
 
-	private class ControlControl extends AbstractGUI
+	public class ControlControl extends AbstractGUI
 	{
 		private static final int WIDTH=300,HEIGHT=400;
 		public JTextField microField,controlPathField,stateField,nextStateField;
@@ -1009,19 +1126,59 @@ public class ControlBuilder extends AbstractGUI
 			button = new JButton("Microcode");
 			button.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e)
 			{
+				//check if we have an unconditional microcode already
+				Vector v=null;
 				if (selectedRow==-1)
-					((ControlState)((ControlPath)controlPaths.lastElement()).controlStates.lastElement()).controlInstructions.add(new ControlInstruction(microField.getText()));
-				else if(getSelectedVector().lastElement().type==2)
-					getSelectedVector().addAfter(new ControlInstruction(microField.getText()),getSelectedIndex());
-				else if (getSelectedVector().lastElement().type==1)
-					((ControlState)getSelectedVector().elementAt(getSelectedIndex())).controlInstructions.addFirst(new ControlInstruction(microField.getText()));
-				computer.controlBuilder.guiComponent.revalidate();
-				computer.controlBuilder.repaint();
-			} } );
+					v=((ControlState)((ControlPath)controlPaths.lastElement()).controlStates.lastElement()).controlInstructions;
+				else if (getSelectedVector().lastElement().type==2)
+					v=getSelectedVector();
+				if (v!=null && v.size()>0)
+				{
+					for (int i=0; i<v.size(); i++)
+					{
+						if (((ControlInstruction)v.elementAt(i)).isUnconditional())
+						{
+							//we do: don't add another, just modify this
+							((ControlInstruction)v.elementAt(i)).modifyControlInstruction(microField.getText());
+							return;
+						}
+					}
+				}
+				
+				ControlInstruction c=new ControlInstruction(microField.getText());
+				if (c.valid)
+				{
+					if (selectedRow==-1)
+					{
+						((ControlState)((ControlPath)controlPaths.lastElement()).controlStates.lastElement()).controlInstructions.add(c);
+					}
+					else if(getSelectedVector().lastElement().type==2)
+					{
+						getSelectedVector().addAfter(c,getSelectedIndex());
+					}
+					else if (getSelectedVector().lastElement().type==1)
+					{
+						((ControlState)getSelectedVector().elementAt(getSelectedIndex())).controlInstructions.addFirst(c);
+					}
+					computer.controlBuilder.guiComponent.revalidate();
+					computer.controlBuilder.repaint();
+			} } } );
 			button.setBounds(10,20+30*3,180,20);
 			g.add(button);
 			microField=new JTextField("");
 			microField.setBounds(10+190,20+30*3,220,20);
+			microField.addMouseListener(new MouseListener(){
+				public void mouseClicked(MouseEvent arg0) 
+				{
+					computer.datapathBuilder.placeroute();
+					if (!computer.oneScreen)
+						computer.datapathBuilder.frame.toFront();
+				}
+				public void mouseEntered(MouseEvent arg0) {}
+				public void mouseExited(MouseEvent arg0) {}
+				public void mousePressed(MouseEvent arg0) {}
+				public void mouseReleased(MouseEvent arg0) {}
+				});
 			g.add(microField);
 			button = new JButton("Next State");
 			button.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e)

@@ -13,18 +13,19 @@ Simulates an 8254 timer chip
 
 package simulator;
 
+import java.util.Scanner;
+
 public class Timer extends IODevice
 {
 	public Channel[] channels;
-	private InterruptController irqDevice;
-	private Clock clock;
 	private Computer computer;
+	
+	public static final int irq=0;
+	public static final int ioPortBase=0x40;
 
-	public Timer(Computer computer, int irq, int ioPortBase)
+	public Timer(Computer computer)
 	{
 		this.computer=computer;
-		this.clock=computer.clock;
-		this.irqDevice=computer.interruptController;
 
 		channels=new Channel[3];
 		for(int i=0; i<channels.length; i++)
@@ -32,7 +33,20 @@ public class Timer extends IODevice
 		channels[0].setIRQ(irq);
 
 		computer.ioports.requestPorts(this,new int[]{ioPortBase, ioPortBase+1, ioPortBase+2, ioPortBase+3},"Timer",new String[]{"Channel 0","Channel 1","Channel 2","Control"});
-
+	}
+	
+	public String saveState()
+	{
+		String state="";
+		for (int i=0; i<channels.length; i++)
+			state+=channels[i].saveState()+":";
+		return state;
+	}
+	public void loadState(String state)
+	{
+		String[] states=state.split(":");
+		for (int i=0; i<channels.length; i++)
+			channels[i].loadState(states[i]);
 	}
 
 	public byte ioPortReadByte(int address)
@@ -94,6 +108,24 @@ public class Timer extends IODevice
 		private boolean enabled;
 		private long expireTime;
 
+		public String saveState()
+		{
+			String state="";
+			state+=countValue+" "+outputLatch+" "+inputLatch+" "+countLatched+" "+status+" "+readState+" "+writeState+" "+rwMode+" "+mode+" "+bcd+" ";
+			state+=(statusLatched?1:0)+" "+(nullCount?1:0)+" ";
+			state+=countStartTime+" "+nextTransitionTimeValue+" ";
+			state+=irq+" "+id+" "+(enabled?1:0)+" "+expireTime;
+			return state;
+		}
+		public void loadState(String state)
+		{
+			Scanner s=new Scanner(state);
+			countValue=s.nextInt(); outputLatch=s.nextInt(); inputLatch=s.nextInt(); countLatched=s.nextInt(); readState=s.nextInt(); writeState=s.nextInt(); rwMode=s.nextInt(); mode=s.nextInt(); bcd=s.nextInt();
+			statusLatched=s.nextInt()==1; nullCount=s.nextInt()==1;
+			countStartTime=s.nextLong(); nextTransitionTimeValue=s.nextLong();
+			irq=s.nextInt(); id=s.nextInt(); enabled=s.nextInt()==1; expireTime=s.nextLong();
+		}
+		
 		public Channel(int id)
 		{
 			this.id=id;
@@ -102,7 +134,7 @@ public class Timer extends IODevice
 			loadCount(0);
 			nullCount=true;
 			enabled=false;
-			clock.registerDevice(this);
+			computer.clock.registerDevice(this);
 		}
 
 		public void setIRQ(int irq)
@@ -173,7 +205,7 @@ public class Timer extends IODevice
 		{
 			if(!statusLatched)
 			{
-				status=((getOut(clock.getTime())<<7) | (nullCount? 0x40:0x00) | (rwMode << 4) | (mode << 1) | bcd);
+				status=((getOut(computer.clock.getTime())<<7) | (nullCount? 0x40:0x00) | (rwMode << 4) | (mode << 1) | bcd);
 				statusLatched=true;
 			}
 		}
@@ -225,7 +257,7 @@ public class Timer extends IODevice
 			nullCount=false;
 			if(value==0)
 				value=0x10000;
-			countStartTime=clock.getTime();
+			countStartTime=computer.clock.getTime();
 			countValue=value;
 			irqTimerUpdate(countStartTime);
 
@@ -239,7 +271,7 @@ public class Timer extends IODevice
 			int irqLevel = getOut(currentTime);
 //System.out.printf("CLOCK TICK %x %x %x %x\n",irq,irqLevel,currentTime,newExpireTime);
 			if (computer.timerGUI!=null) computer.timerGUI.interrupt(id,irq,irqLevel);
-			irqDevice.setIRQ(irq, irqLevel);
+			computer.interruptController.setIRQ(irq, irqLevel);
 			nextTransitionTimeValue = newExpireTime;
 			if (newExpireTime!=-1)
 			{
@@ -287,7 +319,7 @@ public class Timer extends IODevice
 		}
 		private int getCount()
 		{
-			long now=clock.getTime()-countStartTime;
+			long now=computer.clock.getTime()-countStartTime;
 			if (mode == MODE_INTERRUPT_ON_TERMINAL_COUNT || mode==MODE_HARDWARE_RETRIGGERABLE_ONE_SHOT ||
 				mode==MODE_SOFTWARE_TRIGGERED_STROBE || mode==MODE_HARDWARE_TRIGGERED_STROBE)
 				return (int)((countValue-now)&0xffffl);

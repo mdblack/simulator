@@ -16,9 +16,18 @@ public class DatapathBuilder extends AbstractGUI
 	public int WIDTH=5000,HEIGHT=5000;
 	public double scaling=1.6;
 	public int gridsize=5;
+
+	
+	
+	private int mousex,mousey,mousedirection,tempmousex,tempmousey,entryblock,entryblockbits,exitblock,currentbus;
+	private Block selectedblock;
+	private ArrayList<Block> blocks;
+	public int blocknumber=1;
+	
 	public DatapathBuilder(Computer computer)
 	{
 		super(computer,"Datapath Builder",800,800,true,true,false,true);
+		blocks=new ArrayList<Block>();
 		datapathComponents=new DatapathComponents(computer);
 		refresh();
 	}
@@ -62,20 +71,18 @@ public class DatapathBuilder extends AbstractGUI
 		repaint();
 	}
 
-	int mousex,mousey,mousedirection,tempmousex,tempmousey,entryblock,entryblockbits,exitblock,currentbus;
-	Block selectedblock;
 
 	public void mousePress(MouseEvent e)
 	{
 		if (placing.equals("bus"))
 		{
-			Block b=first;
-			while(b!=null)
-			{
-				if (b.getXExit(getX(e),getY(e))!=-1 && b.getYExit(getX(e),getY(e))!=-1)
+			Block b=null;
+			for (Block bl:blocks)
+				if (bl.getXExit(getX(e),getY(e))!=-1 && bl.getYExit(getX(e),getY(e))!=-1)
+				{
+					b=bl;
 					break;
-				b=b.next;
-			}
+				}
 			if (b==null)
 				return;
 
@@ -94,6 +101,12 @@ public class DatapathBuilder extends AbstractGUI
 			mousex=getX(e);
 			mousey=getY(e);
 		}
+		else if (placing.equals("route"))
+		{
+			setStatusLabel("Release on the sink component");
+			mousex=getX(e);
+			mousey=getY(e);			
+		}
 	}
 
 	public void mouseRelease(MouseEvent e)
@@ -103,12 +116,14 @@ public class DatapathBuilder extends AbstractGUI
 		{
 			if (mousex==getX(e) && mousey==getY(e)) return;
 
-			Block b=first;
-			while(b!=null)
+			Block b=null;
+			for (Block bl:blocks)
 			{
-				if (b.getXEntrance(getX(e),getY(e))!=-1 && b.getYEntrance(getX(e),getY(e))!=-1)
+				if (bl.getXEntrance(getX(e),getY(e))!=-1 && bl.getYEntrance(getX(e),getY(e))!=-1)
+				{
+					b=bl;
 					break;
-				b=b.next;
+				}
 			}
 			if (b==null)
 			{
@@ -157,8 +172,7 @@ public class DatapathBuilder extends AbstractGUI
 		}
 		else if (placing.equals("move"))
 		{
-			Block b=first;
-			while(b!=null)
+			for (Block b:blocks)
 			{
 				if (b.selected)
 				{
@@ -167,57 +181,66 @@ public class DatapathBuilder extends AbstractGUI
 					b.xcoor2+=(getX(e)-mousex);
 					b.ycoor2+=(getY(e)-mousey);
 				}
-				b=b.next;
 			}
 			repaint();
 			setStatusLabel("Press the mouse to start moving blocks");
+		}
+		else if (placing.equals("route"))
+		{
+			placing="";
+			setStatusLabel("");
+			Block block1=null,block2=null;
+			for (Block b: blocks)
+				if (b.doSelect(mousex, mousey))
+					block1=b;
+			for (Block b: blocks)
+				if (b.doSelect(getX(e), getY(e)))
+					block2=b;
+			if (block1!=null && block2!=null)
+			{
+				computer.controlBuilder.controlControl.microField.setText(block1.name+" "+block2.name);
+				if (!computer.oneScreen)
+					computer.controlBuilder.controlControl.frame.toFront();
+			}
 		}
 	}
 
 	public String[] controlOutputs()
 	{
-		Block b=first;
 		int i=0;
-		while(b!=null)
+		for (Block b:blocks)
 		{
 			if (!b.controlOutputs().equals(""))
 				i++;
-			b=b.next;
 		}
 		String[] c=new String[i];
-		b=first;
 		i=0;
-		while(b!=null)
+		for (Block b:blocks)
 		{
 			if (!b.controlOutputs().equals(""))
 			{
 				c[i++]=b.controlOutputs();
 			}
-			b=b.next;
 		}
 		return c;
 	}
 
 	public String[] controlInputs()
 	{
-		Block b=first;
 		int i=0;
-		while(b!=null)
+		for (Block b:blocks)
 		{
 			if (!b.controlInputs().equals(""))
 				i++;
-			b=b.next;
 		}
 		String[] c=new String[i];
-		b=first;
 		i=0;
-		while(b!=null)
+		for (Block b:blocks)
 		{
 			if (!b.controlInputs().equals(""))
 			{
 				c[i++]=b.controlInputs();
 			}
-			b=b.next;
 		}
 		return c;
 	}
@@ -236,19 +259,23 @@ public class DatapathBuilder extends AbstractGUI
 			tempmousex=mousex;
 		}
 
-		Block b=first;
-		while(b!=null)
+		for(Block b:blocks)
 		{
 			if (b.getXEntrance(getX(e),getY(e))!=-1 && b.getYEntrance(getX(e),getY(e))!=-1)
 				b.highlighted=true;
 			else
 				b.highlighted=false;
-			b=b.next;
 		}
 
 		repaint();
 	}
 
+	public void placeroute()
+	{
+		setStatusLabel("Press mouse on the source component");
+		placing="route";
+	}
+	
 	public void placewire()
 	{
 		setStatusLabel("Press mouse on a block to draw a bus");
@@ -290,14 +317,12 @@ public class DatapathBuilder extends AbstractGUI
 	{
 		if (placing.equals("name"))
 		{
-			Block b=first;
-			while(b!=null)
+			for(Block b:blocks)
 			{
 				if (b.selected)
 				{
 					b.name=new String(keys);
 				}
-				b=b.next;
 			}
 			unselectAll();
 			repaint();
@@ -305,14 +330,12 @@ public class DatapathBuilder extends AbstractGUI
 		}
 		else if (placing.equals("value"))
 		{
-			Block b=first;
-			while(b!=null)
+			for(Block b:blocks)
 			{
 				if (b.selected)
 				{
 					b.setValue(Long.parseLong(new String(keys),16));
 				}
-				b=b.next;
 			}
 			if (computer.customProcessor!=null)
 				propagateAll();
@@ -325,14 +348,14 @@ public class DatapathBuilder extends AbstractGUI
 			selectedblock.bus.put(new Integer(currentbus),keys);
 			placing="";
 			setStatusLabel("");
-			Block b=first;
-			while(b!=null)
+			for(Block b:blocks)
 			{
 				if (b.number==currentbus)
+				{
+					b.bits=Integer.parseInt(keys.substring(0,keys.indexOf(":")))-Integer.parseInt(keys.substring(keys.indexOf(":")+1,keys.length()))+1;
 					break;
-				b=b.next;
+				}
 			}
-			b.bits=Integer.parseInt(keys.substring(0,keys.indexOf(":")))-Integer.parseInt(keys.substring(keys.indexOf(":")+1,keys.length()))+1;
 			repaint();
 		}
 	}
@@ -345,17 +368,14 @@ public class DatapathBuilder extends AbstractGUI
 
 	public void delete()
 	{
-		Block b=first;
-		while(b!=null)
+		ArrayList<Block> removelist=new ArrayList<Block>();
+		for (Block b:blocks)
 		{
 			if (b.selected)
-			{
-				removeBlock(b);
-				b=first;
-			}
-			else
-				b=b.next;
+				removelist.add(b);
 		}
+		for (Block b: removelist)
+			blocks.remove(b);
 		repaint();
 	}
 
@@ -375,37 +395,26 @@ public class DatapathBuilder extends AbstractGUI
 		if (placing.equals("bus") && mousedirection!=0)
 		{
 			g.setColor(Color.YELLOW);
-			drawLine(g,mousex,mousey,tempmousex,tempmousey);
+			g.drawLine((int)(mousex*scaling),(int)(mousey*scaling),(int)(tempmousex*scaling),(int)(tempmousey*scaling));
 		}
 	}
 
 	public void doSelect(int x, int y)
 	{
-		Block b=first;
-		while(b!=null)
+		for(Block b:blocks)
 		{
 			if (b.doSelect(x,y))
 				b.selected=!b.selected;
-			b=b.next;
 		}
 		repaint();
 	}
 
-	public Block first=null;
-	public int blocknumber=1;
 	private void addBlock(Block b)
 	{
-		if (first==null) first=b;
-		else
-		{
-			Block last=first;
-			while(last.next!=null)
-				last=last.next;
-			last.next=b;
-		}
 		b.number=blocknumber++;
+		blocks.add(b);
 	}
-	private void removeBlock(Block b)
+/*	private void removeBlock(Block b)
 	{
 		Block toremove=first;
 		if (toremove==b)
@@ -417,146 +426,84 @@ public class DatapathBuilder extends AbstractGUI
 			toremove=toremove.next;
 		if (toremove.next==b)
 			toremove.next=toremove.next.next;
-	}
+	}*/
 	private void paintAll(Graphics g)
 	{
-		Block b=first;
-		while(b!=null)
-		{
+		for (Block b:blocks)
 			b.draw(g);
-			b=b.next;
-		}
 	}
-	private void unselectAll()
+	public void unselectAll()
 	{
-		Block b=first;
-		while(b!=null)
-		{
+		for (Block b:blocks)
 			b.selected=false;
-			b=b.next;
-		}
 		repaint();
 	}
 	public void clockAll()
 	{
-		Block b=first;
-		while(b!=null)
-		{
+		for (Block b:blocks)
 			b.doClock();
-			b=b.next;
-		}
 		repaint();
 	}
 	public void resetClocks()
 	{
-		Block b=first;
-		while(b!=null)
-		{
+		for (Block b:blocks)
 			b.resetClock();
-			b=b.next;
-		}
 	}	
 	public void resetHighlights()
 	{
-		Block b=first;
-		while(b!=null)
-		{
+		for (Block b:blocks)
 			b.highlighted=false;
-			b=b.next;
-		}
 	}	
 	public void resetAll()
 	{
-		System.out.println("reset all called");
-		Block b=first;
-		while(b!=null)
-		{
+		for (Block b:blocks)
 			if (!b.type.equals("ports")&&!b.type.equals("memory"))
 				b.setValue(0);
-			b=b.next;
-		}
 		repaint();
 	}
 	public void propagateAll()
 	{
-		Block b=first;
-		int count=0;
-
-		while(b!=null)
-		{
-			count++;
-			b=b.next;
-		}
-		for (int i=0; i<count; i++)
-		{
-			b=first;
-			while(b!=null)
-			{
-				b.doPropagate();
-				b=b.next;
-			}
-		}
+		for (Block b:blocks)
+			b.doPropagate();
 	}
 
 	public void verify()
 	{
-		Block b=first;
-
-		while(b!=null)
+		for (Block b:blocks)
 		{
 			if (!b.verify())
 				b.selected=true;
 			else
 				b.selected=false;
-			b=b.next;
 		}
 		repaint();
 	}
 
 	public Block getBlock(int number)
 	{
-		Block b=first;
-		while (b!=null)
-		{
+		for (Block b:blocks)
 			if (b.number==number) return b;
-			b=b.next;
-		}
+		return null;
+	}
+	
+	public Block getBlock(String name)
+	{
+		for (Block b:blocks)
+			if (b.name.equals(name)) return b;
 		return null;
 	}
 
 	public String dumpXML()
 	{
 		String xml="<processor>\n\n";
-		Block b=first;
-		while(b!=null)
+		for (Block b:blocks)
 		{
 			xml+=b.getXML()+"\n";
-			b=b.next;
 		}
 		xml+="</processor>\n";
 		return xml;
 	}
 
-	public void drawRect(Graphics g, int a, int b, int c, int d)
-	{
-		g.drawRect((int)(a*scaling),(int)(b*scaling),(int)(c*scaling),(int)(d*scaling));
-	}
-	public void fillRect(Graphics g, int a, int b, int c, int d)
-	{
-		g.fillRect((int)(a*scaling),(int)(b*scaling),(int)(c*scaling),(int)(d*scaling));
-	}
-	public void drawLine(Graphics g, int a, int b, int c, int d)
-	{
-		g.drawLine((int)(a*scaling),(int)(b*scaling),(int)(c*scaling),(int)(d*scaling));
-	}
-	public void drawOval(Graphics g, int a, int b, int c, int d)
-	{
-		g.drawOval((int)(a*scaling),(int)(b*scaling),(int)(c*scaling),(int)(d*scaling));
-	}
-	public void drawString(Graphics g, String s, int a, int b)
-	{
-		g.drawString(s,(int)(a*scaling),(int)(b*scaling));
-	}
 	public int getX(MouseEvent e)
 	{
 		int x=(int)(e.getX()/scaling);
@@ -569,11 +516,75 @@ public class DatapathBuilder extends AbstractGUI
 		y-=y%gridsize;
 		return y;
 	}
+	
+	//find the shortest sequence of wires and muxes leading from one block to another
+	public Block[] tracePath(String inputBlockName, String outputBlockName)
+	{
+		Block inputBlock = getBlock(inputBlockName);
+		Block outputBlock = getBlock(outputBlockName);
+		return tracePath(inputBlock,outputBlock);
+	}
+	public Block[] tracePath(Block inputBlock, Block outputBlock)
+	{
+		//queue for the BFS
+		ArrayList<Block> searchq=new ArrayList<Block>();
+		//all blocks sourced by inputBlock
+		ArrayList<Block> connectedq=new ArrayList<Block>();
+		//for each sourced block, who sources it -- defines a tree
+		ArrayList<Block> sourceq=new ArrayList<Block>();
+		searchq.add(inputBlock);
+		boolean foundit=false;
+		while(!foundit)
+		{
+			//check if we couldn't find a connection
+			if (searchq.size()==0)
+				break;
+			Block currentBlock=searchq.remove(0);
+			for (Block b:blocks)
+			{
+				//if it's not a single-input stateless block, it can't be along the trace path
+				if (b!=outputBlock && !b.type.equals("bus")&&!b.type.equals("multiplexor")&&!b.type.equals("extender")&&!b.type.equals("splitter"))
+					continue;
+				//go through the block's inputs, see if currentBlock is among them
+				Block[] outputsInputs=b.getInputBlocks();
+				boolean ontree=false;
+				for (int i=0; i<outputsInputs.length; i++)
+					if (outputsInputs[i]==currentBlock)
+						ontree=true;
+				if (!ontree) continue;
+				searchq.add(b);
+				connectedq.add(b);
+				sourceq.add(currentBlock);
+				if (b==outputBlock)
+				{
+					foundit=true;
+					break;
+				}
+			}
+		}
+		//there is no path? quit
+		if (!foundit)
+			return null;
+		//now let's construct our path
+		ArrayList<Block> pathq=new ArrayList<Block>();
+		//start at the end
+		Block currentBlock=outputBlock;
+		while(currentBlock!=inputBlock)
+		{
+			pathq.add(currentBlock);
+			currentBlock=sourceq.get(connectedq.indexOf(currentBlock));
+		}
+		//add the input block on
+		pathq.add(currentBlock);
+		Block[] ret=new Block[pathq.size()];
+		for (int i=0; i<pathq.size(); i++)
+			ret[i]=pathq.get(i);
+		return ret;
+	}
 
 	public class Block
 	{
 		public static final int MAX_BUSES_PER_BLOCK=32;
-		public Block next=null;
 		public String name="",description="";
 		public int xcoor,ycoor,xcoor2,ycoor2;
 		public int number;
@@ -611,31 +622,27 @@ public class DatapathBuilder extends AbstractGUI
 		}
 		public Block getAddressInputBlock()
 		{
-			Block b=first;
-			while(b!=null)
+			for (Block b:blocks)
 			{
 				if (b.exitblock==number)
 				{
 					if (b.ycoor2!=ycoor)
 						return b;
 				}
-				b=b.next;
 			}
-			return b;
+			return null;
 		}
 		public Block getDataInputBlock()
 		{
-			Block b=first;
-			while(b!=null)
+			for (Block b:blocks)
 			{
 				if (b.exitblock==number)
 				{
 					if (b.ycoor2==ycoor)
 						return b;
 				}
-				b=b.next;
 			}
-			return b;
+			return null;
 		}
 
 		public void setValue(long val)
@@ -749,8 +756,7 @@ public class DatapathBuilder extends AbstractGUI
 				if (entryblock==0)
 					error("no input to bus");
 
-				Block b=first;
-				while (b!=null)
+				for (Block b:blocks)
 				{
 					if (entryblock==b.number && !b.type.equals("splitter"))
 					{
@@ -761,7 +767,6 @@ public class DatapathBuilder extends AbstractGUI
 						}
 						setValue(b.getValue());
 					}
-					b=b.next;
 				}
 			}
 			else if (type.equals("adder"))
@@ -929,8 +934,7 @@ public class DatapathBuilder extends AbstractGUI
 				{
 					int i=((Integer)e.nextElement()).intValue();
 
-					Block b=first;
-					while(b!=null)
+					for (Block b:blocks)
 					{
 						if (b.number==i)
 						{
@@ -942,7 +946,6 @@ public class DatapathBuilder extends AbstractGUI
 							v=v&(long)(Math.pow(2,b1-b2+1)-1);
 							b.setValue(v);
 						}
-						b=b.next;
 					}
 				}
 			}
@@ -953,8 +956,7 @@ public class DatapathBuilder extends AbstractGUI
 				{
 					int i=((Integer)e.nextElement()).intValue();
 
-					Block b=first;
-					while(b!=null)
+					for (Block b:blocks)
 					{
 						if (b.number==i)
 						{
@@ -963,7 +965,6 @@ public class DatapathBuilder extends AbstractGUI
 							int b2=Integer.parseInt(busstring.substring(busstring.indexOf(":")+1,busstring.length()));
 							v=v+((b.getValue()&(long)(Math.pow(2,b1-b2+1)-1))<<(long)b2);
 						}
-						b=b.next;
 					}
 				}
 				setValue(v);
@@ -991,26 +992,21 @@ public class DatapathBuilder extends AbstractGUI
 
 		public Block[] getInputBlocks()
 		{
-			Block b=first;
-			int count=0;
-			while(b!=null)
+			if (type.equals("bus"))
 			{
-				if (b.exitblock==number && b.ycoor2==ycoor)
-					count++;
-				b=b.next;
+				Block[] blist=new Block[1];
+				blist[0]=getBlock(entryblock);
+				return blist;
 			}
-			Block[] bs=new Block[count];
-			count=0;
-			b=first;
-			while(b!=null)
-			{
+			
+			ArrayList<Block> blist=new ArrayList<Block>();
+			for (Block b:blocks)
 				if (b.exitblock==number && b.ycoor2==ycoor)
-				{
-					bs[count++]=b;
-				}
-				b=b.next;
-			}
-			return bs;
+					blist.add(b);
+			Block[] retlist=new Block[blist.size()];
+			for (int i=0; i<retlist.length; i++)
+				retlist[i]=blist.get(i);
+			return retlist;
 		}
 
 		public void place(int x, int y)
@@ -1031,7 +1027,7 @@ public class DatapathBuilder extends AbstractGUI
 		}
 		public void delete()
 		{
-			removeBlock(this);
+			blocks.remove(this);
 		}
 		public boolean doSelect(int x, int y)
 		{
@@ -1137,7 +1133,26 @@ public class DatapathBuilder extends AbstractGUI
 			else
 				g.setColor(Color.BLACK);
 		}
-
+		private void drawRect(Graphics g, int a, int b, int c, int d)
+		{
+			g.drawRect((int)(a*scaling),(int)(b*scaling),(int)(c*scaling),(int)(d*scaling));
+		}
+		private void fillRect(Graphics g, int a, int b, int c, int d)
+		{
+			g.fillRect((int)(a*scaling),(int)(b*scaling),(int)(c*scaling),(int)(d*scaling));
+		}
+		private void drawLine(Graphics g, int a, int b, int c, int d)
+		{
+			g.drawLine((int)(a*scaling),(int)(b*scaling),(int)(c*scaling),(int)(d*scaling));
+		}
+		private void drawOval(Graphics g, int a, int b, int c, int d)
+		{
+			g.drawOval((int)(a*scaling),(int)(b*scaling),(int)(c*scaling),(int)(d*scaling));
+		}
+		private void drawString(Graphics g, String s, int a, int b)
+		{
+			g.drawString(s,(int)(a*scaling),(int)(b*scaling));
+		}
 		public void draw(Graphics g)
 		{
 			if (type.equals("register"))
@@ -1305,14 +1320,11 @@ public class DatapathBuilder extends AbstractGUI
 				{
 					int i=((Integer)e.nextElement()).intValue();
 					
-					Block b=first;
-					while (b!=null)
+					for (Block b:blocks)
 					{
-						if (b.number==i) break;
-						b=b.next;
+						if (b.number==i)
+							drawString(g,(String)bus.get(new Integer(i)),b.xcoor,ycoor-1);
 					}
-					if (b!=null)
-						drawString(g,(String)bus.get(new Integer(i)),b.xcoor,ycoor-1);
 				}
 			}
 			if (type.equals("splitter"))
@@ -1320,14 +1332,11 @@ public class DatapathBuilder extends AbstractGUI
 				for (Enumeration e=bus.keys(); e.hasMoreElements();)
 				{
 					int i=((Integer)e.nextElement()).intValue();
-					Block b=first;
-					while (b!=null)
+					for (Block b:blocks)
 					{
-						if (b.number==i) break;
-						b=b.next;
+						if (b.number==i)
+							drawString(g,(String)bus.get(new Integer(i)),b.xcoor,ycoor+YSIZE/3+12);
 					}
-					if (b!=null)
-						drawString(g,(String)bus.get(new Integer(i)),b.xcoor,ycoor+YSIZE/3+12);
 				}
 			}
 			if (computer.customProcessor!=null)
@@ -1423,12 +1432,10 @@ public class DatapathBuilder extends AbstractGUI
 			else if (type.equals("multiplexor"))
 			{
 				int i=0;
-				Block b=first;
-				while(b!=null)
+				for (Block b:blocks)
 				{
 					if (b.type.equals("bus")&&b.exitblock==number)
 						i++;
-					b=b.next;
 				}
 				return ""+i+" mux "+name;
 			}
@@ -1452,14 +1459,12 @@ public class DatapathBuilder extends AbstractGUI
 				if (exitblock!=0 && getBlock(exitblock)==null) return false;
 				if (exitblock==0)
 				{
-					Block b=first;
-					while(b!=null)
+					for (Block b:blocks)
 					{
 						if (b.entryblock==number)
-							break;
-						b=b.next;
+							return true;
 					}
-					if (b==null) return false;
+					return false;
 				}
 				return true;
 			}

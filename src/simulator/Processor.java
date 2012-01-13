@@ -111,7 +111,6 @@ public Processor(Computer computer)
 public String saveState()
 {
 	String state="";
-	state+="Processor:";
 	state+=cs.saveState()+":";
 	state+=ss.saveState()+":";
 	state+=ds.saveState()+":";
@@ -170,11 +169,6 @@ public void loadState(String state)
 {
 	int s=0;
 	String[] states=state.split(":");
-	if (!states[s++].equals("Processor"))
-	{
-		System.out.println("Error in load state: Processor expected");
-		return;
-	}
 	cs.loadState(states[s++]); ss.loadState(states[s++]); ds.loadState(states[s++]); es.loadState(states[s++]); fs.loadState(states[s++]); gs.loadState(states[s++]); idtr.loadState(states[s++]); gdtr.loadState(states[s++]); ldtr.loadState(states[s++]); tss.loadState(states[s++]);
 	eax.loadState(states[s++]); ebx.loadState(states[s++]); ecx.loadState(states[s++]); edx.loadState(states[s++]); esp.loadState(states[s++]); ebp.loadState(states[s++]); esi.loadState(states[s++]); edi.loadState(states[s++]); eip.loadState(states[s++]); cr0.loadState(states[s++]); cr2.loadState(states[s++]); cr3.loadState(states[s++]); cr4.loadState(states[s++]); dr0.loadState(states[s++]); dr1.loadState(states[s++]); dr2.loadState(states[s++]); dr3.loadState(states[s++]); dr4.loadState(states[s++]); dr5.loadState(states[s++]); dr6.loadState(states[s++]); dr7.loadState(states[s++]);
 	carry.loadState(states[s++]); parity.loadState(states[s++]); auxiliaryCarry.loadState(states[s++]); zero.loadState(states[s++]); sign.loadState(states[s++]); trap.loadState(states[s++]); interruptEnable.loadState(states[s++]); direction.loadState(states[s++]); overflow.loadState(states[s++]); interruptEnableSoon.loadState(states[s++]); ioPrivilegeLevel1.loadState(states[s++]); ioPrivilegeLevel0.loadState(states[s++]); nestedTask.loadState(states[s++]); alignmentCheck.loadState(states[s++]); idFlag.loadState(states[s++]);

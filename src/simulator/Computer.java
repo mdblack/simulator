@@ -72,17 +72,32 @@ public class Computer
 	{
 		System.out.println("saving state");
 		String state="";
-		state+=bootgui.saveState()+"@";
-		if (bootgui.includeDevice("Memory")) state+=physicalMemory.saveState()+"@";
-		if (bootgui.includeDevice("Memory")) state+=linearMemory.saveState()+"@";
-		if (bootgui.includeDevice("Processor")) state+=processor.saveState()+"@";
-		if (bootgui.includeDevice("Interrupt Controller")) state+=interruptController.saveState()+"@";
-		if (bootgui.includeDevice("Keyboard")) state+=keyboard.saveState()+"@";
-		if (bootgui.includeDevice("CMOS")) state+=cmos.saveState()+"@";
-		if (bootgui.includeDevice("Video")) state+=video.saveState()+"@";
-		state+=icount;
+		state+="Computer@"+icount+"@";
+		state+="Settings@"+bootgui.saveState()+"@";
+		if (bootgui.includeDevice("Processor")) state+="Processor@"+processor.saveState()+"@";
+		if (bootgui.includeDevice("Memory")) state+="PhysicalMemory@"+physicalMemory.saveState()+"@";
+		if (bootgui.includeDevice("Memory")) state+="LinearMemory@"+linearMemory.saveState()+"@";
+		if (bootgui.includeDevice("Interrupt Controller")) state+="InterruptController@"+interruptController.saveState()+"@";
+		if (bootgui.includeDevice("Keyboard")) state+="Keyboard@"+keyboard.saveState()+"@";
+		if (bootgui.includeDevice("CMOS")) state+="CMOS@"+cmos.saveState()+"@";
+		if (bootgui.includeDevice("IDE Controller")) state+="HardDrive@"+harddrive.saveState()+"@";
+		state+="Clock@"+clock.saveState()+"@";
+		if (bootgui.includeDevice("Timer")) state+="Timer@"+timer.saveState()+"@";
+		if (bootgui.includeDevice("Video")) state+="Video@"+video.saveState()+"@";
 		System.out.println("state saved");
 		return state;
+	}
+	
+	private int indexOf(String[] list, String key)
+	{
+		for (int i=0; i<list.length; i++)
+			if (list[i].equals(key)) return i;
+		return -1;
+	}
+	
+	private void loaderror(String deviceName)
+	{
+		System.out.println("No "+deviceName+" found in state file.  Using default device setting.");
 	}
 	
 	public void loadState(String state)
@@ -90,25 +105,29 @@ public class Computer
 		int s=0;
 		System.out.println("loading state");
 		String[] states=state.split("@");
-		bootgui.loadState(states[s++]);
-		if (bootgui.includeDevice("Memory")) { physicalMemory=new PhysicalMemory(this); physicalMemory.loadState(states[s++]); }
-		if (bootgui.includeDevice("Memory")) { linearMemory=new LinearMemory(this); linearMemory.loadState(states[s++]); }
+		if (indexOf(states,"Settings")>=0) bootgui.loadState(states[indexOf(states,"Settings")+1]); else loaderror("Settings");
+		if (bootgui.includeDevice("Memory")) { physicalMemory=new PhysicalMemory(this); if (indexOf(states,"PhysicalMemory")>=0) physicalMemory.loadState(states[indexOf(states,"PhysicalMemory")+1]); else loaderror("PhysicalMemory");}
+		if (bootgui.includeDevice("Memory")) { linearMemory=new LinearMemory(this); if (indexOf(states,"LinearMemory")>=0) linearMemory.loadState(states[indexOf(states,"LinearMemory")+1]); else loaderror("LinearMemory");}
 		  if (bootgui.includeDevice("I/O Ports")) ioports=new IOPorts(this);
-		if (bootgui.includeDevice("Processor")) { processor=new Processor(this); processor.loadState(states[s++]); }
-		if (bootgui.includeDevice("Interrupt Controller")) { interruptController=new InterruptController(this); interruptController.loadState(states[s++]); }
-		if (bootgui.includeDevice("Keyboard")) { keyboard=new Keyboard(this); keyboard.loadState(states[s++]); }
+		if (bootgui.includeDevice("Processor")) { processor=new Processor(this); if (indexOf(states,"Processor")>=0) processor.loadState(states[indexOf(states,"Processor")+1]); else loaderror("Processor");}
+		if (bootgui.includeDevice("Interrupt Controller")) { interruptController=new InterruptController(this); if (indexOf(states,"InterruptController")>=0) interruptController.loadState(states[indexOf(states,"InterruptController")+1]); else loaderror("InterruptController");}
+		if (bootgui.includeDevice("Keyboard")) { keyboard=new Keyboard(this); if (indexOf(states,"Keyboard")>=0) keyboard.loadState(states[indexOf(states,"Keyboard")+1]); else loaderror("Keyboard");}
 		  if (bootgui.includeDevice("DMA Controller")) dma1 = new DMA(this,false,true);
 		  if (bootgui.includeDevice("DMA Controller")) dma2 = new DMA(this,false,false);
 		  if (bootgui.includeDevice("Floppy Controller")) floppy = new Floppy(this);
-		  if (bootgui.includeDevice("IDE Controller")) harddrive = new HardDrive(this);
-		if (bootgui.includeDevice("CMOS")) { cmos=new CMOS(this); cmos.loadState(states[s++]); }
-		  clock=new Clock();
-		  if (bootgui.includeDevice("Timer")) timer = new Timer(this,0,0x40);
+		if (bootgui.includeDevice("IDE Controller")) { harddrive=new HardDrive(this); if (indexOf(states,"HardDrive")>=0) harddrive.loadState(states[indexOf(states,"HardDrive")+1]); else loaderror("HardDrive");}
+		if (bootgui.includeDevice("CMOS")) { cmos=new CMOS(this); if (indexOf(states,"CMOS")>=0) cmos.loadState(states[indexOf(states,"CMOS")+1]); else loaderror("CMOS");}
+		clock=new Clock(); if (indexOf(states,"Clock")>=0) clock.loadState(states[indexOf(states,"Clock")+1]); else loaderror("Clock");
+		if (bootgui.includeDevice("Timer")) { timer=new Timer(this); if (indexOf(states,"Timer")>=0) timer.loadState(states[indexOf(states,"Timer")+1]); else loaderror("Timer");}
 		  if (bootgui.includeDevice("Serial Port")) serialport = new SerialPort(this);
-		if (bootgui.includeDevice("Video")) { video=new Video(this); video.loadState(states[s++]); }
+		if (bootgui.includeDevice("Video")) { video=new Video(this); if (indexOf(states,"Video")>=0) video.loadState(states[indexOf(states,"Video")+1]); else loaderror("Video");}
 		
-		Scanner loader=new Scanner(states[s++]);
-		icount=loader.nextInt();
+		if (indexOf(states,"Computer")>=0) 
+		{
+			Scanner loader=new Scanner(states[indexOf(states,"Computer")+1]);
+			icount=loader.nextInt();
+		}
+		else loaderror("Computer");
 		
 		if (videoGUI!=null)
 			videoGUI.repaint();
@@ -218,7 +237,7 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 		if (bootgui.includeDevice("Floppy Controller")) floppy = new Floppy(this);
 		if (bootgui.includeDevice("IDE Controller")) harddrive = new HardDrive(this);
 		if (bootgui.includeDevice("CMOS")) cmos = new CMOS(this);
-		if (bootgui.includeDevice("Timer")) timer = new Timer(this,0,0x40);
+		if (bootgui.includeDevice("Timer")) timer = new Timer(this);
 		if (bootgui.includeDevice("Serial Port")) serialport = new SerialPort(this);
 		if (bootgui.includeDevice("Video")) video = new Video(this);
 

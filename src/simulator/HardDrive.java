@@ -1,5 +1,7 @@
 package simulator;
 
+import java.util.Scanner;
+
 public class HardDrive extends IODevice
 {
 	public static final int ERR_STAT=0x01;
@@ -35,21 +37,42 @@ public class HardDrive extends IODevice
 	public static final int ATAPI_INT_REASON_CD=1;
 
 	public Drive[] drive;
-	private Drive currentDrive;
+	private int currentDrive=-1;
 
-	private int ioBase1=0x1f0;
-	private int ioBase2=0x3f6;
-	private int irq=14;
+	private static final int ioBase1=0x1f0;
+	private static final int ioBase2=0x3f6;
+	private static final int irq=14;
 
-	private InterruptController interruptController;
-
-	private Disk disk;
 	private Computer computer;
 
+	public String saveState()
+	{
+		String state="";
+		state+=currentDrive+":";
+		if (drive[0]==null)
+			state+="0:";
+		else
+			state+="1:"+drive[0].saveState()+":";
+		if (drive[1]==null)
+			state+="0:";
+		else
+			state+="1:"+drive[1].saveState()+":";
+		return state;
+	}
+	public void loadState(String state)
+	{
+		int s=0;
+		String[] states=state.split(":");
+		currentDrive=Integer.parseInt(states[s++]);
+		if (states[s++].equals("1"))
+			drive[0].loadState(states[s++]);
+		if (states[s++].equals("1"))
+			drive[1].loadState(states[s++]);
+	}
+	
 	public HardDrive(Computer computer)
 	{
 		this.computer=computer;
-		this.interruptController=computer.interruptController;
 	
 		drive=new Drive[2];
 //		drive[0]=new Drive(0,new Disk("harddisk.img"),306,4,17);
@@ -71,7 +94,7 @@ public class HardDrive extends IODevice
 		}
 
 
-		currentDrive=drive[0];
+		currentDrive=0;
 
 		computer.ioports.requestPorts(this, getPorts(),"IDE Controller",new String[]{"","Error code","Number of sectors","Sector","Cylinder (low)","Cylinder (high)","Drive Select","Status","Command"});
 	}
@@ -116,7 +139,7 @@ public class HardDrive extends IODevice
 	public byte ioPortReadByte(int address)
 	{
 		if (address>=ioBase2)
-			return currentDrive.status;
+			return drive[currentDrive].status;
 		else
 			return (byte)readIDE(address);
 	}
@@ -199,65 +222,65 @@ public class HardDrive extends IODevice
 			case 6: 
 				drive[0].select=(byte)((data&~0x10)|0xa0);
 				if(drive[1]!=null) drive[1].select=(byte)(data|0x10|0xa0);
-				currentDrive=drive[(data>>4)&1];
+				currentDrive=(data>>4)&1;
 				break;
 
 			case 7:
-				if (currentDrive.disk==null) break;
+				if (drive[currentDrive].disk==null) break;
 				switch(data&0xff)
 				{
 					case WIN_IDENTIFY:
-						if (currentDrive.isCDROM)
+						if (drive[currentDrive].isCDROM)
 						{
-							currentDrive.setSignature();
+							drive[currentDrive].setSignature();
 						}
 						else
 						{
-							currentDrive.identify();
-							currentDrive.status=(byte)(READY_STAT|SEEK_STAT);
-							currentDrive.transferStart(currentDrive.ioBuffer,0,512,ETF_TRANSFER_STOP);
+							drive[currentDrive].identify();
+							drive[currentDrive].status=(byte)(READY_STAT|SEEK_STAT);
+							drive[currentDrive].transferStart(drive[currentDrive].ioBuffer,0,512,ETF_TRANSFER_STOP);
 						}
-						currentDrive.setIRQ();
+						drive[currentDrive].setIRQ();
 						break;
 					case WIN_ATAPI_IDENTIFY:
-						if (currentDrive.isCDROM)
+						if (drive[currentDrive].isCDROM)
 						{
-							currentDrive.atapiIdentify();
-							currentDrive.status=(byte)(READY_STAT|SEEK_STAT);
-							currentDrive.transferStart(currentDrive.ioBuffer,0,512,ETF_TRANSFER_STOP);
+							drive[currentDrive].atapiIdentify();
+							drive[currentDrive].status=(byte)(READY_STAT|SEEK_STAT);
+							drive[currentDrive].transferStart(drive[currentDrive].ioBuffer,0,512,ETF_TRANSFER_STOP);
 						}
 						break;
 					case WIN_DIAGNOSE:
-						currentDrive.setSignature();
-						currentDrive.status=0;
-						currentDrive.error=1;
+						drive[currentDrive].setSignature();
+						drive[currentDrive].status=0;
+						drive[currentDrive].error=1;
 						break;
 					case WIN_SRST:
-						if (currentDrive.isCDROM)
+						if (drive[currentDrive].isCDROM)
 						{
-							currentDrive.setSignature();
-							currentDrive.status=0;
-							currentDrive.error=1;
+							drive[currentDrive].setSignature();
+							drive[currentDrive].status=0;
+							drive[currentDrive].error=1;
 						}
 						break;
 					case WIN_PACKETCMD:
-						if (currentDrive.isCDROM)
+						if (drive[currentDrive].isCDROM)
 						{
-							currentDrive.nSector=1;
-							currentDrive.transferStart(currentDrive.ioBuffer,0,ATAPI_PACKET_SIZE,ETF_ATAPI_COMMAND);
+							drive[currentDrive].nSector=1;
+							drive[currentDrive].transferStart(drive[currentDrive].ioBuffer,0,ATAPI_PACKET_SIZE,ETF_ATAPI_COMMAND);
 						}
 						break;
 					case WIN_READ:
 					case WIN_READ_ONCE:
-						currentDrive.requiredNumberOfSectors=1;
-						currentDrive.sectorRead();
+						drive[currentDrive].requiredNumberOfSectors=1;
+						drive[currentDrive].sectorRead();
 						break;
 					case WIN_WRITE:
 					case WIN_WRITE_ONCE:
-						currentDrive.error=0;
-						currentDrive.status=SEEK_STAT|READY_STAT;
-						currentDrive.requiredNumberOfSectors=1;
-						currentDrive.transferStart(currentDrive.ioBuffer,0,512,ETF_SECTOR_WRITE);
+						drive[currentDrive].error=0;
+						drive[currentDrive].status=SEEK_STAT|READY_STAT;
+						drive[currentDrive].requiredNumberOfSectors=1;
+						drive[currentDrive].transferStart(drive[currentDrive].ioBuffer,0,512,ETF_SECTOR_WRITE);
 						break;
 					default:
 						System.out.printf("Bad drive data: %x\n",data);
@@ -268,61 +291,61 @@ public class HardDrive extends IODevice
 	}
 	private int readIDE(int address)
 	{
-		if (currentDrive==null) return 0;
-		if (currentDrive.disk==null) return 0;
+		if (currentDrive==-1) return 0;
+		if (drive[currentDrive].disk==null) return 0;
 		switch(address&0x7)
 		{
 			case 0: return 0xff;
-			case 1: return currentDrive.error;
-			case 2: System.out.println(currentDrive.nSector); return currentDrive.nSector;
-			case 3: System.out.println(currentDrive.nSector); return currentDrive.sector;
-			case 4: return currentDrive.lcyl;
-			case 5: return currentDrive.hcyl;
-			case 6: return currentDrive.select;
+			case 1: return drive[currentDrive].error;
+			case 2: System.out.println(drive[currentDrive].nSector); return drive[currentDrive].nSector;
+			case 3: System.out.println(drive[currentDrive].nSector); return drive[currentDrive].sector;
+			case 4: return drive[currentDrive].lcyl;
+			case 5: return drive[currentDrive].hcyl;
+			case 6: return drive[currentDrive].select;
 			default: case 7:
-				interruptController.setIRQ(irq,0);
-				return currentDrive.status;
+				computer.interruptController.setIRQ(irq,0);
+				return drive[currentDrive].status;
 		}
 	}
 	private int readDataWord()
 	{
-		if (currentDrive==null) return 0;
+		if (currentDrive==-1) return 0;
 		int data=0;
-		data|=0xff&currentDrive.dataBuffer[currentDrive.dataBufferOffset++];
-		data|=0xff00&(currentDrive.dataBuffer[currentDrive.dataBufferOffset++]<<8);
-		if (currentDrive.dataBufferOffset>=currentDrive.dataBufferEnd)
-			currentDrive.endTransfer(currentDrive.endTransferFunction);
+		data|=0xff&drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++];
+		data|=0xff00&(drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++]<<8);
+		if (drive[currentDrive].dataBufferOffset>=drive[currentDrive].dataBufferEnd)
+			drive[currentDrive].endTransfer(drive[currentDrive].endTransferFunction);
 		return data;
 	}
 	private int readDataLong()
 	{
-		if (currentDrive==null) return 0;
+		if (currentDrive==-1) return 0;
 		int data=0;
-		data|=0xff&currentDrive.dataBuffer[currentDrive.dataBufferOffset++];
-		data|=0xff00&(currentDrive.dataBuffer[currentDrive.dataBufferOffset++]<<8);
-		data|=0xff0000&(currentDrive.dataBuffer[currentDrive.dataBufferOffset++]<<16);
-		data|=0xff000000&(currentDrive.dataBuffer[currentDrive.dataBufferOffset++]<<24);
-		if (currentDrive.dataBufferOffset>=currentDrive.dataBufferEnd)
-			currentDrive.endTransfer(currentDrive.endTransferFunction);
+		data|=0xff&drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++];
+		data|=0xff00&(drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++]<<8);
+		data|=0xff0000&(drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++]<<16);
+		data|=0xff000000&(drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++]<<24);
+		if (drive[currentDrive].dataBufferOffset>=drive[currentDrive].dataBufferEnd)
+			drive[currentDrive].endTransfer(drive[currentDrive].endTransferFunction);
 		return data;
 	}
 	private void writeDataWord(int data)
 	{
-		if (currentDrive==null) return;
-		currentDrive.dataBuffer[currentDrive.dataBufferOffset++]=(byte)data;
-		currentDrive.dataBuffer[currentDrive.dataBufferOffset++]=(byte)(data>>8);
-		if(currentDrive.dataBufferOffset>=currentDrive.dataBufferEnd)
-			currentDrive.endTransfer(currentDrive.endTransferFunction);
+		if (currentDrive==-1) return;
+		drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++]=(byte)data;
+		drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++]=(byte)(data>>8);
+		if(drive[currentDrive].dataBufferOffset>=drive[currentDrive].dataBufferEnd)
+			drive[currentDrive].endTransfer(drive[currentDrive].endTransferFunction);
 	}
 	private void writeDataLong(int data)
 	{
-		if (currentDrive==null) return;
-		currentDrive.dataBuffer[currentDrive.dataBufferOffset++]=(byte)data;
-		currentDrive.dataBuffer[currentDrive.dataBufferOffset++]=(byte)(data>>8);
-		currentDrive.dataBuffer[currentDrive.dataBufferOffset++]=(byte)(data>>16);
-		currentDrive.dataBuffer[currentDrive.dataBufferOffset++]=(byte)(data>>24);
-		if(currentDrive.dataBufferOffset>=currentDrive.dataBufferEnd)
-			currentDrive.endTransfer(currentDrive.endTransferFunction);
+		if (currentDrive==-1) return;
+		drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++]=(byte)data;
+		drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++]=(byte)(data>>8);
+		drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++]=(byte)(data>>16);
+		drive[currentDrive].dataBuffer[drive[currentDrive].dataBufferOffset++]=(byte)(data>>24);
+		if(drive[currentDrive].dataBufferOffset>=drive[currentDrive].dataBufferEnd)
+			drive[currentDrive].endTransfer(drive[currentDrive].endTransferFunction);
 	}
 
 
@@ -347,6 +370,58 @@ public class HardDrive extends IODevice
 		public int packetTransferSize;
 		public int elementaryTransferSize;
 
+		public String saveState()
+		{
+			String state="";
+			state+=(isCDROM?1:0)+" "+cylinders+" "+heads+" "+sectors+" "+status+" "+command+" "+error+" "+feature+" "+select+" "+hcyl+" "+lcyl+" "+sector+" ";
+			state+=nSector+" "+endTransferFunction+" "+ioBufferSize+" "+ioBufferIndex+" "+dataBufferOffset+" "+dataBufferEnd+" "+(identifySet?1:0)+" ";
+			state+=requiredNumberOfSectors+" "+id+" "+lba+" "+cdSectorSize+" "+packetTransferSize+" "+elementaryTransferSize+" ";
+			for (int i=0; i<ioBuffer.length; i++)
+				state+=ioBuffer[i]+" ";
+			if (dataBuffer==null)
+				state+="-1 ";
+			else
+			{
+				state+=dataBuffer.length+" ";
+				for (int i=0; i<dataBuffer.length; i++)
+					state+=dataBuffer[i]+" ";
+			}
+			if (identifyData==null)
+				state+="-1 ";
+			else
+			{
+				state+=identifyData.length+" ";
+				for (int i=0; i<identifyData.length; i++)
+					state+=identifyData[i]+" ";
+			}
+			return state;
+		}
+
+		public void loadState(String state)
+		{
+			Scanner s=new Scanner(state);
+			isCDROM=s.nextInt()==1; cylinders=s.nextInt(); heads=s.nextInt(); sectors=s.nextInt(); status=s.nextByte(); command=s.nextByte(); error=s.nextByte(); feature=s.nextByte(); select=s.nextByte(); hcyl=s.nextByte(); lcyl=s.nextByte(); sector=s.nextByte();
+			nSector=s.nextInt(); endTransferFunction=s.nextInt(); ioBufferSize=s.nextInt(); ioBufferIndex=s.nextInt(); dataBufferOffset=s.nextInt(); dataBufferEnd=s.nextInt(); identifySet=s.nextInt()==1;
+			requiredNumberOfSectors=s.nextInt(); id=s.nextInt(); lba=s.nextInt(); cdSectorSize=s.nextInt(); packetTransferSize=s.nextInt(); elementaryTransferSize=s.nextInt();
+			for (int i=0; i<ioBuffer.length; i++)
+				ioBuffer[i]=s.nextByte();
+			int size;
+			size=s.nextInt();
+			if (size!=-1)
+			{
+				dataBuffer=new byte[size];
+				for (int i=0; i<dataBuffer.length; i++)
+					dataBuffer[i]=s.nextByte();
+			}
+			size=s.nextInt();
+			if (size!=-1)
+			{
+				identifyData=new byte[size];
+				for (int i=0; i<identifyData.length; i++)
+					identifyData[i]=s.nextByte();
+			}
+		}
+		
 		public Drive(int id, Disk disk, int cylinders, int heads, int sectors, boolean isCDROM)
 		{
 			this.isCDROM=isCDROM;
@@ -385,7 +460,7 @@ public class HardDrive extends IODevice
 		}
 		public void setIRQ()
 		{
-			interruptController.setIRQ(irq,1);
+			computer.interruptController.setIRQ(irq,1);
 		}
 		public void setSector(int sectorNumber)
 		{

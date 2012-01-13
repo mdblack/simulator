@@ -16,9 +16,19 @@ public class Clock
 	ClockedDevice[] devices = new ClockedDevice[MAX_DEVICES];
 	int validDevices=0;
 
-	public void Clock()
+	public Clock()
 	{
 		ticks=0;
+	}
+	
+	public String saveState()
+	{
+		return ""+ticks;
+	}
+	
+	public void loadState(String state)
+	{
+		ticks=Long.parseLong(state);
 	}
 
 	//called on each instruction

@@ -49,11 +49,6 @@ public class LinearMemory implements MemoryDevice
 	public void loadState(String state)
 	{
 		Scanner s=new Scanner(state);
-		if (!s.next().equals("LinearMemory"))
-		{
-			System.out.println("Error in load state: LinearMemory expected");
-			return;
-		}
 		isSupervisor=s.nextInt()==1;
 		globalPagesEnabled=s.nextInt()==1;
 		pagingDisabled=s.nextInt()==1;
@@ -113,7 +108,6 @@ public class LinearMemory implements MemoryDevice
 	public String saveState()
 	{
 		StringBuffer state=new StringBuffer();
-		state.append("LinearMemory ");
 		state.append((isSupervisor?1:0)+" ");
 		state.append((globalPagesEnabled?1:0)+" ");
 		state.append((pagingDisabled?1:0)+" ");

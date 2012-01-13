@@ -51,11 +51,6 @@ public class BootGUI extends AbstractGUI
 	public void loadState(String state)
 	{
 		Scanner loader=new Scanner(state);
-		if (!loader.next().equals("Settings"))
-		{
-			System.out.println("Error in load state: Settings expected");
-			return;
-		}		
 		for (int i=0; i<deviceIncluded.length; i++)
 			deviceIncluded[i]=loader.nextInt()==1;
 		for (int i=0; i<diskIncluded.length; i++)
@@ -78,7 +73,7 @@ public class BootGUI extends AbstractGUI
 	
 	public String saveState()
 	{
-		String state="Settings ";
+		String state="";
 		for (int i=0; i<deviceIncluded.length; i++)
 			state+=(deviceIncluded[i]?1:0)+" ";
 		for (int i=0; i<diskIncluded.length; i++)

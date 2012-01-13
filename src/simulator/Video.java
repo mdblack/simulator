@@ -21,6 +21,7 @@ public class Video extends IODevice
 	static final int VWIDTH = 80*9;
 	static final int VHEIGHT = 480;
 	static final int VOFFSET =  0;	//was 40
+	static final int VRAM_SIZE=0x10000;
 
 	//VGA registers
 	private int sequencerRegisterIndex, graphicsRegisterIndex, attributeRegisterIndex, crtRegisterIndex;
@@ -135,11 +136,6 @@ public class Video extends IODevice
 	public void loadState(String state)
 	{
 		Scanner s=new Scanner(state);
-		if (!s.next().equals("Video"))
-		{
-			System.out.println("Error in load state: Video expected");
-			return;
-		}
 		for(int i=0; i<vram.length; i++)
 			vram[i]=s.nextByte();
 		for(int i=0; i<vramp1.length; i++)
@@ -172,7 +168,6 @@ public class Video extends IODevice
 	public String saveState()
 	{
 		StringBuilder state=new StringBuilder();
-		state.append("Video ");
 		for(int i=0; i<vram.length; i++)
 			state.append(vram[i]+" ");
 		for(int i=0; i<vramp1.length; i++)
@@ -208,11 +203,11 @@ public class Video extends IODevice
 	{
 		this.computer=computer;
 		
-		vram = new byte[0x10000];
-		vramp1 = new byte[0x10000];
-		vramp2 = new byte[0x10000];
-		vramp3 = new byte[0x10000];
-		vramp4 = new byte[0x10000];
+		vram = new byte[VRAM_SIZE];
+		vramp1 = new byte[VRAM_SIZE];
+		vramp2 = new byte[VRAM_SIZE];
+		vramp3 = new byte[VRAM_SIZE];
+		vramp4 = new byte[VRAM_SIZE];
 
 		sequencerRegister=new int[256];
 		graphicsRegister=new int[256];

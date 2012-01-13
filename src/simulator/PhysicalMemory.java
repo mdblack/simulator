@@ -37,7 +37,6 @@ public class PhysicalMemory implements MemoryDevice
 	public String saveState()
 	{
 		StringBuilder state=new StringBuilder();
-		state.append("PhysicalMemory:");
 		
 		for (int i=0; i<baseMemoryBlock.length; i++)
 		{
@@ -70,12 +69,7 @@ public class PhysicalMemory implements MemoryDevice
 	public void loadState(String state)
 	{
 		String[] states=state.split(":");
-		if (!states[0].equals("PhysicalMemory"))
-		{
-			System.out.println("Error in load state: PhysicalMemory expected");
-			return;
-		}
-		Scanner loader=new Scanner(states[1]);
+		Scanner loader=new Scanner(states[0]);
 		while(loader.hasNextInt())
 		{
 			int index=loader.nextInt();
@@ -89,9 +83,9 @@ public class PhysicalMemory implements MemoryDevice
 			}
 			System.out.println("loaded block "+index);
 		}
-		if (states.length==2)
+		if (states.length==1)
 			return;
-		loader=new Scanner(states[2]);
+		loader=new Scanner(states[1]);
 		while(loader.hasNextInt())
 		{
 			int index=loader.nextInt();

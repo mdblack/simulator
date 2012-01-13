@@ -26,7 +26,6 @@ public class Keyboard extends IODevice
 	public String saveState()
 	{
 		String state="";
-		state+="Keyboard ";
 		state+=mode+" ";
 		state+=status+" ";
 		state+=commandWrite+" ";
@@ -44,11 +43,6 @@ public class Keyboard extends IODevice
 	public void loadState(String state)
 	{
 		Scanner s=new Scanner(state);
-		if (!s.next().equals("Keyboard"))
-		{
-			System.out.println("Error in load state: Keyboard expected");
-			return;
-		}
 
 		mode=s.nextInt();
 		status=s.nextByte();

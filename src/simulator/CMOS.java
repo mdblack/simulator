@@ -18,18 +18,13 @@ public class CMOS extends IODevice
 	public void loadState(String state)
 	{
 		Scanner loader=new Scanner(state);
-		if (!loader.next().equals("CMOS"))
-		{
-			System.out.println("Error in load state: CMOS expected");
-			return;
-		}
 		for (int i=0; i<cmosdata.length; i++)
 			cmosdata[i]=loader.nextByte();
 		cmosindex=loader.nextByte();
 	}
 	public String saveState()
 	{
-		String state="CMOS ";
+		String state="";
 		for (int i=0; i<cmosdata.length; i++)
 			state+=cmosdata[i]+" ";
 		state+=cmosindex;
