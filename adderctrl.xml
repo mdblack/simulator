@@ -1,0 +1,60 @@
+<control>
+<control path>
+<pathname>0</pathname>
+<state>
+<statename>0 fetch</statename>
+<microinstruction>
+<input opcode>X</input>
+<reg IR></reg>
+<reg PC></reg>
+<alu pcadder>+</alu>
+</microinstruction>
+<nextstate>
+<input opcode>0</input>
+<nextstatename>1 add</nextstatename>
+</nextstate>
+<nextstate>
+<input opcode>1</input>
+<nextstatename>0</nextstatename>
+</nextstate>
+</state>
+<state>
+<statename>1 add</statename>
+<microinstruction>
+<input opcode>X</input>
+<reg AIR></reg>
+<mux rfaddrMux>0</mux>
+</microinstruction>
+<nextstate>
+<input opcode>X</input>
+<nextstatename>2 add</nextstatename>
+</nextstate>
+</state>
+<state>
+<statename>2 add</statename>
+<microinstruction>
+<input opcode>X</input>
+<reg AOR></reg>
+<alu ALU>+</alu>
+<mux rfaddrMux>1</mux>
+</microinstruction>
+<nextstate>
+<input opcode>X</input>
+<nextstatename>3 add</nextstatename>
+</nextstate>
+</state>
+<state>
+<statename>3 add</statename>
+<microinstruction>
+<input opcode>X</input>
+<reg RF></reg>
+<mux rfaddrMux>0</mux>
+</microinstruction>
+<nextstate>
+<input opcode>X</input>
+<nextstatename>0 fetch</nextstatename>
+</nextstate>
+</state>
+</control path>
+</control>
+

@@ -1,0 +1,15 @@
+<control>
+<control path>
+<pathname>path</pathname>
+<state>
+<statename>start</statename>
+<microinstruction>
+<reg register1></reg>
+</microinstruction>
+<nextstate>
+<nextstatename>start</nextstatename>
+</nextstate>
+</state>
+</control path>
+</control>
+
