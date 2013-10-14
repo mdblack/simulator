@@ -45,7 +45,7 @@ public class KeyboardGUI extends AbstractGUI
 		{(byte)0x1d,(byte)0x38,(byte)0x39,(byte)0x4b,(byte)0x4d,(byte)0x48,(byte)0x50,(byte)0x52,(byte)0x53,(byte)0x47,(byte)0x4f}
 	};
 
-	public static int W=ComputerGUI.BIGWIDTH,H=160;
+	public static int W=600,H=160;
 	private int KEYBOARD_WIDTH=W-BUFFER_WIDTH;
 	private int KEY_WIDTH_BASE=(KEYBOARD_WIDTH-2*MARGIN)/15;
 	private int KEYBOARD_HEIGHT=H;
@@ -97,7 +97,7 @@ public class KeyboardGUI extends AbstractGUI
 //		if (KEYBOARD_WIDTH>4*BUFFER_WIDTH)
 	//	{
 			JScrollPane bufferPane = new JScrollPane(keyboardbuffercomponent);
-			frame.add(bufferPane);
+			add(bufferPane);
 			guiComponent.setBounds(0,0,KEYBOARD_WIDTH,KEYBOARD_HEIGHT);
 			bufferPane.setBounds(KEYBOARD_WIDTH,0,BUFFER_WIDTH,KEYBOARD_HEIGHT);
 		//}
@@ -213,6 +213,8 @@ public class KeyboardGUI extends AbstractGUI
 					}
 				}
 			}
+			
+			try{ Thread.sleep(100);} catch(Exception e){}
 		}
 		//issue ENTER
 		computer.keyboard.keyPressed((byte)0x1c);
@@ -229,7 +231,7 @@ public class KeyboardGUI extends AbstractGUI
 			if (keycode==KeyEvent.VK_PAUSE)
 			{
 				System.out.println("Switching to debug mode");
-				computer.controlGUI.pause();
+				computer.computerGUI.pause();
 //				computer.debugMode=true;
 				return;
 			}

@@ -2,26 +2,24 @@ package simulator;
 
 import java.awt.*;
 import javax.swing.*;
+import javax.swing.event.InternalFrameEvent;
+import javax.swing.event.InternalFrameListener;
+
 import java.awt.event.*;
 
-public abstract class AbstractGUI
+public abstract class AbstractGUI extends JInternalFrame
 {
-	public static final int STATUSSIZE=40;
+	public static final int STATUSSIZE=50;
 	public static final int BUTTONROWSIZE=30;
 	public static final int MARGIN=20;
-	public static final int MAX_X=1000,MAX_Y=700;
-
-//	int XSIZE, YSIZE;
+	public static final int MAX_X=10000,MAX_Y=7000;
 
 	int frameX, frameY;		//size of the display area
 	int canvasX, canvasY;	//size of the full canvas
 	
-	
-	
 	public GUIComponent guiComponent;
 	public StatusComponent statusComponent;
 	public ButtonRowComponent buttonRowComponent;
-	public JFrame frame;
 	public JScrollPane scrollPane;
 
 	public boolean slowMode=false;
@@ -31,6 +29,7 @@ public abstract class AbstractGUI
 	public boolean bigScreen;
 	
 	protected Computer computer;
+	private AbstractGUI thisgui=this;
 
 	public AbstractGUI(Computer computer, String title, int canvaswidth, int canvasheight, boolean statusbar, boolean scrollpane, boolean buttonrow, boolean bigScreen)
 	{
@@ -44,26 +43,27 @@ public abstract class AbstractGUI
 		this.buttonrow=buttonrow;
 		this.bigScreen=bigScreen;
 
-		frameX=(canvasX+5<=MAX_X? canvasX+5:MAX_X);
-		frameY=(canvasY+BUTTONROWSIZE+STATUSSIZE<=MAX_Y? canvasY+BUTTONROWSIZE+STATUSSIZE:MAX_Y);
-		if (computer.computerGUI.singleFrame)
-		{
-			frameX=computer.computerGUI.getW(this);
-			frameY=computer.computerGUI.getH(this);
-		}
+		frameX=(canvasX+10<=MAX_X? canvasX+10:MAX_X);
+		frameY=(canvasY+STATUSSIZE<=MAX_Y? canvasY+STATUSSIZE:MAX_Y);
+//		if (computer.computerGUI.singleFrame)
+//		{
+//			frameX=computer.computerGUI.getW(this);
+//			frameY=computer.computerGUI.getH(this);
+//		}
+		if (frameX>computer.computerGUI.XSIZE-MARGIN)
+			frameX=ComputerGUI.XSIZE-MARGIN;
+		if (frameY>computer.computerGUI.MAINSIZE-MARGIN)
+			frameY=ComputerGUI.MAINSIZE-MARGIN;
 
-		frame = new JFrame(title);
-		frame.setTitle(title);
-		frame.setSize(frameX+10,frameY+30);
-		frame.addWindowListener(new GUIWindowListener());
-		frame.setLayout(null);
+		setTitle(title);
+		setSize(frameX+10,frameY);
+		addInternalFrameListener(new GUIWindowListener());
+		addComponentListener(new GUIWindowListener());
+		this.iconable=true;
+		this.closable=true;
+		this.resizable=true;
+		setLayout(null);
 
-		if (buttonrow)
-		{
-			buttonRowComponent = new ButtonRowComponent();
-			buttonRowComponent.setBounds(0,0,frameX,BUTTONROWSIZE);
-			frame.getContentPane().add(buttonRowComponent);
-		}
 
 		if (statusbar)
 		{
@@ -71,7 +71,7 @@ public abstract class AbstractGUI
 			statusComponent = new StatusComponent();
 			statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
 			statusComponent.setLabel("");
-			frame.getContentPane().add(statusComponent);
+			add(statusComponent);
 		}
 	}
 
@@ -87,13 +87,14 @@ public abstract class AbstractGUI
 	public void mouseRelease(MouseEvent e) { }
 	public void mouseExit() { }
 	public void statusEdited(String keys) { }
+	public void reSize(int width, int height){ }
 	public abstract void closeGUI();
 
 	//these methods are called externally
 	public void repaint()
 	{
-		if (!computer.updateGUIOnPlay && !computer.debugMode && !(this instanceof VideoGUI))
-			return;
+//		if (!computer.updateGUIOnPlay && !computer.debugMode && !(this instanceof VideoGUI))
+//			return;
 		if (guiComponent!=null)
 		{
 			if (!slowMode)
@@ -105,28 +106,27 @@ public abstract class AbstractGUI
 	}
 	public void refresh()
 	{
+		setSize(frameX+10,frameY);
 		guiComponent=new GUIComponent();
-		int topy=buttonrow? BUTTONROWSIZE:0;
+		add(guiComponent);
+		int topy=0;
 		int height=statusbar? frameY-topy-STATUSSIZE:frameY-topy;
 		if (scrollpane)
 		{
 			scrollPane = new JScrollPane(guiComponent);
 			scrollPane.setBounds(0,topy,frameX,height);
-			frame.getContentPane().add(scrollPane);
+			add(scrollPane);
 		}
 		else
 		{
 			guiComponent.setBounds(0,topy,frameX,height);
-			frame.getContentPane().add(guiComponent);
+			add(guiComponent);
 		}
 		guiComponent.addMouseListener(new GUIMouseListener());
 		guiComponent.addMouseMotionListener(new GUIMouseMotionListener());
 		guiComponent.repaint();
 
-		if (!computer.computerGUI.singleFrame)
-			frame.setVisible(true);
-		else
-			computer.computerGUI.addComponent(this);
+		computer.computerGUI.addComponent(this);
 
 		guiComponent.paintImmediately(0,0,canvasX,canvasY);
 		if (statusbar) guiComponent.addKeyListener(statusComponent.getKeyListener());
@@ -172,7 +172,8 @@ public abstract class AbstractGUI
 		public void paintComponent(Graphics g)
 		{
 			g.setColor(Color.WHITE);
-			g.fillRect(0,0,canvasX,canvasY);
+//			g.fillRect(0,0,canvasX,canvasY);
+			g.fillRect(0,0,width(),height());
 			doPaint(g);
 		}
 	}
@@ -268,10 +269,7 @@ public abstract class AbstractGUI
 		if (!computer.debugMode) computer.cycleEndLock.lockWait();
 		closeGUI();
 
-		if (!computer.computerGUI.singleFrame)
-			frame.dispose();
-		else
-			computer.computerGUI.removeComponent(this);
+		computer.computerGUI.removeComponent(this);
 	}
 
 	public class StatusComponent extends JComponent
@@ -386,17 +384,38 @@ public abstract class AbstractGUI
 		}
 	}
 
-	public class GUIWindowListener implements WindowListener
+	public class GUIWindowListener implements InternalFrameListener, ComponentListener
 	{
-		public void windowActivated(WindowEvent e) { }
-		public void windowClosed(WindowEvent e) { }
-		public void windowDeactivated(WindowEvent e) { }
-		public void windowDeiconified(WindowEvent e) { }
-		public void windowIconified(WindowEvent e) { }
-		public void windowOpened(WindowEvent e) { }
-		public void windowClosing(WindowEvent e)
+		public void internalFrameActivated(InternalFrameEvent e) {}
+		public void internalFrameClosed(InternalFrameEvent e) 
 		{
-			close();
+			close();	
 		}
-	}
+		public void internalFrameClosing(InternalFrameEvent e) {}
+		public void internalFrameDeactivated(InternalFrameEvent e) {}
+		public void internalFrameDeiconified(InternalFrameEvent e) {}
+		public void internalFrameIconified(InternalFrameEvent e) {}
+		public void internalFrameOpened(InternalFrameEvent e) {}
+		public void componentHidden(ComponentEvent e) {}
+		public void componentMoved(ComponentEvent e) {}
+		public void componentResized(ComponentEvent e) 
+		{
+			frameX=thisgui.getWidth();
+			frameY=thisgui.getHeight();
+			if (scrollpane)
+			{
+				int topy=0,height=statusbar? frameY-topy-STATUSSIZE:frameY-topy;
+				
+				scrollPane.setBounds(0,topy,frameX-scrollPane.getVerticalScrollBar().getWidth()-5,height-scrollPane.getHorizontalScrollBar().getHeight()-MARGIN);
+			}
+			if (statusbar)
+			{
+				int topy=frameY-STATUSSIZE;
+				statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
+			}
+			reSize(frameX,frameY);
+			thisgui.repaint();
+		}
+		public void componentShown(ComponentEvent e) {}
+	}	
 }

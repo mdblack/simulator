@@ -8,7 +8,11 @@ import java.awt.event.*;
 public class IOGUI extends AbstractGUI
 {
 	public int portLastRead=-1;
+	public boolean portRead=false, portWrite=false;
 	public int portLastWrite=-1;
+	public int lastInterrupt=-1;
+	public boolean interruptTriggered=false;
+	public boolean interruptRequested=false;
 	static final int PORTHEIGHT=20;
 	static final int NUMBERWIDTH=PORTHEIGHT*3;
 	static final int NAMEWIDTH=PORTHEIGHT*5;
@@ -40,6 +44,7 @@ public class IOGUI extends AbstractGUI
 			setStatusLabel("Read from port "+Integer.toHexString(port)+": "+Integer.toHexString(value));
 		else
 			setStatusLabel("Read from "+computer.ioports.ioportDeviceName[port]+" "+computer.ioports.ioportPortName[port]+" ("+Integer.toHexString(port)+"): "+Integer.toHexString(value));
+		portRead=true;
 	}
 
 	public void writePort(int port, int value)
@@ -49,6 +54,7 @@ public class IOGUI extends AbstractGUI
 			setStatusLabel("Write to port "+Integer.toHexString(port)+": "+Integer.toHexString(value));
 		else
 			setStatusLabel("Write to "+computer.ioports.ioportDeviceName[port]+" "+computer.ioports.ioportPortName[port]+" ("+Integer.toHexString(port)+"): "+Integer.toHexString(value));
+		portWrite=true;
 	}
 
 	public void constructGUI(AbstractGUI.GUIComponent guicomponent)

@@ -32,14 +32,17 @@ public int current_privilege_level;
 
 public int interruptFlags;
 
-private boolean addressDecoded=false;
+public boolean addressDecoded=false;
 private boolean haltMode=false;
 public int lastInterrupt=-1;
+
+private FloatingPointProcessor fpu;
 
 public Processor(Computer computer)
 {
 	this.computer=computer;
 	processorGUICode=null;
+	fpu=new FloatingPointProcessor(this);
 
 	cs=new Segment(Segment.CS,computer.physicalMemory);
 	ds=new Segment(Segment.DS,computer.physicalMemory);
@@ -178,7 +181,9 @@ public void loadState(String state)
 
 public void reset()
 {
+	resetcodes();
 	computer.linearMemory.flush();
+	fpu.reset();
 	
 	eax.setValue(0);
 	ebx.setValue(0);
@@ -766,7 +771,7 @@ public class Segment
 
 	private int value;
 	private int id;
-	private int base;
+	int base;
 	private long limit;
 	private MemoryDevice memory;
 
@@ -1090,6 +1095,7 @@ public void handleInterrupt(int vector, boolean haserrorcode, int errorcode)
 
 	if (isModeReal())
 	{
+		System.out.println("Real mode interrupt at icount "+computer.icount+": "+vector);
 		//get the new CS:IP from the IVT
 		vector=vector*4;
 		newIP = 0xffff & idtr.loadWord(vector);
@@ -1209,7 +1215,8 @@ public void handleInterrupt(int vector, boolean haserrorcode, int errorcode)
 		}
 		else
 		{
-			panic("Unimplemented idtr type: "+idtrType);
+			panic("Unimplemented idtr type: "+idtrType); 
+//			System.exit(0);
 		}
 	}
 
@@ -1294,7 +1301,7 @@ public class FetchQueue
 	}
 }
 
-private MICROCODE[] code = new MICROCODE[100];
+MICROCODE[] code = new MICROCODE[100];
 private int[] icode = new int[100];
 private int icodeLength=0;
 private int icodesHandled=0;
@@ -1302,6 +1309,16 @@ public int codeLength=0;
 public int codesHandled=0;
 
 public static int[][][] operandTable;
+
+public void resetcodes()
+{
+	code = new MICROCODE[100];
+	icode = new int[100];
+	icodeLength=0;
+	icodesHandled=0;
+	codeLength=0;
+	codesHandled=0;	
+}
 
 public void executeInstruction()
 {
@@ -1335,6 +1352,8 @@ public void executeMicroInstructions()
 	MICROCODE microcode;
 	boolean op32,addr32;
 
+	fpu.newExecuteFloat();
+	
 //	try
 //	{
 	while (codesHandled < codeLength)
@@ -1531,6 +1550,7 @@ public void executeMicroInstructions()
 	case STORE0_MEM_DOUBLE:	seg.storeDoubleWord(addr,reg0); break;
 	case STORE1_MEM_DOUBLE:	seg.storeDoubleWord(addr,reg1); break;
 	case LOAD0_MEM_QUAD:	reg0l = seg.loadQuadWord(addr); break;
+	case STORE0_MEM_QUAD:	seg.storeQuadWord(addr,reg0l); break;
 
 	//addressing
 	case ADDR_AX:	addr += (short)eax.getValue(); break;
@@ -2373,8 +2393,17 @@ public void executeMicroInstructions()
 	case OP_BAD: panic("Bad microcode");
 	case OP_UNIMPLEMENTED: panic("Unimplemented microcode");
 	
-	default: System.out.println(microcode); panic("Unhandled microcode");
-	
+	default:
+		//check floating point processor now
+		if (!fpu.executeFloat(microcode,reg0,reg1,reg2,addr,reg0l,seg,condition,displacement))
+		{
+			System.out.println(microcode); panic("Unhandled microcode");
+		}
+		else
+		{
+			//set internal registers from fpu results
+			reg0=fpu.reg0; reg1=fpu.reg1; addr=fpu.addr; reg0l=fpu.reg0l; seg=fpu.seg; condition=fpu.condition; displacement=fpu.displacement;
+		}
 	}
 
 	if(processorGUICode!=null) processorGUICode.pushMicrocode(microcode,reg0,reg1,reg2,addr,displacement,condition);
@@ -2931,8 +2960,11 @@ private void intr_protected(int vector,boolean op32, boolean addr32)
 	int dpl;
 	long descriptor=0;
 
-	if (!op32 || !addr32)
-		panic("Only handling 32 bit mode protected interrupts");
+	if (op32 != addr32)
+	{
+		panic("Only handling 32 bit mode protected interrupts: "+op32+" "+addr32);
+		return;
+	}
 	
 	//get the new CS:EIP from the IDT
 	boolean sup=computer.linearMemory.isSupervisor;
@@ -2947,49 +2979,103 @@ private void intr_protected(int vector,boolean op32, boolean addr32)
 		newSegmentDescriptor=gdtr.loadQuadWord(segIndex&0xfff8);
 	computer.linearMemory.setSupervisor(sup);
 	
-	dpl=(int)((newSegmentDescriptor>>45)&0x3);
-	newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
-	newCS = (int)((descriptor>>16)&0xffff);
-
-	int sesp = esp.getValue();
-	if (dpl<current_privilege_level)
-	{	
-		//calculate new stack segment
-		int stackAddress=dpl*8+4;
-		int newSS=0xffff&(tss.loadWord(stackAddress+4));
-		int newSP=tss.loadDoubleWord(stackAddress);
-
-		int oldSS=ss.getValue();
-		int oldSP=esp.getValue();
-		ss.setValue(newSS);
-		esp.setValue(newSP);
-		//save SS:ESP on the stack
-		sesp=newSP;
-		sesp-=4;
-		ss.storeDoubleWord(sesp, oldSS);
-		sesp-=4;
-		ss.storeDoubleWord(sesp, oldSP);
+	
+	if (!op32 && !addr32)
+	{
+		
+		dpl=(int)((newSegmentDescriptor>>45)&0x3);
+//		newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
+		newIP = (int)(descriptor&0xffff);
+		newCS = (int)((descriptor>>16)&0xffff);
+	
+		int sesp = esp.getValue();
+		if (dpl<=current_privilege_level)
+		{	
+			//calculate new stack segment
+			int stackAddress=dpl*4+2;
+			int newSS=0xffff&(tss.loadWord(stackAddress+2));
+			int newSP=0xffff&tss.loadWord(stackAddress);
+	
+			int oldSS=ss.getValue();
+			int oldSP=esp.getValue();
+			ss.setValue(newSS);
+			esp.setValue(newSP);
+			//save SS:ESP on the stack
+			sesp=newSP;
+			sesp=(sesp&0xffff0000)|(0xffff&(sesp-2));
+			ss.storeWord(sesp&0xffff, (short)oldSS);
+			sesp=(sesp&0xffff0000)|(0xffff&(sesp-2));
+			ss.storeWord(sesp&0xffff, (short)oldSP);
+		}
+		
+		//save the flags on the stack
+		sesp=(sesp&0xffff0000)|(0xffff&(sesp-2));
+	    int flags = getFlags();
+	    ss.storeWord(sesp&0xffff, (short)flags);
+			//disable interrupts
+		interruptEnable.clear();
+		interruptEnableSoon.clear();
+		trap.clear();
+			//save CS:IP on the stack
+		sesp=(sesp&0xffff0000)|(0xffff&(sesp-2));
+		ss.storeWord(sesp&0xffff,(short)cs.getValue());
+		sesp=(sesp&0xffff0000)|(0xffff&(sesp-2));
+		ss.storeWord(sesp&0xffff,(short)eip.getValue());
+		esp.setValue(sesp);
+			//change CS and IP to the ISR's values
+		
+		cs.setProtectedValue(newCS,descriptor);
+		eip.setValue(newIP);
+		setCPL(dpl);		
 	}
+	if (op32 && addr32)
+	{
+		dpl=(int)((newSegmentDescriptor>>45)&0x3);
+		newIP = (int)(((descriptor>>32)&0xffff0000)|(descriptor&0x0000ffff));
+		newCS = (int)((descriptor>>16)&0xffff);
 	
-	//save the flags on the stack
-	sesp-=4;
-    int flags = getFlags();
-    ss.storeDoubleWord(esp.getValue(), flags);
-		//disable interrupts
-	interruptEnable.clear();
-	interruptEnableSoon.clear();
-		//save CS:IP on the stack
-	sesp-=4;
-	ss.storeDoubleWord(sesp, cs.getValue());
-	sesp-=4;
-	ss.storeDoubleWord(sesp, eip.getValue());
-	esp.setValue(sesp);
-		//change CS and IP to the ISR's values
+		int sesp = esp.getValue();
+		if (dpl<=current_privilege_level)
+		{	
+			//calculate new stack segment
+			int stackAddress=dpl*8+4;
+			int newSS=0xffff&(tss.loadWord(stackAddress+4));
+			int newSP=tss.loadDoubleWord(stackAddress);
 	
-	cs.setProtectedValue(newCS,descriptor);
-	eip.setValue(newIP);
-	setCPL(dpl);
-//	current_privilege_level=dpl;
+			int oldSS=ss.getValue();
+			int oldSP=esp.getValue();
+			ss.setValue(newSS);
+			esp.setValue(newSP);
+			//save SS:ESP on the stack
+			sesp=newSP;
+			sesp-=4;
+			ss.storeDoubleWord(sesp, oldSS);
+			sesp-=4;
+			ss.storeDoubleWord(sesp, oldSP);
+		}
+		
+		//save the flags on the stack
+		sesp-=4;
+	    int flags = getFlags();
+//	    ss.storeDoubleWord(esp.getValue(), flags);
+	    ss.storeDoubleWord(sesp, flags);
+			//disable interrupts
+		interruptEnable.clear();
+		interruptEnableSoon.clear();
+		trap.clear();
+			//save CS:IP on the stack
+		sesp-=4;
+		ss.storeDoubleWord(sesp, cs.getValue());
+		sesp-=4;
+		ss.storeDoubleWord(sesp, eip.getValue());
+		esp.setValue(sesp);
+			//change CS and IP to the ISR's values
+		
+		cs.setProtectedValue(newCS,descriptor);
+		eip.setValue(newIP);
+		setCPL(dpl);
+	}
+
 }
 
 
@@ -3913,8 +3999,8 @@ private void cpuid()
 			int features=0;
 			features|=0;	//no features at all
 
-//		    features |= 0x01; //Have an FPU;
-		    features |= 0x00; //Have no FPU;
+		    features |= 0x01; //Have an FPU;
+//		    features |= 0x00; //Have no FPU;
 //	    features |= (1<< 8);  // Support CMPXCHG8B instruction
 //	    features |= (1<< 4);  // implement TSC
 //	    features |= (1<< 5);  // support RDMSR/WRMSR
@@ -4487,12 +4573,12 @@ public int getInstructionLength()
 }
 
 //add a new microcode to the sequence
-private void pushCode(MICROCODE code)
+public void pushCode(MICROCODE code)
 {
 	this.code[codeLength++]=code;
 }
 
-private void pushCode(int code)
+void pushCode(int code)
 {
 	this.icode[icodeLength++]=code;
 }
@@ -4511,7 +4597,7 @@ private int getLastiCode()
 	return this.icode[icodesHandled-1];
 }
 
-private int getiCode()
+int getiCode()
 {
 	if(icodesHandled>=icodeLength)
 		panic("No more icodes to read");
@@ -4519,7 +4605,7 @@ private int getiCode()
 }
 
 //is a particular microcode already in the array?
-private boolean isCode(MICROCODE code)
+boolean isCode(MICROCODE code)
 {
 	for (int i=0; i<codeLength; i++)
 		if (this.code[i]==code)
@@ -4575,8 +4661,8 @@ private void decodePrefix(boolean is32bit)
 					removeCode(MICROCODE.PREFIX_ADDRESS_32BIT);
 				break;
 			case 0xd8: case 0xd9: case 0xda: case 0xdb: case 0xdc: case 0xdd: case 0xde: case 0xdf:
+				pushCode(MICROCODE.PREFIX_FLOAT);
 				return;
-//				panic("Floating point not implemented");
 			default:
 				//this isn't a prefix - it's the opcode
 				return;
@@ -4605,21 +4691,6 @@ private void decodeOpcode()
 
 	tableindex=opcode;
 
-	//0x0f means a second byte
-	if (opcode==0x0f)
-	{
-		opcode=(opcode<<8) | (0xff & fetchQueue.readByte());
-		fetchQueue.advance(1);
-		tableindex=(opcode&0xff)+0x100;
-	}
-	else if (opcode>=0xd8 && opcode<=0xdf)
-	{
-		//floating point: throw away next byte
-		fetchQueue.advance(1);
-	}
-	if(computer.debugMode)
-		System.out.printf("opcode %x\n",opcode);
-
 	if (processorGUICode!=null && isCode(MICROCODE.PREFIX_OPCODE_32BIT)) processorGUICode.push(GUICODE.DECODE_PREFIX,"op32");
 	if (processorGUICode!=null && isCode(MICROCODE.PREFIX_ADDRESS_32BIT)) processorGUICode.push(GUICODE.DECODE_PREFIX,"addr32");
 	if (processorGUICode!=null && !isCode(MICROCODE.PREFIX_OPCODE_32BIT)) processorGUICode.push(GUICODE.DECODE_PREFIX,"op16");
@@ -4631,6 +4702,24 @@ private void decodeOpcode()
 	if (processorGUICode!=null && isCode(MICROCODE.PREFIX_ES)) processorGUICode.push(GUICODE.DECODE_PREFIX,"es");
 	if (processorGUICode!=null && isCode(MICROCODE.PREFIX_FS)) processorGUICode.push(GUICODE.DECODE_PREFIX,"fs");
 	if (processorGUICode!=null && isCode(MICROCODE.PREFIX_GS)) processorGUICode.push(GUICODE.DECODE_PREFIX,"gs");
+
+	//0x0f means a second byte
+	if (opcode==0x0f)
+	{
+		opcode=(opcode<<8) | (0xff & fetchQueue.readByte());
+		fetchQueue.advance(1);
+		tableindex=(opcode&0xff)+0x100;
+	}
+	//floating point second byte
+	else if (opcode>=0xd8 && opcode<=0xdf)
+	{
+//		opcode=(opcode<<8) | (0xff & fetchQueue.readByte());
+//		fetchQueue.advance(1);
+		fpu.decodeFloat(opcode);
+		return;
+	}
+	if(computer.debugMode)
+		System.out.printf("opcode %x\n",opcode);
 
 	if(processorGUICode!=null) processorGUICode.push(GUICODE.DECODE_OPCODE,opcode);
 
@@ -5100,7 +5189,7 @@ private void load1_Gw(int modrm)
 	}
 }
 
-private void decode_memory(int modrm, int sib, int displacement)
+void decode_memory(int modrm, int sib, int displacement)
 {
 	if(isAddressDecoded()) return;
 
@@ -6692,7 +6781,8 @@ try{
 			case OP_CPUID: name="cpuid"; break;
 			case OP_HALT: name="halt"; break;
 			case OP_RDTSC: name="rdtsc"; break;
-			default: name="nop"; break;
+
+			default: name="unknown"; break;
 		}
 
 		push(GUICODE.DECODE_INSTRUCTION, name);
@@ -6701,6 +6791,7 @@ try{
 	public void pushMicrocode(MICROCODE microcode, int reg0, int reg1, int reg2, int addr, int displacement, boolean condition)
 	{
 		String name="";
+		try{
 		switch(microcode)
 		{
 			case LOAD_SEG_CS: addressString="cs:"; push(GUICODE.DECODE_SEGMENT_ADDRESS,"cs"); break;
@@ -7150,14 +7241,15 @@ try{
 				push(GUICODE.EXECUTE_HALT);
 				break;
 		}
+		}catch(StringIndexOutOfBoundsException e){}
 	}
 }
 
 enum MICROCODE 
 {
-PREFIX_LOCK, PREFIX_REPNE, PREFIX_REPE, PREFIX_CS, PREFIX_SS, PREFIX_DS, PREFIX_ES, PREFIX_FS, PREFIX_GS, PREFIX_OPCODE_32BIT, PREFIX_ADDRESS_32BIT,
+PREFIX_LOCK, PREFIX_REPNE, PREFIX_REPE, PREFIX_CS, PREFIX_SS, PREFIX_DS, PREFIX_ES, PREFIX_FS, PREFIX_GS, PREFIX_OPCODE_32BIT, PREFIX_ADDRESS_32BIT, PREFIX_FLOAT,
 
-LOAD0_AX, LOAD0_AL, LOAD0_AH, LOAD0_BX, LOAD0_BL, LOAD0_BH, LOAD0_CX, LOAD0_CL, LOAD0_CH, LOAD0_DX, LOAD0_DL, LOAD0_DH, LOAD0_SP, LOAD0_BP, LOAD0_SI, LOAD0_DI, LOAD0_CS, LOAD0_SS, LOAD0_DS, LOAD0_ES, LOAD0_FS, LOAD0_GS, LOAD0_FLAGS, LOAD1_AX, LOAD1_AL, LOAD1_AH, LOAD1_BX, LOAD1_BL, LOAD1_BH, LOAD1_CX, LOAD1_CL, LOAD1_CH, LOAD1_DX, LOAD1_DL, LOAD1_DH, LOAD1_SP, LOAD1_BP, LOAD1_SI, LOAD1_DI, LOAD1_CS, LOAD1_SS, LOAD1_DS, LOAD1_ES, LOAD1_FS, LOAD1_GS, LOAD1_FLAGS, STORE0_AX, STORE0_AL, STORE0_AH, STORE0_BX, STORE0_BL, STORE0_BH, STORE0_CX, STORE0_CL, STORE0_CH, STORE0_DX, STORE0_DL, STORE0_DH, STORE0_SP, STORE0_BP, STORE0_SI, STORE0_DI, STORE0_CS, STORE0_SS, STORE0_DS, STORE0_ES, STORE0_FS, STORE0_GS, STORE1_AX, STORE1_AL, STORE1_AH, STORE1_BX, STORE1_BL, STORE1_BH, STORE1_CX, STORE1_CL, STORE1_CH, STORE1_DX, STORE1_DL, STORE1_DH, STORE1_SP, STORE1_BP, STORE1_SI, STORE1_DI, STORE1_CS, STORE1_SS, STORE1_DS, STORE1_ES, STORE1_FS, STORE1_GS, STORE1_FLAGS, LOAD0_MEM_BYTE, LOAD0_MEM_WORD, STORE0_MEM_BYTE, STORE0_MEM_WORD, LOAD1_MEM_BYTE, LOAD1_MEM_WORD, STORE1_MEM_BYTE, STORE1_MEM_WORD, STORE1_ESP, STORE0_FLAGS, LOAD0_IB, LOAD0_IW, LOAD1_IB, LOAD1_IW, LOAD_SEG_CS, LOAD_SEG_SS, LOAD_SEG_DS, LOAD_SEG_ES, LOAD_SEG_FS, LOAD_SEG_GS, LOAD0_ADDR, LOAD0_EAX, LOAD0_EBX, LOAD0_ECX, LOAD0_EDX, LOAD0_ESI, LOAD0_EDI, LOAD0_EBP, LOAD0_ESP, LOAD1_EAX, LOAD1_EBX, LOAD1_ECX, LOAD1_EDX, LOAD1_ESI, LOAD1_EDI, LOAD1_EBP, LOAD1_ESP, STORE0_EAX, STORE0_EBX, STORE0_ECX, STORE0_EDX, STORE0_ESI, STORE0_EDI, STORE0_ESP, STORE0_EBP, STORE1_EAX, STORE1_EBX, STORE1_ECX, STORE1_EDX, STORE1_ESI, STORE1_EDI, STORE1_EBP, LOAD0_MEM_DOUBLE, LOAD1_MEM_DOUBLE, STORE0_MEM_DOUBLE, STORE1_MEM_DOUBLE, LOAD0_EFLAGS, LOAD1_EFLAGS, STORE0_EFLAGS, STORE1_EFLAGS, LOAD0_ID, LOAD1_ID, LOAD0_CR0, LOAD0_CR2, LOAD0_CR3, LOAD0_CR4, STORE0_CR0, STORE0_CR2, STORE0_CR3, STORE0_CR4, LOAD0_DR0, LOAD0_DR1, LOAD0_DR2, LOAD0_DR3, LOAD0_DR6, LOAD0_DR7, STORE0_DR0, STORE0_DR1, STORE0_DR2, STORE0_DR3, STORE0_DR6, STORE0_DR7, LOAD0_MEM_QUAD,
+LOAD0_AX, LOAD0_AL, LOAD0_AH, LOAD0_BX, LOAD0_BL, LOAD0_BH, LOAD0_CX, LOAD0_CL, LOAD0_CH, LOAD0_DX, LOAD0_DL, LOAD0_DH, LOAD0_SP, LOAD0_BP, LOAD0_SI, LOAD0_DI, LOAD0_CS, LOAD0_SS, LOAD0_DS, LOAD0_ES, LOAD0_FS, LOAD0_GS, LOAD0_FLAGS, LOAD1_AX, LOAD1_AL, LOAD1_AH, LOAD1_BX, LOAD1_BL, LOAD1_BH, LOAD1_CX, LOAD1_CL, LOAD1_CH, LOAD1_DX, LOAD1_DL, LOAD1_DH, LOAD1_SP, LOAD1_BP, LOAD1_SI, LOAD1_DI, LOAD1_CS, LOAD1_SS, LOAD1_DS, LOAD1_ES, LOAD1_FS, LOAD1_GS, LOAD1_FLAGS, STORE0_AX, STORE0_AL, STORE0_AH, STORE0_BX, STORE0_BL, STORE0_BH, STORE0_CX, STORE0_CL, STORE0_CH, STORE0_DX, STORE0_DL, STORE0_DH, STORE0_SP, STORE0_BP, STORE0_SI, STORE0_DI, STORE0_CS, STORE0_SS, STORE0_DS, STORE0_ES, STORE0_FS, STORE0_GS, STORE1_AX, STORE1_AL, STORE1_AH, STORE1_BX, STORE1_BL, STORE1_BH, STORE1_CX, STORE1_CL, STORE1_CH, STORE1_DX, STORE1_DL, STORE1_DH, STORE1_SP, STORE1_BP, STORE1_SI, STORE1_DI, STORE1_CS, STORE1_SS, STORE1_DS, STORE1_ES, STORE1_FS, STORE1_GS, STORE1_FLAGS, LOAD0_MEM_BYTE, LOAD0_MEM_WORD, STORE0_MEM_BYTE, STORE0_MEM_WORD, LOAD1_MEM_BYTE, LOAD1_MEM_WORD, STORE1_MEM_BYTE, STORE1_MEM_WORD, STORE1_ESP, STORE0_FLAGS, LOAD0_IB, LOAD0_IW, LOAD1_IB, LOAD1_IW, LOAD_SEG_CS, LOAD_SEG_SS, LOAD_SEG_DS, LOAD_SEG_ES, LOAD_SEG_FS, LOAD_SEG_GS, LOAD0_ADDR, LOAD0_EAX, LOAD0_EBX, LOAD0_ECX, LOAD0_EDX, LOAD0_ESI, LOAD0_EDI, LOAD0_EBP, LOAD0_ESP, LOAD1_EAX, LOAD1_EBX, LOAD1_ECX, LOAD1_EDX, LOAD1_ESI, LOAD1_EDI, LOAD1_EBP, LOAD1_ESP, STORE0_EAX, STORE0_EBX, STORE0_ECX, STORE0_EDX, STORE0_ESI, STORE0_EDI, STORE0_ESP, STORE0_EBP, STORE1_EAX, STORE1_EBX, STORE1_ECX, STORE1_EDX, STORE1_ESI, STORE1_EDI, STORE1_EBP, LOAD0_MEM_DOUBLE, LOAD1_MEM_DOUBLE, STORE0_MEM_DOUBLE, STORE1_MEM_DOUBLE, LOAD0_EFLAGS, LOAD1_EFLAGS, STORE0_EFLAGS, STORE1_EFLAGS, LOAD0_ID, LOAD1_ID, LOAD0_CR0, LOAD0_CR2, LOAD0_CR3, LOAD0_CR4, STORE0_CR0, STORE0_CR2, STORE0_CR3, STORE0_CR4, LOAD0_DR0, LOAD0_DR1, LOAD0_DR2, LOAD0_DR3, LOAD0_DR6, LOAD0_DR7, STORE0_DR0, STORE0_DR1, STORE0_DR2, STORE0_DR3, STORE0_DR6, STORE0_DR7, LOAD0_MEM_QUAD, STORE0_MEM_QUAD,
 
 LOAD2_AL, LOAD2_CL, LOAD2_AX, LOAD2_EAX, LOAD2_IB,
 
@@ -7165,7 +7257,10 @@ FLAG_BITWISE_08, FLAG_BITWISE_16, FLAG_BITWISE_32, FLAG_SUB_08, FLAG_SUB_16, FLA
 
 ADDR_AX, ADDR_BX, ADDR_CX, ADDR_DX, ADDR_SP, ADDR_BP, ADDR_SI, ADDR_DI, ADDR_IB, ADDR_IW, ADDR_AL, ADDR_EAX, ADDR_EBX, ADDR_ECX, ADDR_EDX, ADDR_ESP, ADDR_EBP, ADDR_ESI, ADDR_EDI, ADDR_ID, ADDR_MASK_16, ADDR_2EAX, ADDR_2EBX, ADDR_2ECX, ADDR_2EDX, ADDR_2EBP, ADDR_2ESI, ADDR_2EDI, ADDR_4EAX, ADDR_4EBX, ADDR_4ECX, ADDR_4EDX, ADDR_4EBP, ADDR_4ESI, ADDR_4EDI, ADDR_8EAX, ADDR_8EBX, ADDR_8ECX, ADDR_8EDX, ADDR_8EBP, ADDR_8ESI, ADDR_8EDI,
 
-OP_JMP_FAR, OP_JMP_ABS, OP_CALL, OP_CALL_FAR, OP_CALL_ABS, OP_RET, OP_RET_IW, OP_RET_FAR, OP_RET_FAR_IW, OP_ENTER, OP_LEAVE, OP_JMP_08, OP_JMP_16_32, OP_JO, OP_JO_16_32, OP_JNO, OP_JNO_16_32, OP_JC, OP_JC_16_32, OP_JNC, OP_JNC_16_32, OP_JZ, OP_JZ_16_32, OP_JNZ, OP_JNZ_16_32, OP_JS, OP_JS_16_32, OP_JNS, OP_JNS_16_32, OP_JP, OP_JP_16_32, OP_JNP, OP_JNP_16_32, OP_JA, OP_JA_16_32, OP_JNA, OP_JNA_16_32, OP_JL, OP_JL_16_32, OP_JNL, OP_JNL_16_32, OP_JG, OP_JG_16_32, OP_JNG, OP_JNG_16_32, OP_INT, OP_INT3, OP_IRET, OP_IN_08, OP_IN_16_32, OP_OUT_08, OP_OUT_16_32, OP_INC, OP_DEC, OP_ADD, OP_ADC, OP_SUB, OP_SBB, OP_AND, OP_TEST, OP_OR, OP_XOR, OP_ROL_08, OP_ROL_16_32, OP_ROR_08, OP_ROR_16_32, OP_RCL_08, OP_RCL_16_32, OP_RCR_08, OP_RCR_16_32, OP_SHR, OP_SAR_08, OP_SAR_16_32, OP_NOT, OP_NEG, OP_MUL_08, OP_MUL_16_32, OP_IMULA_08, OP_IMULA_16_32, OP_IMUL_16_32, OP_BSF, OP_BSR, OP_BT_MEM, OP_BTS_MEM, OP_BTR_MEM, OP_BTC_MEM, OP_BT_16_32, OP_BTS_16_32, OP_BTR_16_32, OP_BTC_16_32, OP_SHLD_16_32, OP_SHRD_16_32, OP_CWD, OP_CDQ, OP_AAA, OP_AAD, OP_AAM, OP_AAS, OP_DAA, OP_DAS, OP_BOUND, OP_CLC, OP_STC, OP_CLI, OP_STI, OP_CLD, OP_STD, OP_CMC, OP_SETO, OP_SETNO, OP_SETC, OP_SETNC, OP_SETZ, OP_SETNZ, OP_SETA, OP_SETNA, OP_SETS, OP_SETNS, OP_SETP, OP_SETNP, OP_SETL, OP_SETNL, OP_SETG, OP_SETNG, OP_SALC, OP_CMOVO, OP_CMOVNO, OP_CMOVC, OP_CMOVNC, OP_CMOVZ, OP_CMOVNZ, OP_CMOVS, OP_CMOVNS, OP_CMOVP, OP_CMOVNP, OP_CMOVA, OP_CMOVNA, OP_CMOVL, OP_CMOVNL, OP_CMOVG, OP_CMOVNG, OP_LAHF, OP_SAHF, OP_POP, OP_POPF, OP_PUSH, OP_PUSHA, OP_POPA, OP_SIGN_EXTEND_8_16, OP_SIGN_EXTEND_8_32, OP_SIGN_EXTEND_16_32, OP_SIGN_EXTEND, OP_INSB, OP_INSW, OP_REP_INSB, OP_REP_INSW, OP_LODSB, OP_LODSW, OP_REP_LODSB, OP_REP_LODSW, OP_MOVSB, OP_MOVSW, OP_REP_MOVSB, OP_REP_MOVSW, OP_OUTSB, OP_OUTSW, OP_REP_OUTSB, OP_REP_OUTSW, OP_STOSB, OP_STOSW, OP_REP_STOSB, OP_REP_STOSW, OP_LOOP_CX, OP_LOOPZ_CX, OP_LOOPNZ_CX, OP_JCXZ, OP_HALT, OP_CPUID, OP_NOP, OP_MOV, OP_CMP, OP_BAD, OP_UNIMPLEMENTED, OP_ROTATE_08, OP_ROTATE_16_32, OP_INT0, OP_CBW, OP_PUSHF, OP_SHL, OP_80_83, OP_FF, OP_F6, OP_F7, OP_DIV_08, OP_DIV_16_32, OP_IDIV_08, OP_IDIV_16_32, OP_SCASB, OP_SCASW, OP_REPE_SCASB, OP_REPE_SCASW, OP_REPNE_SCASB, OP_REPNE_SCASW, OP_CMPSB, OP_CMPSW, OP_REPE_CMPSB, OP_REPE_CMPSW, OP_REPNE_CMPSB, OP_REPNE_CMPSW, OP_FE, OP_FLOAT_NOP, OP_SGDT, OP_SIDT, OP_LGDT, OP_LIDT, OP_SMSW, OP_LMSW, OP_F01, OP_F00, OP_SLDT, OP_STR, OP_LLDT, OP_LTR, OP_VERR, OP_VERW, OP_CLTS, OP_RDTSC, OP_FBA
+OP_JMP_FAR, OP_JMP_ABS, OP_CALL, OP_CALL_FAR, OP_CALL_ABS, OP_RET, OP_RET_IW, OP_RET_FAR, OP_RET_FAR_IW, OP_ENTER, OP_LEAVE, OP_JMP_08, OP_JMP_16_32, OP_JO, OP_JO_16_32, OP_JNO, OP_JNO_16_32, OP_JC, OP_JC_16_32, OP_JNC, OP_JNC_16_32, OP_JZ, OP_JZ_16_32, OP_JNZ, OP_JNZ_16_32, OP_JS, OP_JS_16_32, OP_JNS, OP_JNS_16_32, OP_JP, OP_JP_16_32, OP_JNP, OP_JNP_16_32, OP_JA, OP_JA_16_32, OP_JNA, OP_JNA_16_32, OP_JL, OP_JL_16_32, OP_JNL, OP_JNL_16_32, OP_JG, OP_JG_16_32, OP_JNG, OP_JNG_16_32, OP_INT, OP_INT3, OP_IRET, OP_IN_08, OP_IN_16_32, OP_OUT_08, OP_OUT_16_32, OP_INC, OP_DEC, OP_ADD, OP_ADC, OP_SUB, OP_SBB, OP_AND, OP_TEST, OP_OR, OP_XOR, OP_ROL_08, OP_ROL_16_32, OP_ROR_08, OP_ROR_16_32, OP_RCL_08, OP_RCL_16_32, OP_RCR_08, OP_RCR_16_32, OP_SHR, OP_SAR_08, OP_SAR_16_32, OP_NOT, OP_NEG, OP_MUL_08, OP_MUL_16_32, OP_IMULA_08, OP_IMULA_16_32, OP_IMUL_16_32, OP_BSF, OP_BSR, OP_BT_MEM, OP_BTS_MEM, OP_BTR_MEM, OP_BTC_MEM, OP_BT_16_32, OP_BTS_16_32, OP_BTR_16_32, OP_BTC_16_32, OP_SHLD_16_32, OP_SHRD_16_32, OP_CWD, OP_CDQ, OP_AAA, OP_AAD, OP_AAM, OP_AAS, OP_DAA, OP_DAS, OP_BOUND, OP_CLC, OP_STC, OP_CLI, OP_STI, OP_CLD, OP_STD, OP_CMC, OP_SETO, OP_SETNO, OP_SETC, OP_SETNC, OP_SETZ, OP_SETNZ, OP_SETA, OP_SETNA, OP_SETS, OP_SETNS, OP_SETP, OP_SETNP, OP_SETL, OP_SETNL, OP_SETG, OP_SETNG, OP_SALC, OP_CMOVO, OP_CMOVNO, OP_CMOVC, OP_CMOVNC, OP_CMOVZ, OP_CMOVNZ, OP_CMOVS, OP_CMOVNS, OP_CMOVP, OP_CMOVNP, OP_CMOVA, OP_CMOVNA, OP_CMOVL, OP_CMOVNL, OP_CMOVG, OP_CMOVNG, OP_LAHF, OP_SAHF, OP_POP, OP_POPF, OP_PUSH, OP_PUSHA, OP_POPA, OP_SIGN_EXTEND_8_16, OP_SIGN_EXTEND_8_32, OP_SIGN_EXTEND_16_32, OP_SIGN_EXTEND, OP_INSB, OP_INSW, OP_REP_INSB, OP_REP_INSW, OP_LODSB, OP_LODSW, OP_REP_LODSB, OP_REP_LODSW, OP_MOVSB, OP_MOVSW, OP_REP_MOVSB, OP_REP_MOVSW, OP_OUTSB, OP_OUTSW, OP_REP_OUTSB, OP_REP_OUTSW, OP_STOSB, OP_STOSW, OP_REP_STOSB, OP_REP_STOSW, OP_LOOP_CX, OP_LOOPZ_CX, OP_LOOPNZ_CX, OP_JCXZ, OP_HALT, OP_CPUID, OP_NOP, OP_MOV, OP_CMP, OP_BAD, OP_UNIMPLEMENTED, OP_ROTATE_08, OP_ROTATE_16_32, OP_INT0, OP_CBW, OP_PUSHF, OP_SHL, OP_80_83, OP_FF, OP_F6, OP_F7, OP_DIV_08, OP_DIV_16_32, OP_IDIV_08, OP_IDIV_16_32, OP_SCASB, OP_SCASW, OP_REPE_SCASB, OP_REPE_SCASW, OP_REPNE_SCASB, OP_REPNE_SCASW, OP_CMPSB, OP_CMPSW, OP_REPE_CMPSB, OP_REPE_CMPSW, OP_REPNE_CMPSB, OP_REPNE_CMPSW, OP_FE, OP_FLOAT_NOP, OP_SGDT, OP_SIDT, OP_LGDT, OP_LIDT, OP_SMSW, OP_LMSW, OP_F01, OP_F00, OP_SLDT, OP_STR, OP_LLDT, OP_LTR, OP_VERR, OP_VERW, OP_CLTS, OP_RDTSC, OP_FBA,
+
+FLOAD0_ST0, FLOAD0_STN, FLOAD0_MEM_SINGLE, FLOAD0_MEM_DOUBLE, FLOAD0_MEM_EXTENDED, FLOAD0_REG0, FLOAD0_REG0L, FLOAD0_1, FLOAD0_L2TEN, FLOAD0_L2E, FLOAD0_PI, FLOAD0_LOG2, FLOAD0_LN2, FLOAD0_POS0, FLOAD1_ST0, FLOAD1_STN, FLOAD1_MEM_SINGLE, FLOAD1_MEM_DOUBLE, FLOAD1_MEM_EXTENDED, FLOAD1_REG0, FLOAG1_REG0L, FLOAG1_POS0, FSTORE0_ST0, FSTORE0_STN, FSTORE0_MEM_SINGLE, FSTORE0_MEM_DOUBLE, FSTORE0_MEM_EXTENDED, FSTORE0_REG0, FSTORE1_ST0, FSTORE1_STN, FSTORE1_MEM_SINGLE, FSTORE1_MEM_DOUBLE, FSTORE1_MEM_EXTENDED, FSTORE1_REG0, LOAD0_FPUCW, STORE0_FPUCW, LOAD0_FPUSW, STORE0_FPUSW, FLOAD1_POS0, FLOAD1_REG0L, 
+OP_FPOP, OP_FPUSH, OP_FADD, OP_FMUL, OP_FCOM, OP_FUCOM, OP_FCOMI, OP_FUCOMI, OP_FSUB, OP_FDIV, OP_FCHS, OP_FABS, OP_FXAM, OP_F2XM1, OP_FYL2X, OP_FPTAN, OP_FPATAN, OP_FXTRACT, OP_FPREM1, OP_FDECSTP, OP_FINCSTP, OP_FPREM, OP_FYL2XP1, OP_FSQRT, OP_FSINCOD, OP_FRNDINT, OP_FSCALE, OP_FSIN, OP_FCOS, OP_FRSTOR_94, OP_FRSTOR_108, OP_FSAVE_94, OP_FSAVE_108, OP_FFREE, OP_FBCD2F, OP_FF2BCD, OP_FLDENV_14, OP_FLDENV_28, OP_FSTENV_14, OP_FSTENV_28, OP_FCMOVB, OP_FCMOVE, OP_FCMOVBE, OP_FCMOVU, OP_FCMOVNB, OP_FCMOVNE, OP_FCMOVNBE, OP_FCMOVNU, OP_FCHOP, OP_FCLEX, OP_FINIT, OP_FCHECK0, OP_FCHECK1, OP_FXSAVE, OP_FSINCOS, FWAIT
 }
 enum GUICODE
 {
@@ -7505,7 +7600,7 @@ private static int[] modrmTable = new int[]
 
 //this list, indexed by the opcode, tells whether the instruction has an SIB byte
 //the SIB is only relevent in 32-bit opcode mode
-private static int[] sibTable = new int[]
+static int[] sibTable = new int[]
 {
 0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,
 0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,

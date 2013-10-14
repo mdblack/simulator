@@ -17,7 +17,15 @@ public class MakeDiskGUI extends AbstractGUI
 	private JButton makebutton;
 
 	private String[] templates=null,templatenames=null;
+	
+	public int cylinders=0, heads=0, sectors=0;
+	public String name="";
 
+	public MakeDiskGUI(Computer computer, boolean visible)
+	{
+		super(computer,"Construct Disk Image",MARGIN*3+TEXTWIDTH,(ROWSIZE+10)*7,false,false,false,true);
+		
+	}
 	public MakeDiskGUI(Computer computer)
 	{
 		super(computer,"Construct Disk Image",MARGIN*3+TEXTWIDTH,(ROWSIZE+10)*7,false,false,false,true);
@@ -106,7 +114,7 @@ public class MakeDiskGUI extends AbstractGUI
 		cancelbutton.setBounds(3*(MARGIN*3+TEXTWIDTH)/4-TEXTWIDTH/4,10+(ROWSIZE+10)*4,TEXTWIDTH/2,ROWSIZE);
 		cancelbutton.addActionListener(new ActionListener() { public void actionPerformed(ActionEvent e) 
 			{
-				frame.setVisible(false);
+				setVisible(false);
 				if (computer.computerGUI.singleFrame)
 					computer.computerGUI.removeComponent(computer.makeDiskGUI);
 			} } );
@@ -115,9 +123,17 @@ public class MakeDiskGUI extends AbstractGUI
 
 	private void constructImage()
 	{
+		if (templatelist.getSelectedIndex()==-1)
+			return;
 		String tname=templates[templatelist.getSelectedIndex()];
 //		tname="simulator/resource/"+tname;
 		String outname=namefield.getText();
+		constructImage(tname,outname);
+	}
+	
+	public void constructImage(String tname, String outname)
+	{
+		name=outname;
 		String temp=tname.substring(tname.indexOf("_")+1,tname.length());
 		int size;
 		if (temp.charAt(0)=='f')
@@ -131,6 +147,9 @@ public class MakeDiskGUI extends AbstractGUI
 			int s = Integer.parseInt(temp.substring(0,temp.indexOf("_")));
 			temp=temp.substring(temp.indexOf("_")+1,temp.length());
 			size=c*h*s*512;
+			cylinders=c;
+			heads=h;
+			sectors=s;
 		}
 
 		byte[] image=new byte[size];
@@ -165,9 +184,10 @@ public class MakeDiskGUI extends AbstractGUI
 		}
 
 
-		frame.setVisible(false);
-		if (computer.computerGUI.singleFrame)
-			computer.computerGUI.removeComponent(computer.makeDiskGUI);
+		setVisible(false);
+		if (computer.bootgui!=null)
+			computer.bootgui.editdisk(name,cylinders,heads,sectors);
+//		close();
 	}
 
 }

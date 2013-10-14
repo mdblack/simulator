@@ -80,7 +80,7 @@ public class DiskSectorGUI extends AbstractGUI
 		this.name=name;
 		this.disk=disk;
 
-		frame.setTitle(name);
+		setTitle(name);
 		decodeDiskParameters();
 
 		refresh();

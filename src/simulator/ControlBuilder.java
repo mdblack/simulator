@@ -3,7 +3,16 @@ import java.awt.*;
 import java.awt.event.*;
 
 import javax.swing.*;
+
+import simulator.AbstractGUI.GUIComponent;
+import simulator.DatapathBuilder.Block;
+import simulator.DatapathBuilder.Bus;
+import simulator.DatapathBuilder.DatapathModule;
+import simulator.DatapathBuilder.DrawingComponent;
+import simulator.DatapathBuilder.ToolComponent;
+
 import java.io.*;
+import java.util.ConcurrentModificationException;
 import java.util.Scanner;
 import java.util.ArrayList;
 
@@ -11,20 +20,97 @@ public class ControlBuilder extends AbstractGUI
 {
 	private static final int ROWHEIGHT=20,LABELWIDTH=100,TEXTWIDTH=50,MICROINSTRUCTIONWIDTH=200,GAPWIDTH=5;
 
+	public ControlModule defaultControl;
 	public ControlControl controlControl;
+	public DrawingComponent drawingcomponent;
 
-	public Vector controlPaths;
-
-	public int selectedRow=-1;
-	public boolean[] highlightedRows=new boolean[1];
-
-	public ControlBuilder(Computer computer)
+	public ControlBuilder(Computer computer, DatapathBuilder.DatapathModule datapathModule)
 	{
-		super(computer,"Control Builder",800,800,true,true,false,false);
-		controlControl=new ControlControl(computer);
-		controlPaths=new Vector();
+		super(computer,"Control Builder",800,800,true,false,false,false);
+		computer.controlBuilder=this;
+		defaultControl=new ControlModule(computer,datapathModule);
 
 		refresh();
+
+		defaultControl.makeSimpleControl();
+	}
+
+	public void constructGUI(GUIComponent guiComponent)
+	{
+		JScrollPane scroll;
+		controlControl=new ControlControl();
+		scroll=new JScrollPane(controlControl);
+		scroll.setBounds(0,0,controlControl.width+20,frameY-STATUSSIZE);
+		guiComponent.add(scroll);
+		drawingcomponent=new DrawingComponent();
+		drawingcomponent.addMouseListener(new MouseListener(){
+			public void mouseClicked(MouseEvent arg0) {
+				mouseClick(arg0);
+			}
+			public void mouseEntered(MouseEvent arg0) {}
+			public void mouseExited(MouseEvent arg0) {}
+			public void mousePressed(MouseEvent arg0) {}
+			public void mouseReleased(MouseEvent arg0) {}});
+		guiComponent.add(drawingcomponent.scroll);
+	}
+	public class DrawingComponent extends JComponent
+	{
+		Block tempblock=null;
+		Bus tempbus1=null,tempbus2=null;
+		JScrollPane scroll;
+		public DrawingComponent()
+		{
+			super();
+			scroll=new JScrollPane(this);
+			scroll.setBounds(controlControl.width+20,0,frameX-controlControl.width-20,frameY-STATUSSIZE);
+		}
+		public void restoreSize()
+		{
+			scroll.setBounds(controlControl.width+20,0,frameX-controlControl.width-20,frameY-STATUSSIZE);			
+		}
+		public Dimension getPreferredSize()
+		{
+			return new Dimension(width(),height());
+		}
+		public void paintComponent(Graphics g)
+		{
+			g.setColor(Color.WHITE);
+			g.fillRect(0,0,width(),height());
+			doPaint(g);
+		}
+		public void doPaint(Graphics g)
+		{
+			if (computer.controlBuilder==null) return;
+			int rows=0;
+			for (int i=0; i<defaultControl.controlPaths.size(); i++)
+			{
+				((ControlPath)defaultControl.controlPaths.elementAt(i)).doPaint(g,rows++);
+				for (int j=0; j<((ControlPath)(defaultControl.controlPaths.elementAt(i))).controlStates.size(); j++)
+				{
+					((ControlState)((ControlPath)defaultControl.controlPaths.elementAt(i)).controlStates.elementAt(j)).doPaint(g,rows++);
+					for (int k=0; k<((ControlState)(((ControlPath)(defaultControl.controlPaths.elementAt(i))).controlStates.elementAt(j))).controlInstructions.size(); k++)
+					{
+						((ControlInstruction)((ControlState)((ControlPath)defaultControl.controlPaths.elementAt(i)).controlStates.elementAt(j)).controlInstructions.elementAt(k)).doPaint(g,rows++);
+					}
+					for (int k=0; k<((ControlState)(((ControlPath)(defaultControl.controlPaths.elementAt(i))).controlStates.elementAt(j))).nextStates.size(); k++)
+					{
+						((NextState)((ControlState)((ControlPath)defaultControl.controlPaths.elementAt(i)).controlStates.elementAt(j)).nextStates.elementAt(k)).doPaint(g,rows++);
+					}
+				}
+			}
+
+//			if (computer.datapathBuilder!=null)
+			{
+				g.setColor(Color.BLACK);
+				g.drawLine(defaultControl.field1width(),0,defaultControl.field1width(),height());
+				g.drawLine(defaultControl.field1width()+defaultControl.field2width(),0,defaultControl.field1width()+defaultControl.field2width(),height());
+			}
+		}
+	}
+	
+	public void makeSimpleControl()
+	{
+		defaultControl.makeSimpleControl();
 	}
 
 	public void closeGUI()
@@ -32,192 +118,40 @@ public class ControlBuilder extends AbstractGUI
 		computer.controlBuilder=null;
 	}
 	
-	public int field1width()
-	{
-		int w=GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*computer.datapathBuilder.controlOutputs().length+GAPWIDTH;
-		if (w<200)
-			w=200;
-		return w;
-	}
-
-	public int field2width()
-	{
-		int w=GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*computer.datapathBuilder.controlInputs().length+GAPWIDTH;
-		if (w<200)
-			w=200;
-		return w;
-	}
-
-	public int field3width()
-	{
-		return MICROINSTRUCTIONWIDTH;
-	}
-
 	public int width()
 	{
-		if (computer.datapathBuilder!=null)
-			return field1width()+field2width()+field3width();
-		return 1000;
+		return defaultControl.width();
 	}
 	public int height()
 	{
-		int rows=0;
-		for (int i=0; i<controlPaths.size(); i++)
-		{
-			rows++;
-			for (int j=0; j<((ControlPath)(controlPaths.elementAt(i))).controlStates.size(); j++)
-			{
-				rows++;
-				for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).controlInstructions.size(); k++)
-				{
-					rows++;
-				}
-				for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).nextStates.size(); k++)
-				{
-					rows++;
-				}
-			}
-		}
-		if (rows!=highlightedRows.length)
-			highlightedRows=new boolean[rows];
-		return rows*ROWHEIGHT;
-	}
-	public void resetHighlights()
-	{
-		highlightedRows=new boolean[highlightedRows.length];
+		return defaultControl.height();
 	}
 
 	public void mouseClick(MouseEvent e)
 	{
-		if (selectedRow==e.getY()/ROWHEIGHT)
-			selectedRow=-1;
+		controlControl.unprompt();
+		if (defaultControl.selectedRow==e.getY()/ROWHEIGHT)
+			defaultControl.selectedRow=-1;
 		else
-			selectedRow=e.getY()/ROWHEIGHT;
-		if ((getSelectedVector().elementAt(getSelectedIndex())).type==2)
-			((ControlInstruction)(getSelectedVector().elementAt(getSelectedIndex()))).doHighlight();
+			defaultControl.selectedRow=e.getY()/ROWHEIGHT;
+		
+		if (defaultControl.selectedRow>=0 && defaultControl.getSelectedVector()!=null)
+			defaultControl.getSelectedVector().elementAt(defaultControl.getSelectedIndex()).doMouse();
 		repaint();
 	}
 
-	public void doPaint(Graphics g)
-	{
-		int rows=0;
-		for (int i=0; i<controlPaths.size(); i++)
-		{
-			((ControlPath)controlPaths.elementAt(i)).doPaint(g,rows++);
-			for (int j=0; j<((ControlPath)(controlPaths.elementAt(i))).controlStates.size(); j++)
-			{
-				((ControlState)((ControlPath)controlPaths.elementAt(i)).controlStates.elementAt(j)).doPaint(g,rows++);
-				for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).controlInstructions.size(); k++)
-				{
-					((ControlInstruction)((ControlState)((ControlPath)controlPaths.elementAt(i)).controlStates.elementAt(j)).controlInstructions.elementAt(k)).doPaint(g,rows++);
-				}
-				for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).nextStates.size(); k++)
-				{
-					((NextState)((ControlState)((ControlPath)controlPaths.elementAt(i)).controlStates.elementAt(j)).nextStates.elementAt(k)).doPaint(g,rows++);
-				}
-			}
-		}
 
-		if (computer.datapathBuilder!=null)
-		{
-			g.setColor(Color.BLACK);
-			g.drawLine(field1width(),0,field1width(),height());
-			g.drawLine(field1width()+field2width(),0,field1width()+field2width(),height());
-		}
-	}
 
-	public Vector getSelectedVector()
-	{
-		if (selectedRow==-1) return null;
-		
-		int row=0;
-		for (int i=0; i<controlPaths.size(); i++)
-		{
-			if (row==selectedRow) return controlPaths;
-			row++;
-			for (int j=0; j<((ControlPath)(controlPaths.elementAt(i))).controlStates.size(); j++)
-			{
-				if(row==selectedRow) return ((ControlPath)controlPaths.elementAt(i)).controlStates;
-				row++;
-				for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).controlInstructions.size(); k++)
-				{
-					if (row==selectedRow) return ((ControlState)((ControlPath)controlPaths.elementAt(i)).controlStates.elementAt(j)).controlInstructions;
-					row++;
-				}
-				for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).nextStates.size(); k++)
-				{
-					if (row==selectedRow) return ((ControlState)((ControlPath)controlPaths.elementAt(i)).controlStates.elementAt(j)).nextStates;
-					row++;
-				}
-			}
-		}
-		return null;
-	}
-
-	public int getSelectedIndex()
-	{
-		if (selectedRow==-1) return -1;
-		
-		int row=0;
-		for (int i=0; i<controlPaths.size(); i++)
-		{
-			if (row==selectedRow) return i;
-			row++;
-			for (int j=0; j<((ControlPath)(controlPaths.elementAt(i))).controlStates.size(); j++)
-			{
-				if(row==selectedRow) return j;
-				row++;
-				for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).controlInstructions.size(); k++)
-				{
-					if (row==selectedRow) return k;
-					row++;
-				}
-				for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).nextStates.size(); k++)
-				{
-					if (row==selectedRow) return k;
-					row++;
-				}
-			}
-		}
-		return -1;
-	}
-
-	public String getXML()
-	{
-		String x="<control>\n";
-		for (int i=0; i<controlPaths.size(); i++)
-			x+=((ControlPath)(controlPaths.elementAt(i))).getXML();
-		x+="</control>\n";
-		return x;
-	}
-
-	public void parseXML(String[] elements)
-	{
-		if (!elements[0].equals("<control>")) return;
-		for (int i=1; i<elements.length-1; i++)
-		{
-			if (elements[i].equals("<control path>"))
-			{
-				int j;
-				for (j=i; ;j++)
-					if(elements[j].equals("</control path>"))
-						break;
-				String[] m=new String[j-i+1];
-				for (int k=i; k<=j; k++)
-					m[k-i]=elements[k];
-				ControlPath n=new ControlPath("");
-				controlPaths.add(n);
-				n.parseXML(m);
-			}
-		}
-	}
-
-	public abstract class ControlRow
+	public static abstract class ControlRow
 	{
 		public String name;
 		public int type;
-		public ControlRow(String name, int type)
+		public ControlModule module;
+		public Computer computer;
+		public ControlRow(Computer computer, String name, int type, ControlModule module)
 		{
+			this.computer=computer;
+			this.module=module;
 			this.name=name;
 			this.type=type;
 		}
@@ -225,25 +159,38 @@ public class ControlBuilder extends AbstractGUI
 		public abstract String getXML();
 		public abstract void parseXML(String[] elements);
 		public abstract void remove();
+		public abstract void rename(String s);
+		public abstract void doMouse();
 	}
 
-	public class ControlPath extends ControlRow
+	public static class ControlPath extends ControlRow
 	{
 		public Vector controlStates;
 		public int row;
 		private JLabel label;
 
-		public ControlPath(String name)
+		public ControlPath(Computer computer, String name, ControlModule controlModule, boolean autoGenerate)
 		{
-			super(name,0);
+			super(computer,name,0,controlModule);
 			controlStates=new Vector();
+			if (autoGenerate)
+				controlStates.add(new ControlState(computer,"start",controlModule, true));
 			label=new JLabel("CONTROL PATH: "+name);
 			label.setBounds(0,row*ROWHEIGHT+1,200,ROWHEIGHT-2);
-			guiComponent.add(label);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(label);
+		}
+		public void doMouse()
+		{
+			computer.controlBuilder.controlControl.prompt(name);
+		}
+		public void rename(String s)
+		{
+			name=s;
+			label.setText("CONTROL PATH: "+name);
 		}
 		public void remove()
 		{
-			guiComponent.remove(label);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.remove(label);
 			for (int i=0; i<controlStates.size(); i++)
 				controlStates.elementAt(i).remove();
 		}
@@ -255,13 +202,13 @@ public class ControlBuilder extends AbstractGUI
 		{
 			this.row=row;
 			setComponentRow();
-			if (row==selectedRow)
+			if (row==module.selectedRow)
 				g.setColor(new Color(205,100,205));
-			else if (highlightedRows[row])
+			else if (module.highlightedRows[row])
 				g.setColor(new Color(255,100,205));
 			else
 				g.setColor(new Color(255,150,255));
-			g.fillRect(0,row*ROWHEIGHT,width(),ROWHEIGHT);
+			g.fillRect(0,row*ROWHEIGHT,module.width(),ROWHEIGHT);
 			g.setColor(Color.BLACK);
 		}
 		public String getXML()
@@ -291,7 +238,7 @@ public class ControlBuilder extends AbstractGUI
 					String[] m=new String[j-i+1];
 					for (int k=i; k<=j; k++)
 						m[k-i]=elements[k];
-					ControlState n=new ControlState("");
+					ControlState n=new ControlState(computer,"",module,false);
 					controlStates.add(n);
 					n.parseXML(m);
 				}
@@ -299,7 +246,7 @@ public class ControlBuilder extends AbstractGUI
 		}
 	}
 
-	public class ControlState extends ControlRow
+	public static class ControlState extends ControlRow
 	{
 		public Vector controlInstructions;
 		public Vector nextStates;
@@ -307,19 +254,34 @@ public class ControlBuilder extends AbstractGUI
 		public int row;
 		private JLabel label;
 
-		public ControlState(String name)
+		public ControlState(Computer computer, String name, ControlModule module, boolean autoGenerate)
 		{
-			super(name,1);
+			super(computer,name,1,module);
 			controlInstructions=new Vector();
 			nextStates=new Vector();
+			if (autoGenerate)
+			{
+				controlInstructions.add(new ControlInstruction(computer,"",module));
+				nextStates.add(new NextState(computer,name,module));
+			}
 			label=new JLabel("STATE: "+name);
 			label.setBounds(0,row*ROWHEIGHT+1,200,ROWHEIGHT-2);
-			guiComponent.add(label);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(label);
 		}
 
+		public void doMouse()
+		{
+			computer.controlBuilder.controlControl.prompt(name);
+		}
+
+		public void rename(String s)
+		{
+			name=s;
+			label.setText("STATE: "+name);
+		}
 		public void remove()
 		{
-			guiComponent.remove(label);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.remove(label);
 			for (int i=0; i<controlInstructions.size(); i++)
 				controlInstructions.elementAt(i).remove();
 			for (int i=0; i<nextStates.size(); i++)
@@ -334,13 +296,13 @@ public class ControlBuilder extends AbstractGUI
 		{
 			this.row=row;
 			setComponentRow();
-			if (row==selectedRow)
+			if (row==module.selectedRow)
 				g.setColor(new Color(100,100,205));
-			else if (highlightedRows[row])
+			else if (row<module.highlightedRows.length&&module.highlightedRows[row])
 				g.setColor(new Color(150,100,205));
 			else
 				g.setColor(new Color(150,150,255));
-			g.fillRect(0,row*ROWHEIGHT,width(),ROWHEIGHT);
+			g.fillRect(0,row*ROWHEIGHT,module.width(),ROWHEIGHT);
 			g.setColor(Color.BLACK);
 		}
 
@@ -373,7 +335,7 @@ public class ControlBuilder extends AbstractGUI
 					String[] m=new String[j-i+1];
 					for (int k=i; k<=j; k++)
 						m[k-i]=elements[k];
-					ControlInstruction n=new ControlInstruction("");
+					ControlInstruction n=new ControlInstruction(computer,"",module);
 					controlInstructions.add(n);
 					n.parseXML(m);
 				}
@@ -386,7 +348,7 @@ public class ControlBuilder extends AbstractGUI
 					String[] m=new String[j-i+1];
 					for (int k=i; k<=j; k++)
 						m[k-i]=elements[k];
-					NextState n=new NextState("");
+					NextState n=new NextState(computer,"",module);
 					nextStates.add(n);
 					n.parseXML(m);
 				}
@@ -394,7 +356,7 @@ public class ControlBuilder extends AbstractGUI
 		}
 	}
 
-	public class ControlInstruction extends ControlRow
+	public static class ControlInstruction extends ControlRow
 	{
 		public int row;
 		public JList[] controlInputList;
@@ -405,28 +367,41 @@ public class ControlBuilder extends AbstractGUI
 		public JLabel[] controlOutputName;
 		public JCheckBox[] controlOutputBox;
 		private int[] controlOutputType;
-		DatapathBuilder.Block[] blockpath=null;
+		public JLabel controlInputLabel;
+		DatapathBuilder.Part[] blockpath=null;
 
 		public ArrayList<String> microcodes;
 		
 		public boolean valid=false;
 		
+		public void doMouse()
+		{
+			doHighlight();
+			showDetails();
+//			computer.controlBuilder.controlControl.edit.setVisible(true);
+			computer.controlBuilder.controlControl.edit.setText("");
+			computer.controlBuilder.controlControl.update.setText("Trace");
+			computer.controlBuilder.controlControl.update.setVisible(true);
+		}
 		//illuminate all the block paths
 		public void doHighlight()
 		{
-			computer.datapathBuilder.unselectAll();
+			String label="";
+			if (module==computer.controlBuilder.defaultControl) computer.datapathBuilder.unselectAll();
 			for (String microcode:microcodes)
 			{
 				String[] nameParts=microcode.split(" ");
 				if (nameParts.length>=2)
 				{
-					blockpath=computer.datapathBuilder.tracePath(nameParts[0], nameParts[nameParts.length-1]);
+					blockpath=module.datapathModule.tracePath(nameParts[0], nameParts[nameParts.length-1]);
 					if (blockpath!=null)
 						for (int i=0; i<blockpath.length; i++)
 							blockpath[i].selected=true;
+					label+=nameParts[0]+"->"+nameParts[nameParts.length-1]+";  ";
 				}
 			}
-			computer.datapathBuilder.repaint();
+			if (module==computer.controlBuilder.defaultControl) computer.datapathBuilder.repaint();
+			computer.controlBuilder.setStatusLabel(label);
 		}
 		
 		public boolean modifyControlInstruction(String name)
@@ -435,14 +410,17 @@ public class ControlBuilder extends AbstractGUI
 			String[] nameParts=name.split(" ");
 			if (nameParts.length>=2)
 			{
-				blockpath=computer.datapathBuilder.tracePath(nameParts[0], nameParts[nameParts.length-1]);
+				blockpath=module.datapathModule.tracePath(nameParts[0], nameParts[nameParts.length-1]);
 				if (blockpath!=null)
 				{
-					//highlight the blocks on the path
-					computer.datapathBuilder.unselectAll();
-					for (int i=0; i<blockpath.length; i++)
-						blockpath[i].selected=true;
-					computer.datapathBuilder.repaint();
+					if (module==computer.controlBuilder.defaultControl)
+					{
+						//highlight the blocks on the path
+						computer.datapathBuilder.unselectAll();
+						for (int i=0; i<blockpath.length; i++)
+							blockpath[i].selected=true;
+						computer.datapathBuilder.repaint();
+					}
 				}
 				else
 					return false;
@@ -455,7 +433,7 @@ public class ControlBuilder extends AbstractGUI
 						{
 							if (blockpath[i].name.equals(controlOutputName[j].getText()))
 							{
-								DatapathBuilder.Block[] muxinputs=blockpath[i].getInputBlocks();
+								DatapathBuilder.Part[] muxinputs=blockpath[i].getInputBlocks();
 								for (int k=0; k<muxinputs.length; k++)
 								{
 									if (muxinputs[k]==blockpath[i+1])
@@ -482,31 +460,32 @@ public class ControlBuilder extends AbstractGUI
 					}
 				}
 				microcodes.add(name);
+				doHighlight();
 				return true;
 			}
 			else
 				return false;
 		}
 		
-		public ControlInstruction(String name)
+		public ControlInstruction(Computer computer, String name, ControlModule module)
 		{
-			super(name,2);
-			if (computer.datapathBuilder==null)
-				return;
-			
+			super(computer,name,2,module);
+//			if (computer.datapathBuilder==null)
+//				return;
+//System.out.println("new control instruction: "+name);			
 			microcodes=new ArrayList<String>();
 			
 			//decode the name: should consist of two elements: start block, end block, or no elements for user selection
 			String[] nameParts=name.split(" ");
 			if (nameParts.length>=2)
-				blockpath=computer.datapathBuilder.tracePath(nameParts[0], nameParts[nameParts.length-1]);
+				blockpath=module.datapathModule.tracePath(nameParts[0], nameParts[nameParts.length-1]);
 			//don't add a row if there is an invalid path specified
 			if (blockpath==null && !name.equals("")) 
 				return;
 			
 			valid=true;
 			
-			String[] ci=computer.datapathBuilder.controlOutputs();
+			String[] ci=module.datapathModule.controlOutputs();
 			controlInputList=new JList[ci.length];
 			controlInputListPane=new JScrollPane[ci.length];
 			controlInputName=new JLabel[ci.length];
@@ -525,11 +504,15 @@ public class ControlBuilder extends AbstractGUI
 				controlInputList[i].setSelectedIndex(0);
 				controlInputListPane[i]=new JScrollPane(controlInputList[i]);
 				controlInputListPane[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
-				computer.controlBuilder.guiComponent.add(controlInputName[i]);
-				computer.controlBuilder.guiComponent.add(controlInputListPane[i]);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(controlInputName[i]);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(controlInputListPane[i]);
 			}
+			controlInputLabel=new JLabel();
+			controlInputLabel.setBounds(GAPWIDTH, row*ROWHEIGHT+1, (LABELWIDTH+TEXTWIDTH)*ci.length, ROWHEIGHT-2);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(controlInputLabel);
 
-			String[] co=computer.datapathBuilder.controlInputs();
+			String[] co=module.datapathModule.controlInputs();
+
 			controlOutputName=new JLabel[co.length];
 			controlOutputList=new JList[co.length];
 			controlOutputListPane=new JScrollPane[co.length];
@@ -537,13 +520,14 @@ public class ControlBuilder extends AbstractGUI
 			controlOutputType=new int[co.length];
 			for (int i=0; i<co.length; i++)
 			{
+//System.out.println("control output: "+co[i]);
 				int w=Integer.parseInt(co[i].substring(0,co[i].indexOf(" ")));
 				String n=co[i].substring(co[i].indexOf(" ")+1,co[i].length());
 				String t=n.substring(0,n.indexOf(" "));
 				n=n.substring(n.indexOf(" ")+1,n.length());
 				controlOutputName[i]=new JLabel(n);
 				controlOutputName[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*ci.length+GAPWIDTH*2+(LABELWIDTH+TEXTWIDTH)*i+TEXTWIDTH,row*ROWHEIGHT+1,LABELWIDTH-3,ROWHEIGHT-2);
-				computer.controlBuilder.guiComponent.add(controlOutputName[i]);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(controlOutputName[i]);
 				if (t.equals("mux"))
 				{
 					String[] v=new String[w+1];
@@ -562,7 +546,7 @@ public class ControlBuilder extends AbstractGUI
 						{
 							if (blockpath[j].name.equals(n))
 							{
-								DatapathBuilder.Block[] muxinputs=blockpath[j].getInputBlocks();
+								DatapathBuilder.Part[] muxinputs=blockpath[j].getInputBlocks();
 								for (int k=0; k<muxinputs.length; k++)
 								{
 									if (muxinputs[k]==blockpath[j+1])
@@ -590,8 +574,8 @@ public class ControlBuilder extends AbstractGUI
 					controlOutputListPane[i].setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 					controlOutputType[i]=3;
 				}
-				controlOutputListPane[i].setBounds(field1width()+GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
-				computer.controlBuilder.guiComponent.add(controlOutputListPane[i]);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) controlOutputListPane[i].setBounds(computer.controlBuilder.defaultControl.field1width()+GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(controlOutputListPane[i]);
 			}
 			modifyControlInstruction(name);
 		}
@@ -603,48 +587,89 @@ public class ControlBuilder extends AbstractGUI
 					return false;
 			return true;
 		}
+		private void generateControlInputLabel()
+		{
+			String label="IF ";
+			for (int i=0; i<controlInputList.length; i++)
+				if (controlInputList[i].getSelectedIndex()>0)
+				{
+					if (!label.equals("IF "))
+						label+=" AND ";
+					label+=controlInputName[i].getText()+"==";
+					label+=controlInputList[i].getSelectedValue();
+				}
+			if (label.equals("IF "))
+				label="DEFAULT";
+			controlInputLabel.setText(label);
+		}
+		
+		public void showDetails()
+		{
+			for (int i=0; i<controlInputList.length; i++)
+			{
+				controlInputListPane[i].setVisible(true);
+				controlInputName[i].setVisible(true);
+			}
+			controlInputLabel.setVisible(false);
+		}
+		public void hideDetails()
+		{
+			for (int i=0; i<controlInputList.length; i++)
+			{
+				controlInputListPane[i].setVisible(false);
+				controlInputName[i].setVisible(false);
+			}
+			generateControlInputLabel();
+			controlInputLabel.setVisible(true);
+		}
 
+		public void rename(String s){}
+		
 		public void remove()
 		{
 			for (int i=0; i<controlInputListPane.length; i++)
-				computer.controlBuilder.guiComponent.remove(controlInputListPane[i]);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.remove(controlInputListPane[i]);
 			for (int i=0; i<controlOutputListPane.length; i++)
-				computer.controlBuilder.guiComponent.remove(controlOutputListPane[i]);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.remove(controlOutputListPane[i]);
 			for (int i=0; i<controlInputName.length; i++)
-				computer.controlBuilder.guiComponent.remove(controlInputName[i]);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.remove(controlInputName[i]);
 			for (int i=0; i<controlOutputName.length; i++)
-				computer.controlBuilder.guiComponent.remove(controlOutputName[i]);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.remove(controlOutputName[i]);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) 		 computer.controlBuilder.drawingcomponent.remove(controlInputLabel);
 		}
 
 		private void setComponentRow()
 		{
-			if (computer.datapathBuilder==null) return;
+//			if (computer.datapathBuilder==null) return;
 			for (int i=0; i<controlInputList.length; i++)
 				controlInputListPane[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
 			for (int i=0; i<controlInputName.length; i++)
 				controlInputName[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i+TEXTWIDTH,row*ROWHEIGHT+1,LABELWIDTH-3,ROWHEIGHT-2);
 			for (int i=0; i<controlOutputListPane.length; i++)
-				controlOutputListPane[i].setBounds(field1width()+GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) controlOutputListPane[i].setBounds(computer.controlBuilder.defaultControl.field1width()+GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
 			for (int i=0; i<controlOutputName.length; i++)
-				controlOutputName[i].setBounds(field1width()+GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i+TEXTWIDTH,row*ROWHEIGHT+1,LABELWIDTH-3,ROWHEIGHT-2);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) controlOutputName[i].setBounds(computer.controlBuilder.defaultControl.field1width()+GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i+TEXTWIDTH,row*ROWHEIGHT+1,LABELWIDTH-3,ROWHEIGHT-2);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) controlInputLabel.setBounds(GAPWIDTH, row*ROWHEIGHT+1, (LABELWIDTH+TEXTWIDTH)*computer.controlBuilder.defaultControl.field1width(), ROWHEIGHT-2);
 		}
 
 		public void doPaint(Graphics g, int row)
 		{
 			this.row=row;
 			setComponentRow();
-			if (row==selectedRow)
+			if (row==module.selectedRow)
 				g.setColor(new Color(205,205,100));
-			else if (highlightedRows[row])
+			else if (row<module.highlightedRows.length && module.highlightedRows[row])
 				g.setColor(new Color(255,205,100));
 			else
 				g.setColor(new Color(255,255,150));
-			g.fillRect(0,row*ROWHEIGHT,width(),ROWHEIGHT);
+			g.fillRect(0,row*ROWHEIGHT,computer.controlBuilder.defaultControl.width(),ROWHEIGHT);
+			if (row!=module.selectedRow)
+				hideDetails();
 		}
 
 		public boolean isActive()
 		{
-			if (computer.datapathBuilder==null) return false;
+//			if (computer.datapathBuilder==null) return false;
 
 			for (int i=0; i<controlInputList.length; i++)
 			{
@@ -652,7 +677,7 @@ public class ControlBuilder extends AbstractGUI
 				if (s==null || s.equals("") || s.equals("X"))
 					continue;
 				
-				DatapathBuilder.Block b=computer.datapathBuilder.getBlock(controlInputName[i].getText());
+				DatapathBuilder.Block b=module.datapathModule.getBlock(controlInputName[i].getText());
 				if (Long.toHexString(b.getValue()).equals(s))
 					continue;
 				return false;
@@ -662,8 +687,7 @@ public class ControlBuilder extends AbstractGUI
 
 		public void doInstruction()
 		{
-			if (computer.datapathBuilder==null) return;
-
+//			if (computer.datapathBuilder==null) return;
 			for (int i=0; i<controlOutputList.length; i++)
 			{
 				String s=null;
@@ -674,7 +698,7 @@ public class ControlBuilder extends AbstractGUI
 						s="";
 				}
 
-				DatapathBuilder.Block b=computer.datapathBuilder.getBlock(controlOutputName[i].getText());
+				DatapathBuilder.Block b=module.datapathModule.getBlock(controlOutputName[i].getText());
 				if (s==null && controlOutputBox[i].isSelected())
 					b.clockSetting=true;
 				else if (s!=null && !s.equals("X")&&!s.equals(""))
@@ -766,23 +790,24 @@ public class ControlBuilder extends AbstractGUI
 		}
 	}
 
-	public class NextState extends ControlRow
+	public static class NextState extends ControlRow
 	{
-		public String state;
+//		public String state;
 		public int row;
 
 		public JList[] controlInputList;
 		public JScrollPane[] controlInputListPane;
 		public JLabel[] controlInputName;
 		private JLabel nextStateLabel;
+		private JLabel controlInputLabel;
 
-		public NextState(String name)
+		public NextState(Computer computer, String name, ControlModule module)
 		{
-			super(name,3);
-			this.state=name;
-			if (computer.datapathBuilder!=null)
-			{
-				String[] ci=computer.datapathBuilder.controlOutputs();
+			super(computer,name,3,module);
+//			this.state=name;
+//			if (computer.datapathBuilder!=null)
+//			{
+				String[] ci=module.datapathModule.controlOutputs();
 				controlInputList=new JList[ci.length];
 				controlInputListPane=new JScrollPane[ci.length];
 				controlInputName=new JLabel[ci.length];
@@ -801,28 +826,82 @@ public class ControlBuilder extends AbstractGUI
 
 					controlInputListPane[i]=new JScrollPane(controlInputList[i]);
 					controlInputListPane[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
-					computer.controlBuilder.guiComponent.add(controlInputName[i]);
-					computer.controlBuilder.guiComponent.add(controlInputListPane[i]);
+					if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(controlInputName[i]);
+					if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(controlInputListPane[i]);
 				}
-			}
+//			}
+			controlInputLabel=new JLabel();
+			controlInputLabel.setBounds(GAPWIDTH, row*ROWHEIGHT+1, (LABELWIDTH+TEXTWIDTH)*ci.length, ROWHEIGHT-2);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(controlInputLabel);
+
 			nextStateLabel=new JLabel("NEXT STATE: "+name);
 			if (controlInputListPane!=null)
-				nextStateLabel.setBounds(GAPWIDTH+field1width(),row*ROWHEIGHT+1,field2width()-GAPWIDTH*2,ROWHEIGHT-2);
-			computer.controlBuilder.guiComponent.add(nextStateLabel);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) nextStateLabel.setBounds(GAPWIDTH+computer.controlBuilder.defaultControl.field1width(),row*ROWHEIGHT+1,computer.controlBuilder.defaultControl.field2width()-GAPWIDTH*2,ROWHEIGHT-2);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.add(nextStateLabel);
 		}
 
+		public void doMouse()
+		{
+			showDetails();
+			computer.controlBuilder.controlControl.prompt(name);
+		}
+
+		private void generateControlInputLabel()
+		{
+			String label="IF ";
+			for (int i=0; i<controlInputList.length; i++)
+				if (controlInputList[i].getSelectedIndex()>0)
+				{
+					if (!label.equals("IF "))
+						label+=" AND ";
+					label+=controlInputName[i].getText()+"==";
+					label+=controlInputList[i].getSelectedValue();
+				}
+			if (label.equals("IF "))
+				label="DEFAULT";
+			controlInputLabel.setText(label);
+		}
+		
+		public void showDetails()
+		{
+			for (int i=0; i<controlInputList.length; i++)
+			{
+				controlInputListPane[i].setVisible(true);
+				controlInputName[i].setVisible(true);
+			}
+			controlInputLabel.setVisible(false);
+		}
+		public void hideDetails()
+		{
+			for (int i=0; i<controlInputList.length; i++)
+			{
+				controlInputListPane[i].setVisible(false);
+				controlInputName[i].setVisible(false);
+			}
+			generateControlInputLabel();
+			controlInputLabel.setVisible(true);
+		}
+
+		public void rename(String s)
+		{
+			name=s;
+//			state=s;
+			nextStateLabel.setText("NEXT STATE: "+name);
+		}
+		
 		public void remove()
 		{
 			for (int i=0; i<controlInputListPane.length; i++)
-				computer.controlBuilder.guiComponent.remove(controlInputListPane[i]);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.remove(controlInputListPane[i]);
 			for (int i=0; i<controlInputName.length; i++)
-				computer.controlBuilder.guiComponent.remove(controlInputName[i]);
-			computer.controlBuilder.guiComponent.remove(nextStateLabel);
+				if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.remove(controlInputName[i]);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) computer.controlBuilder.drawingcomponent.remove(nextStateLabel);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) 		 computer.controlBuilder.drawingcomponent.remove(controlInputLabel);
 		}
 
 		public boolean isActive()
 		{
-			if (computer.datapathBuilder==null) return false;
+//			if (computer.datapathBuilder==null) return false;
 
 			for (int i=0; i<controlInputList.length; i++)
 			{
@@ -830,7 +909,7 @@ public class ControlBuilder extends AbstractGUI
 				if (s==null || s.equals("") || s.equals("X"))
 					continue;
 				
-				DatapathBuilder.Block b=computer.datapathBuilder.getBlock(controlInputName[i].getText());
+				DatapathBuilder.Block b=module.datapathModule.getBlock(controlInputName[i].getText());
 				if (Long.toHexString(b.value).equals(s))
 					continue;
 				return false;
@@ -840,25 +919,28 @@ public class ControlBuilder extends AbstractGUI
 
 		private void setComponentRow()
 		{
-			if (computer.datapathBuilder==null) return;
+//			if (computer.datapathBuilder==null) return;
 			for (int i=0; i<controlInputList.length; i++)
 				controlInputListPane[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i,row*ROWHEIGHT+1,TEXTWIDTH-3,ROWHEIGHT-2);
 			for (int i=0; i<controlInputName.length; i++)
 				controlInputName[i].setBounds(GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*i+TEXTWIDTH,row*ROWHEIGHT+1,LABELWIDTH-3,ROWHEIGHT-2);
-			nextStateLabel.setBounds(GAPWIDTH+field1width(),row*ROWHEIGHT+1,field2width()-GAPWIDTH*2,ROWHEIGHT-2);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) nextStateLabel.setBounds(GAPWIDTH+computer.controlBuilder.defaultControl.field1width(),row*ROWHEIGHT+1,computer.controlBuilder.defaultControl.field2width()-GAPWIDTH*2,ROWHEIGHT-2);
+			if (computer.controlBuilder!=null && module==computer.controlBuilder.defaultControl) controlInputLabel.setBounds(GAPWIDTH, row*ROWHEIGHT+1, (LABELWIDTH+TEXTWIDTH)*computer.controlBuilder.defaultControl.field1width(), ROWHEIGHT-2);
 		}
 
 		public void doPaint(Graphics g, int row)
 		{
 			this.row=row;
 			setComponentRow();
-			if (row==selectedRow)
+			if (row==module.selectedRow)
 				g.setColor(new Color(100,205,100));
-			else if (highlightedRows[row])
+			else if (row<module.highlightedRows.length && module.highlightedRows[row])
 				g.setColor(new Color(150,205,100));
 			else
 				g.setColor(new Color(150,255,150));
-			g.fillRect(0,row*ROWHEIGHT,width(),ROWHEIGHT);
+			g.fillRect(0,row*ROWHEIGHT,computer.controlBuilder.defaultControl.width(),ROWHEIGHT);
+			if (row!=module.selectedRow)
+				hideDetails();
 		}
 
 		public String getXML()
@@ -873,7 +955,7 @@ public class ControlBuilder extends AbstractGUI
 					x+=controlInputList[i].getSelectedValue();
 				x+="</input>\n";
 			}
-			x+="<nextstatename>"+state+"</nextstatename>\n";
+			x+="<nextstatename>"+name+"</nextstatename>\n";
 			x+="</nextstate>\n";
 			return x;
 		}
@@ -885,8 +967,8 @@ public class ControlBuilder extends AbstractGUI
 			{
 				if (elements[i].equals("<nextstatename>"))
 				{
-					state=elements[i+1];
-					nextStateLabel.setText("NEXT STATE: "+state);
+					name=elements[i+1];
+					nextStateLabel.setText("NEXT STATE: "+name);
 				}
 				else if (elements[i].length()>7 && elements[i].substring(0,7).equals("<input "))
 				{
@@ -903,7 +985,7 @@ public class ControlBuilder extends AbstractGUI
 		}
 	}
 
-	public class Vector
+	public static class Vector
 	{
 		VectorElement first=null;
 		public Vector()
@@ -1001,216 +1083,248 @@ public class ControlBuilder extends AbstractGUI
 			}
 		}
 	}
-
-	public class ControlControl extends AbstractGUI
+	
+	public class ControlControl extends JComponent
 	{
-		private static final int WIDTH=300,HEIGHT=400;
-		public JTextField microField,controlPathField,stateField,nextStateField;
-
-		public ControlControl(Computer computer)
+		int width=100, height=2000;
+		int line1,line2;
+		String pathname="path 0";
+		String statename="state 0";
+		
+		JTextField edit;
+		JButton update;
+		
+		public Dimension getPreferredSize()
 		{
-			super(computer,"Control Builder Control",WIDTH,HEIGHT,false,true,false,false);
-			refresh();
+			return new Dimension(width,height);
 		}
-		public void closeGUI()
+		public ControlControl()
 		{
-			computer.controlBuilder=null;
-		}
-		public void constructGUI(GUIComponent g)
-		{
-			JButton button = new JButton("Close");
-			button.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e)
-			{
-				frame.setVisible(false);
-				computer.controlBuilder.frame.setVisible(false);
-				if (computer.computerGUI.singleFrame)
-				{
-					computer.computerGUI.removeComponent(computer.controlBuilder.controlControl);
-					computer.computerGUI.removeComponent(computer.controlBuilder);
-				}
-			} } );
-			button.setBounds(10+200,20+30*0,90,20);
-			g.add(button);
-			button = new JButton("Save");
-			button.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e)
-			{
-				System.out.println(getXML());
-				JFileChooser fc = new JFileChooser();
-				fc.setCurrentDirectory(new File("."));
-				fc.showSaveDialog(null);
-				File f = fc.getSelectedFile();
-				if (f==null) return;
-				String name=f.getAbsolutePath();
-				try
-				{
-					PrintWriter p =new PrintWriter(name);
-					p.println(getXML());
-					p.close();
-				}
-				catch(IOException x)
-				{
-					System.out.println("Error creating file "+name);
-				}
-			} } );
-			button.setBounds(10,20+30*0,90,20);
-			g.add(button);
-			button = new JButton("Load");
-			button.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e)
-			{
-				JFileChooser fc = new JFileChooser();
-				fc.setCurrentDirectory(new File("."));
-				fc.showOpenDialog(null);
-				File f = fc.getSelectedFile();
-				if (f==null) return;
-				String name=f.getAbsolutePath();
-				String xml="";
-				try
-				{
-					FileReader r=new FileReader(name);
-					
-					Scanner s=new Scanner(r);
-					while(s.hasNextLine())
-						xml+=s.nextLine()+" ";
-					s.close();
-				}
-				catch(IOException x)
-				{
-					System.out.println("Error reading file "+name);
-				}
-
-				ControlXMLParse xmlParse=new ControlXMLParse(xml);
-				parseXML(xmlParse.xmlParts);
-				computer.controlBuilder.guiComponent.revalidate();
-				computer.controlBuilder.repaint();
-			} } );
-			button.setBounds(10+100,20+30*0,90,20);
-			g.add(button);
-
-			button = new JButton("New Control Path");
-			button.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e)
-			{
-				if (selectedRow==-1)
-					controlPaths.add(new ControlPath(controlPathField.getText()));
-				else
-				{
-					if(getSelectedVector().lastElement().type==0)
-						getSelectedVector().addAfter(new ControlPath(controlPathField.getText()),getSelectedIndex());
-				}
-				computer.controlBuilder.guiComponent.revalidate();
-				computer.controlBuilder.repaint();
-				controlPathField.setText(increment(controlPathField.getText()));
-			} } );
-			button.setBounds(10,20+30*1,180,20);
-			g.add(button);
-			controlPathField=new JTextField("0");
-			controlPathField.setBounds(10+190,20+30*1,220,20);
-			g.add(controlPathField);
-			button = new JButton("New State");
-			button.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e)
-			{
-				if (selectedRow==-1)
-					((ControlPath)controlPaths.lastElement()).controlStates.add(new ControlState(stateField.getText()));
-				else if(getSelectedVector().lastElement().type==1)
-					getSelectedVector().addAfter(new ControlState(stateField.getText()),getSelectedIndex());
-				else if (getSelectedVector().lastElement().type==0)
-					((ControlPath)getSelectedVector().elementAt(getSelectedIndex())).controlStates.addFirst(new ControlState(stateField.getText()));
-				computer.controlBuilder.guiComponent.revalidate();
-				computer.controlBuilder.repaint();
-				stateField.setText(increment(stateField.getText()));
-			} } );
-			button.setBounds(10,20+30*2,180,20);
-			g.add(button);
-			stateField=new JTextField("0");
-			stateField.setBounds(10+190,20+30*2,220,20);
-			g.add(stateField);
-			button = new JButton("Microcode");
-			button.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e)
-			{
-				//check if we have an unconditional microcode already
-				Vector v=null;
-				if (selectedRow==-1)
-					v=((ControlState)((ControlPath)controlPaths.lastElement()).controlStates.lastElement()).controlInstructions;
-				else if (getSelectedVector().lastElement().type==2)
-					v=getSelectedVector();
-				if (v!=null && v.size()>0)
-				{
-					for (int i=0; i<v.size(); i++)
+			super();
+			int ctop=10;
+			
+			JButton button;
+			JLabel label;
+			int fontSize=10;
+			int cwidth=width-10;
+						
+			button=new JButton("Close");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					close();
+				}});
+			add(button);
+			ctop+=25;
+			button=new JButton("Save");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					System.out.println(defaultControl.getXML());
+					JFileChooser fc = new JFileChooser();
+					fc.setCurrentDirectory(new File("."));
+					fc.showSaveDialog(null);
+					File f = fc.getSelectedFile();
+					if (f==null) return;
+					String name=f.getAbsolutePath();
+					try
 					{
-						if (((ControlInstruction)v.elementAt(i)).isUnconditional())
+						PrintWriter p =new PrintWriter(name);
+						p.println(defaultControl.getXML());
+						p.close();
+					}
+					catch(IOException x)
+					{
+						System.out.println("Error creating file "+name);
+					}
+					catch(Exception x)
+					{
+						x.printStackTrace();
+					}
+				}});
+			add(button);
+			ctop+=25;
+			button=new JButton("Load");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					doload();
+				}});
+			add(button);
+			ctop+=25;
+			button=new JButton("Undo");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+				}});
+			add(button);
+			ctop+=25;
+			button=new JButton("Delete");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					if (defaultControl.selectedRow!=-1)
+					{
+						defaultControl.getSelectedVector().delete(defaultControl.getSelectedIndex());
+						defaultControl.selectedRow=-1;
+						computer.controlBuilder.drawingcomponent.revalidate();
+						computer.controlBuilder.repaint();
+					}
+				}});
+			add(button);
+			ctop+=25;
+			button=new JButton("Verify");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+				}});
+			add(button);
+			ctop+=25;
+			line1=ctop;
+			ctop+=5;
+			
+			button=new JButton("New Path");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					if (defaultControl.selectedRow==-1 || defaultControl.getSelectedVector()==null)
+						defaultControl.controlPaths.add(new ControlPath(computer,pathname,defaultControl,true));
+					else
+					{
+						if(defaultControl.getSelectedVector().lastElement().type==0)
+							defaultControl.getSelectedVector().addAfter(new ControlPath(computer,pathname,defaultControl,true),defaultControl.getSelectedIndex());
+					}
+					computer.controlBuilder.drawingcomponent.revalidate();
+					computer.controlBuilder.repaint();
+					pathname=increment(pathname);
+				}});
+			add(button);
+			ctop+=25;
+
+			button=new JButton("New State");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					if (defaultControl.selectedRow==-1 || defaultControl.getSelectedVector()==null)
+						((ControlPath)defaultControl.controlPaths.lastElement()).controlStates.add(new ControlState(computer,statename,defaultControl,true));
+					else if(defaultControl.getSelectedVector().lastElement().type==1)
+						defaultControl.getSelectedVector().addAfter(new ControlState(computer,statename,defaultControl,true),defaultControl.getSelectedIndex());
+					else if (defaultControl.getSelectedVector().lastElement().type==0)
+						((ControlPath)defaultControl.getSelectedVector().elementAt(defaultControl.getSelectedIndex())).controlStates.addFirst(new ControlState(computer,statename,defaultControl,true));
+					computer.controlBuilder.drawingcomponent.revalidate();
+					computer.controlBuilder.repaint();
+					statename=increment(statename);
+				}});
+			add(button);
+			ctop+=25;
+			
+			button=new JButton("New Instruction");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					ControlInstruction c=new ControlInstruction(computer,"",defaultControl);
+					if (c.valid)
+					{
+						if (defaultControl.selectedRow==-1)
 						{
-							//we do: don't add another, just modify this
-							((ControlInstruction)v.elementAt(i)).modifyControlInstruction(microField.getText());
-							return;
+							((ControlState)((ControlPath)defaultControl.controlPaths.lastElement()).controlStates.lastElement()).controlInstructions.add(c);
 						}
+						else if(defaultControl.getSelectedVector().lastElement().type==2)
+						{
+							defaultControl.getSelectedVector().addAfter(c,defaultControl.getSelectedIndex());
+						}
+						else if (defaultControl.getSelectedVector().lastElement().type==1)
+						{
+							((ControlState)defaultControl.getSelectedVector().elementAt(defaultControl.getSelectedIndex())).controlInstructions.addFirst(c);
+						}
+						computer.controlBuilder.drawingcomponent.revalidate();
+						computer.controlBuilder.repaint();
 					}
-				}
-				
-				ControlInstruction c=new ControlInstruction(microField.getText());
-				if (c.valid)
-				{
-					if (selectedRow==-1)
+				}});
+			add(button);
+			ctop+=25;
+			
+			button=new JButton("New Next Instruction");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					String defaultname="state 0";
+					//if no row is selected, add the row to the last state
+					if (defaultControl.getSelectedVector()==null)
+						((ControlState)((ControlPath)defaultControl.controlPaths.lastElement()).controlStates.lastElement()).nextStates.add(new NextState(computer,defaultname,defaultControl));
+					// if a next state is selected, add the row under it
+					else if(defaultControl.getSelectedVector().lastElement().type==3)
 					{
-						((ControlState)((ControlPath)controlPaths.lastElement()).controlStates.lastElement()).controlInstructions.add(c);
+						defaultControl.getSelectedVector().addAfter(new NextState(computer,defaultname,defaultControl),defaultControl.getSelectedIndex());
 					}
-					else if(getSelectedVector().lastElement().type==2)
+					// if a state row is selected, add the row before the other next states
+						
+					else if (defaultControl.getSelectedVector().lastElement().type==1)
 					{
-						getSelectedVector().addAfter(c,getSelectedIndex());
+						((ControlState)defaultControl.getSelectedVector().elementAt(defaultControl.getSelectedIndex())).nextStates.addFirst(new NextState(computer,defaultname,defaultControl));
 					}
-					else if (getSelectedVector().lastElement().type==1)
-					{
-						((ControlState)getSelectedVector().elementAt(getSelectedIndex())).controlInstructions.addFirst(c);
-					}
-					computer.controlBuilder.guiComponent.revalidate();
+					computer.controlBuilder.drawingcomponent.revalidate();
 					computer.controlBuilder.repaint();
-			} } } );
-			button.setBounds(10,20+30*3,180,20);
-			g.add(button);
-			microField=new JTextField("");
-			microField.setBounds(10+190,20+30*3,220,20);
-			microField.addMouseListener(new MouseListener(){
-				public void mouseClicked(MouseEvent arg0) 
-				{
-					computer.datapathBuilder.placeroute();
-					if (!computer.oneScreen)
-						computer.datapathBuilder.frame.toFront();
-				}
-				public void mouseEntered(MouseEvent arg0) {}
-				public void mouseExited(MouseEvent arg0) {}
-				public void mousePressed(MouseEvent arg0) {}
-				public void mouseReleased(MouseEvent arg0) {}
-				});
-			g.add(microField);
-			button = new JButton("Next State");
-			button.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e)
-			{
-				if (selectedRow==-1)
-					((ControlState)((ControlPath)controlPaths.lastElement()).controlStates.lastElement()).nextStates.add(new NextState(nextStateField.getText()));
-				else if(getSelectedVector().lastElement().type==3)
-					getSelectedVector().addAfter(new NextState(nextStateField.getText()),getSelectedIndex());
-				else if (getSelectedVector().lastElement().type==1)
-					((ControlState)getSelectedVector().elementAt(getSelectedIndex())).nextStates.addFirst(new NextState(nextStateField.getText()));
-				computer.controlBuilder.guiComponent.revalidate();
-				computer.controlBuilder.repaint();
-				nextStateField.setText(increment(nextStateField.getText()));
-			} } );
-			button.setBounds(10,20+30*4,180,20);
-			g.add(button);
-			nextStateField=new JTextField("1");
-			nextStateField.setBounds(10+190,20+30*4,220,20);
-			g.add(nextStateField);
-			button = new JButton("Delete");
-			button.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e)
-			{
-				if (selectedRow!=-1)
-				{
-					getSelectedVector().delete(getSelectedIndex());
-					selectedRow=-1;
-					computer.controlBuilder.guiComponent.revalidate();
-					computer.controlBuilder.repaint();
-				}
-			} } );
-			button.setBounds(10,20+30*5,120,20);
-			g.add(button);
+				}});
+			add(button);
+			ctop+=25;
+			line2=ctop;
+			ctop+=15;
+			edit=new JTextField();
+			edit.setBounds(5,ctop,cwidth,20);
+			add(edit);
+			ctop+=25;
+			update=new JButton("Update");
+			update.setBounds(5,ctop,cwidth,20);
+			update.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			update.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					ControlRow r=defaultControl.getSelectedVector().elementAt(defaultControl.getSelectedIndex());
+					if (r.type==0 || r.type==1 || r.type==3)
+					{
+						r.rename(edit.getText());
+						drawingcomponent.revalidate();
+					}
+					else if (r.type==2)
+					{
+						computer.datapathBuilder.placeroute();
+					}
+//					unprompt();
+				}});
+			add(update);
+			ctop+=25;
+			
+			unprompt();
+		}
+		public void prompt(String n)
+		{
+			edit.setText(n);
+			edit.setVisible(true);
+			update.setVisible(true);
+		}
+		public void unprompt()
+		{
+			update.setText("Update");
+			edit.setVisible(false);
+			update.setVisible(false);
+			setStatusLabel("");
+		}
+		public void route(String name)
+		{
+			edit.setText(name);
+			ControlRow r=defaultControl.getSelectedVector().elementAt(defaultControl.getSelectedIndex());
+			((ControlInstruction)r).modifyControlInstruction(edit.getText());
+			computer.controlBuilder.toFront();
 		}
 		private String increment(String s)
 		{
@@ -1218,16 +1332,68 @@ public class ControlBuilder extends AbstractGUI
 			if (s.indexOf(" ")!=-1)
 			{
 				t = s.substring(0,s.indexOf(" "));
-				u = s.substring(s.indexOf(" "),s.length());
+				u = s.substring(s.indexOf(" ")+1,s.length());
 			}
 			else
 			{
 				return s;
 			}
-			return (Integer.parseInt(t)+1)+u;
+			return t+" "+(Integer.parseInt(u)+1);
+		}		
+		public void paintComponent(Graphics g)
+		{
+			g.setColor(Color.WHITE);
+			g.fillRect(0,0,width,height);
+			g.setColor(Color.BLACK);
+			g.drawLine(width,0,width,height);
+			g.drawLine(0,line1,width,line1);
+			g.drawLine(0,line2,width,line2);
 		}
 	}
-	public class ControlXMLParse
+	public void doload()
+	{
+		JFileChooser fc = new JFileChooser();
+		fc.setCurrentDirectory(new File("."));
+		fc.showOpenDialog(null);
+		File f = fc.getSelectedFile();
+		if (f==null) return;
+		clear();
+		doload(f.getAbsolutePath(),defaultControl);
+		computer.controlBuilder.guiComponent.revalidate();
+		computer.controlBuilder.repaint();		
+	}
+	public void clear()
+	{
+		drawingcomponent.removeAll();
+		drawingcomponent.revalidate();
+		defaultControl=new ControlModule(computer,defaultControl.datapathModule);
+	}
+	
+	public static void doload(String name,ControlModule module)
+	{
+		String xml="";
+		try
+		{
+			FileReader r=new FileReader(name);
+			
+			Scanner s=new Scanner(r);
+			while(s.hasNextLine())
+				xml+=s.nextLine()+" ";
+			s.close();
+		}
+		catch(IOException x)
+		{
+			System.out.println("Error reading file "+name);
+		}
+		catch(Exception x)
+		{
+			x.printStackTrace();
+		}
+
+		ControlXMLParse xmlParse=new ControlXMLParse(xml);
+		module.parseXML(xmlParse.xmlParts);
+	}
+	public static class ControlXMLParse
 	{
 		private int MAXPARTS=10000;
 
@@ -1260,8 +1426,8 @@ public class ControlBuilder extends AbstractGUI
 			for (int i=0; i<parts.size(); i++)
 				xmlParts[i]=(String)parts.get(i);
 
-			for (int i=0; i<parts.size(); i++)
-				System.out.println(xmlParts[i]);
+//			for (int i=0; i<parts.size(); i++)
+//				System.out.println(xmlParts[i]);
 		}
 
 		private boolean isWhiteSpace(String s)
@@ -1283,6 +1449,185 @@ public class ControlBuilder extends AbstractGUI
 					number=Integer.parseInt(xmlParts[i+1]);
 			}
 			return number;
+		}
+	}
+	public static ControlModule loadControlModule(Computer computer, String filename, DatapathBuilder.DatapathModule dmodule)
+	{
+		ControlModule cmodule=new ControlModule(computer,dmodule);
+		doload(filename, cmodule);
+		return cmodule;
+	}
+	public static class ControlModule
+	{
+		public Vector controlPaths;
+
+		public int selectedRow=-1;
+		public boolean[] highlightedRows=new boolean[1];
+		public DatapathBuilder.DatapathModule datapathModule;
+		public Computer computer;
+
+		public ControlModule(Computer computer, DatapathBuilder.DatapathModule module)
+		{
+			this.computer=computer;
+			datapathModule=module;
+			if (datapathModule==null) return;
+			controlPaths=new Vector();
+		}
+		public void makeSimpleControl()
+		{
+			ControlPath path=new ControlPath(computer,"path",this,true);
+			controlPaths.add(path);
+			ControlInstruction inst=((ControlInstruction)((ControlState)path.controlStates.elementAt(0)).controlInstructions.elementAt(0));
+			for (int i=0; i<inst.controlOutputBox.length; i++)
+			{
+				if (inst.controlOutputBox[i]!=null)
+					inst.controlOutputBox[i].setSelected(true);
+			}
+			for (int i=0; i<inst.controlOutputList.length; i++)
+			{
+				if (inst.controlOutputList[i]!=null)
+					inst.controlOutputList[i].setSelectedIndex(0);			
+			}
+			height();
+		}
+		public int width()
+		{
+			if (computer.datapathBuilder!=null)
+				return field1width()+field2width()+field3width();
+			return 1000;
+		}
+		public int field1width()
+		{
+			int w=GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*datapathModule.controlOutputs().length+GAPWIDTH;
+			if (w<200)
+				w=200;
+			return w;
+		}
+
+		public int field2width()
+		{
+			int w=GAPWIDTH+(LABELWIDTH+TEXTWIDTH)*datapathModule.controlInputs().length+GAPWIDTH;
+			if (w<200)
+				w=200;
+			return w;
+		}
+
+		public int field3width()
+		{
+			return MICROINSTRUCTIONWIDTH;
+		}
+
+		public int height()
+		{
+			int rows=0;
+			for (int i=0; i<controlPaths.size(); i++)
+			{
+				rows++;
+				for (int j=0; j<((ControlPath)(controlPaths.elementAt(i))).controlStates.size(); j++)
+				{
+					rows++;
+					for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).controlInstructions.size(); k++)
+					{
+						rows++;
+					}
+					for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).nextStates.size(); k++)
+					{
+						rows++;
+					}
+				}
+			}
+			if (rows!=highlightedRows.length)
+				highlightedRows=new boolean[rows];
+			return rows*ROWHEIGHT;
+		}
+		public void resetHighlights()
+		{
+			highlightedRows=new boolean[highlightedRows.length];
+		}
+		public Vector getSelectedVector()
+		{
+			if (selectedRow==-1) return null;
+			
+			int row=0;
+			for (int i=0; i<controlPaths.size(); i++)
+			{
+				if (row==selectedRow) return controlPaths;
+				row++;
+				for (int j=0; j<((ControlPath)(controlPaths.elementAt(i))).controlStates.size(); j++)
+				{
+					if(row==selectedRow) return ((ControlPath)controlPaths.elementAt(i)).controlStates;
+					row++;
+					for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).controlInstructions.size(); k++)
+					{
+						if (row==selectedRow) return ((ControlState)((ControlPath)controlPaths.elementAt(i)).controlStates.elementAt(j)).controlInstructions;
+						row++;
+					}
+					for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).nextStates.size(); k++)
+					{
+						if (row==selectedRow) return ((ControlState)((ControlPath)controlPaths.elementAt(i)).controlStates.elementAt(j)).nextStates;
+						row++;
+					}
+				}
+			}
+			return null;
+		}
+
+		public int getSelectedIndex()
+		{
+			if (selectedRow==-1) return -1;
+			
+			int row=0;
+			for (int i=0; i<controlPaths.size(); i++)
+			{
+				if (row==selectedRow) return i;
+				row++;
+				for (int j=0; j<((ControlPath)(controlPaths.elementAt(i))).controlStates.size(); j++)
+				{
+					if(row==selectedRow) return j;
+					row++;
+					for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).controlInstructions.size(); k++)
+					{
+						if (row==selectedRow) return k;
+						row++;
+					}
+					for (int k=0; k<((ControlState)(((ControlPath)(controlPaths.elementAt(i))).controlStates.elementAt(j))).nextStates.size(); k++)
+					{
+						if (row==selectedRow) return k;
+						row++;
+					}
+				}
+			}
+			return -1;
+		}
+
+		public String getXML()
+		{
+			String x="<control>\n";
+			for (int i=0; i<controlPaths.size(); i++)
+				x+=((ControlPath)(controlPaths.elementAt(i))).getXML();
+			x+="</control>\n";
+			return x;
+		}
+
+		public void parseXML(String[] elements)
+		{
+			if (!elements[0].equals("<control>")) return;
+			for (int i=1; i<elements.length-1; i++)
+			{
+				if (elements[i].equals("<control path>"))
+				{
+					int j;
+					for (j=i; ;j++)
+						if(elements[j].equals("</control path>"))
+							break;
+					String[] m=new String[j-i+1];
+					for (int k=i; k<=j; k++)
+						m[k-i]=elements[k];
+					ControlPath n=new ControlPath(computer,"",this,false);
+					controlPaths.add(n);
+					n.parseXML(m);
+				}
+			}
 		}
 	}
 }

@@ -74,7 +74,7 @@ public class MemoryTransferGUI extends AbstractGUI
 
 	public void doClose()
 	{
-		frame.setVisible(false);
+		setVisible(false);
 		if (computer.computerGUI.singleFrame)
 			computer.computerGUI.removeComponent(computer.memoryTransferGUI);
 	}
@@ -88,7 +88,7 @@ public class MemoryTransferGUI extends AbstractGUI
 			imagefield.setText(fc.getSelectedFile().getAbsolutePath());
 	}
 
-	public byte[] readExternalFile(String name)
+	public static byte[] readExternalFile(String name)
 	{
 		byte[] buffer=null;
 		try
@@ -155,9 +155,13 @@ public class MemoryTransferGUI extends AbstractGUI
 
 	public void doLoad()
 	{
-		byte[] buffer=readExternalFile(imagefield.getText());
+		MemoryTransferGUI.load(imagefield.getText(),Integer.parseInt(afield.getText(),16),computer);
+		doClose();
+	}
+	public static void load(String imagefile, int a, Computer computer)
+	{
+		byte[] buffer=readExternalFile(imagefile);
 		int i=0;
-		int a=Integer.parseInt(afield.getText(),16);
 		byte b=0;
 		boolean byteready=false;
 		while(i<buffer.length)
@@ -186,6 +190,5 @@ public class MemoryTransferGUI extends AbstractGUI
 			}
 			i++;
 		}
-		doClose();
 	}
 }

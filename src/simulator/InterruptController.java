@@ -65,6 +65,10 @@ public class InterruptController extends IODevice
 	masterIRQ = master.getIRQ();
 	if(masterIRQ >= 0) {
 	    computer.processor.raiseInterrupt();
+	    if (computer.customProcessor!=null)
+	    	computer.customProcessor.raiseInterrupt();
+	    if (computer.ioGUI!=null)
+	    	computer.ioGUI.interruptTriggered=true;
 	}
     }
 
@@ -266,6 +270,8 @@ public class InterruptController extends IODevice
 		    /* init */
 		    this.reset();
 		    computer.processor.clearInterrupt();
+		    if (computer.customProcessor!=null)
+		    	computer.customProcessor.clearInterrupt();
 
 		    initState = 1;
 		    fourByteInit = ((data & 1) != 0);
@@ -370,7 +376,12 @@ public class InterruptController extends IODevice
 
 	public void setIRQ(int irqNumber, int level)
 	{
-
+		if (computer.ioGUI!=null)
+		{
+			computer.ioGUI.lastInterrupt=irqNumber;
+			computer.ioGUI.interruptRequested=true;
+		}
+		
 	    int mask;
 	    mask = (1 << irqNumber);
 	    if(0 != (elcr & mask)) {

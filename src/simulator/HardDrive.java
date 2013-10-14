@@ -226,7 +226,7 @@ public class HardDrive extends IODevice
 				break;
 
 			case 7:
-				if (drive[currentDrive].disk==null) break;
+				if (drive[currentDrive]==null || drive[currentDrive].disk==null) break;
 				switch(data&0xff)
 				{
 					case WIN_IDENTIFY:
@@ -292,13 +292,13 @@ public class HardDrive extends IODevice
 	private int readIDE(int address)
 	{
 		if (currentDrive==-1) return 0;
-		if (drive[currentDrive].disk==null) return 0;
+		if (drive[currentDrive]==null || drive[currentDrive].disk==null) return 0;
 		switch(address&0x7)
 		{
 			case 0: return 0xff;
 			case 1: return drive[currentDrive].error;
-			case 2: System.out.println(drive[currentDrive].nSector); return drive[currentDrive].nSector;
-			case 3: System.out.println(drive[currentDrive].nSector); return drive[currentDrive].sector;
+			case 2: return drive[currentDrive].nSector;
+			case 3: return drive[currentDrive].sector;
 			case 4: return drive[currentDrive].lcyl;
 			case 5: return drive[currentDrive].hcyl;
 			case 6: return drive[currentDrive].select;

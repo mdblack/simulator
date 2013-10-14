@@ -32,17 +32,17 @@ public class MemoryBlockGUI extends AbstractGUI implements AdjustmentListener
 		if (type==DATA)
 		{
 			overlay=new DataByteOverlay();
-			frame.setTitle("Data Memory Contents");
+			setTitle("Data Memory Contents");
 		}
 		else if (type==STACK)
 		{
 			overlay=new StackByteOverlay();
-			frame.setTitle("Stack Contents");
+			setTitle("Stack Contents");
 		}
 		else if (type==CODE)
 		{
 			overlay=new CodeByteOverlay();
-			frame.setTitle("Instruction Memory Contents");
+			setTitle("Instruction Memory Contents");
 		}
 		else
 			overlay=new DefaultByteOverlay();
@@ -60,11 +60,11 @@ public class MemoryBlockGUI extends AbstractGUI implements AdjustmentListener
 	{
 		scrollBar=new JScrollBar(JScrollBar.VERTICAL,address,height()/BYTEHEIGHT,0,PhysicalMemory.TOTAL_RAM_SIZE-1);
 		scrollBar.addAdjustmentListener(this);
-		if (!computer.computerGUI.singleFrame)
-			scrollBar.setBounds(width()-SCROLLWIDTH,BUTTONROWSIZE,SCROLLWIDTH,height());
-		else
-			scrollBar.setBounds(ComputerGUI.XSIZE-ComputerGUI.BIGWIDTH-20-SCROLLWIDTH,BUTTONROWSIZE,SCROLLWIDTH,height());
-		frame.add(scrollBar);
+//		if (!computer.computerGUI.singleFrame)
+			scrollBar.setBounds(getWidth()-SCROLLWIDTH-5,0,SCROLLWIDTH,height());
+//		else
+//			scrollBar.setBounds(ComputerGUI.XSIZE-ComputerGUI.BIGWIDTH-20-SCROLLWIDTH,BUTTONROWSIZE,SCROLLWIDTH,height());
+		add(scrollBar);
 	}
 
 	public void update(int address, String information, int size)
@@ -293,14 +293,18 @@ public class MemoryBlockGUI extends AbstractGUI implements AdjustmentListener
 		}
 		private void decode(int address)
 		{
-			decoder=new Processor(computer);
-			decoder.cs.setValue(address>>>4);
-			decoder.eip.setValue(address & 0xf);
+			if (decoder==null)
+				decoder=new Processor(computer);
 			decoder.constructProcessorGUICode();
+			decoder.cs.base=address&(~0xffff);
+			decoder.eip.setValue(address&0xffff);
+			decoder.resetcodes();
 			decoder.fetchQueue.fetch();
-			decoder.decodeInstruction(decoder.cs.getDefaultSize());
+			decoder.decodeInstruction(computer.processor.cs.getDefaultSize());
 			while (decoder.codesHandled<decoder.codeLength)
+			{
 				decoder.processorGUICode.pushMicrocode(decoder.getCode(),0,0,0,0,0,false);
+			}
 			decodedAddress=address;
 		}
 		public int getByteStep(int address)

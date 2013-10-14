@@ -3,6 +3,8 @@ package simulator;
 import java.awt.*;
 import javax.swing.*;
 import java.awt.event.*;
+import java.beans.PropertyVetoException;
+
 import javax.swing.event.*;
 
 public class BreakpointGUI extends AbstractGUI
@@ -37,6 +39,7 @@ new String[]{"==","<",">",">=","<="}};
 	static final boolean[] NUMBERFIELDPRESENT = new boolean[] {true,true,false,true,true,false};
 
 	JScrollPane[][] listpane;
+	boolean useropened;
 
 	public BreakpointGUI(Computer computer)
 	{
@@ -50,6 +53,7 @@ new String[]{"==","<",">",">=","<="}};
 		activeBox=new JCheckBox[BREAKPOINT_NUMBER];
 		listpane=new JScrollPane[BREAKPOINT_NUMBER][3];
 
+		useropened=true;
 		refresh();
 	}
 
@@ -70,6 +74,8 @@ new String[]{"==","<",">",">=","<="}};
 		equation=initialEquation+". ";
 		setStatusLabel(equation);
 
+		useropened=false;
+		try { setIcon(true); } catch (PropertyVetoException e) {}
 		refresh();
 	}
 	
@@ -102,6 +108,7 @@ new String[]{"==","<",">",">=","<="}};
 	{
 		equation=eq;
 		setStatusLabel(equation);
+		useropened=false;
 	}
 
 	public void constructGUI(AbstractGUI.GUIComponent guicomponent)

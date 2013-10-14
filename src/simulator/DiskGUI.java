@@ -70,7 +70,7 @@ public class DiskGUI extends AbstractGUI
 		this.disk=disk;
 
 		refresh();
-		frame.setTitle(name);
+		setTitle(name);
 	}
 
 	private void drawLegend(Graphics g)

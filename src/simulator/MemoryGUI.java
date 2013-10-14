@@ -11,6 +11,7 @@ public class MemoryGUI extends AbstractGUI
 	private static final int TOTAL_BLOCKS=(int)(PhysicalMemory.TOTAL_RAM_SIZE/BLOCKSIZE);
 
 	public int lastCodeRead=-1,lastCodeWrite=-1,lastDataRead=-1,lastDataWrite=-1,lastStackRead=-1,lastStackWrite=-1,lastExtraRead=-1,lastExtraWrite=-1,lastInterruptRead=-1,lastInterruptWrite=-1;
+	public boolean memoryRead=false,memoryWrite=false,romRead=false;
 
 	public MemoryBlockGUI codeFrame=null,stackFrame=null,dataFrame=null,interruptFrame=null,defaultFrame=null;
 
@@ -301,6 +302,10 @@ public class MemoryGUI extends AbstractGUI
 	public void codeRead(int address)
 	{
 		lastCodeRead=address;
+		if (address>=0xf0000 && address<=0xfffff)
+			romRead=true;
+		else
+			memoryRead=true;
 		repaint();
 		if (codeFrame!=null)
 		{
@@ -311,6 +316,7 @@ public class MemoryGUI extends AbstractGUI
 	public void codeWrite(int address)
 	{
 		lastCodeWrite=address;
+		memoryWrite=true;
 		repaint();
 		if (codeFrame!=null)
 		{
@@ -321,6 +327,10 @@ public class MemoryGUI extends AbstractGUI
 	public void stackRead(int address)
 	{
 		lastStackRead=address;
+		if (address>=0xf0000 && address<=0xfffff)
+			romRead=true;
+		else
+			memoryRead=true;
 		repaint();
 		if (stackFrame!=null)
 		{
@@ -331,6 +341,7 @@ public class MemoryGUI extends AbstractGUI
 	public void stackWrite(int address)
 	{
 		lastStackWrite=address;
+		memoryWrite=true;
 		repaint();
 		if (stackFrame!=null)
 		{
@@ -341,6 +352,7 @@ public class MemoryGUI extends AbstractGUI
 	public void stackWrite(int address, String information, int size)
 	{
 		lastStackWrite=address;
+		memoryWrite=true;
 		repaint();
 		if (stackFrame!=null)
 		{
@@ -351,6 +363,10 @@ public class MemoryGUI extends AbstractGUI
 	public void dataRead(int address)
 	{
 		lastDataRead=address;
+		if (address>=0xf0000 && address<=0xfffff)
+			romRead=true;
+		else
+			memoryRead=true;
 		repaint();
 		if (dataFrame!=null)
 		{
@@ -361,6 +377,7 @@ public class MemoryGUI extends AbstractGUI
 	public void dataWrite(int address)
 	{
 		lastDataWrite=address;
+		memoryWrite=true;
 		repaint();
 		if (dataFrame!=null)
 		{
@@ -371,6 +388,10 @@ public class MemoryGUI extends AbstractGUI
 	public void extraRead(int address)
 	{
 		lastExtraRead=address;
+		if (address>=0xf0000 && address<=0xfffff)
+			romRead=true;
+		else
+			memoryRead=true;
 		repaint();
 		if (dataFrame!=null)
 		{
@@ -381,6 +402,7 @@ public class MemoryGUI extends AbstractGUI
 	public void extraWrite(int address)
 	{
 		lastExtraWrite=address;
+		memoryWrite=true;
 		repaint();
 		if (dataFrame!=null)
 		{
@@ -391,6 +413,10 @@ public class MemoryGUI extends AbstractGUI
 	public void interruptRead(int address)
 	{
 		lastInterruptRead=address;
+		if (address>=0xf0000 && address<=0xfffff)
+			romRead=true;
+		else
+			memoryRead=true;
 		repaint();
 		if (interruptFrame!=null)
 		{
@@ -401,6 +427,7 @@ public class MemoryGUI extends AbstractGUI
 	public void interruptWrite(int address)
 	{
 		lastInterruptWrite=address;
+		memoryWrite=true;
 		repaint();
 		if (interruptFrame!=null)
 		{

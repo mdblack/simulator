@@ -7,13 +7,15 @@ Computer builds the PC, starts it running
 */
 
 package simulator;
+import java.beans.PropertyVetoException;
 import java.io.*;
 import java.util.Scanner;
-
 import javax.swing.JOptionPane;
 
 public class Computer
 {
+	private static final int NICE_INTERVAL=1000;  //pause for 1ms every n cycles so as not to overload the computer
+	
 	public Processor processor;
 	public PhysicalMemory physicalMemory;
 	public LinearMemory linearMemory;
@@ -30,7 +32,6 @@ public class Computer
 
 	public ComputerGUI computerGUI;
 
-	public ControlGUI controlGUI;
 	public VideoGUI videoGUI;
 	public ProcessorGUI processorGUI;
 	public MemoryGUI memoryGUI;
@@ -48,6 +49,7 @@ public class Computer
 	public DatapathBuilder datapathBuilder;
 	public ControlBuilder controlBuilder;
 	public CustomProcessor customProcessor;
+	public ProcessorBuilder processorBuilder;
 	public IOPorts ioports;
 	public Trace trace;
 
@@ -68,22 +70,24 @@ public class Computer
 	public Computer computer;
 	public ComputerApplet applet=null;
 	
+	public String args="";
+	
 	public String saveState()
 	{
 		System.out.println("saving state");
 		String state="";
 		state+="Computer@"+icount+"@";
 		state+="Settings@"+bootgui.saveState()+"@";
-		if (bootgui.includeDevice("Processor")) state+="Processor@"+processor.saveState()+"@";
-		if (bootgui.includeDevice("Memory")) state+="PhysicalMemory@"+physicalMemory.saveState()+"@";
-		if (bootgui.includeDevice("Memory")) state+="LinearMemory@"+linearMemory.saveState()+"@";
-		if (bootgui.includeDevice("Interrupt Controller")) state+="InterruptController@"+interruptController.saveState()+"@";
-		if (bootgui.includeDevice("Keyboard")) state+="Keyboard@"+keyboard.saveState()+"@";
-		if (bootgui.includeDevice("CMOS")) state+="CMOS@"+cmos.saveState()+"@";
-		if (bootgui.includeDevice("IDE Controller")) state+="HardDrive@"+harddrive.saveState()+"@";
+		state+="Processor@"+processor.saveState()+"@";
+		state+="PhysicalMemory@"+physicalMemory.saveState()+"@";
+		state+="LinearMemory@"+linearMemory.saveState()+"@";
+		state+="InterruptController@"+interruptController.saveState()+"@";
+		state+="Keyboard@"+keyboard.saveState()+"@";
+		state+="CMOS@"+cmos.saveState()+"@";
+		state+="HardDrive@"+harddrive.saveState()+"@";
 		state+="Clock@"+clock.saveState()+"@";
-		if (bootgui.includeDevice("Timer")) state+="Timer@"+timer.saveState()+"@";
-		if (bootgui.includeDevice("Video")) state+="Video@"+video.saveState()+"@";
+		state+="Timer@"+timer.saveState()+"@";
+		state+="Video@"+video.saveState()+"@";
 		System.out.println("state saved");
 		return state;
 	}
@@ -98,6 +102,7 @@ public class Computer
 	private void loaderror(String deviceName)
 	{
 		System.out.println("No "+deviceName+" found in state file.  Using default device setting.");
+		
 	}
 	
 	public void loadState(String state)
@@ -106,21 +111,21 @@ public class Computer
 		System.out.println("loading state");
 		String[] states=state.split("@");
 		if (indexOf(states,"Settings")>=0) bootgui.loadState(states[indexOf(states,"Settings")+1]); else loaderror("Settings");
-		if (bootgui.includeDevice("Memory")) { physicalMemory=new PhysicalMemory(this); if (indexOf(states,"PhysicalMemory")>=0) physicalMemory.loadState(states[indexOf(states,"PhysicalMemory")+1]); else loaderror("PhysicalMemory");}
-		if (bootgui.includeDevice("Memory")) { linearMemory=new LinearMemory(this); if (indexOf(states,"LinearMemory")>=0) linearMemory.loadState(states[indexOf(states,"LinearMemory")+1]); else loaderror("LinearMemory");}
-		  if (bootgui.includeDevice("I/O Ports")) ioports=new IOPorts(this);
-		if (bootgui.includeDevice("Processor")) { processor=new Processor(this); if (indexOf(states,"Processor")>=0) processor.loadState(states[indexOf(states,"Processor")+1]); else loaderror("Processor");}
-		if (bootgui.includeDevice("Interrupt Controller")) { interruptController=new InterruptController(this); if (indexOf(states,"InterruptController")>=0) interruptController.loadState(states[indexOf(states,"InterruptController")+1]); else loaderror("InterruptController");}
-		if (bootgui.includeDevice("Keyboard")) { keyboard=new Keyboard(this); if (indexOf(states,"Keyboard")>=0) keyboard.loadState(states[indexOf(states,"Keyboard")+1]); else loaderror("Keyboard");}
-		  if (bootgui.includeDevice("DMA Controller")) dma1 = new DMA(this,false,true);
-		  if (bootgui.includeDevice("DMA Controller")) dma2 = new DMA(this,false,false);
-		  if (bootgui.includeDevice("Floppy Controller")) floppy = new Floppy(this);
-		if (bootgui.includeDevice("IDE Controller")) { harddrive=new HardDrive(this); if (indexOf(states,"HardDrive")>=0) harddrive.loadState(states[indexOf(states,"HardDrive")+1]); else loaderror("HardDrive");}
-		if (bootgui.includeDevice("CMOS")) { cmos=new CMOS(this); if (indexOf(states,"CMOS")>=0) cmos.loadState(states[indexOf(states,"CMOS")+1]); else loaderror("CMOS");}
+		physicalMemory=new PhysicalMemory(this); if (indexOf(states,"PhysicalMemory")>=0) physicalMemory.loadState(states[indexOf(states,"PhysicalMemory")+1]); else loaderror("PhysicalMemory");
+		linearMemory=new LinearMemory(this); if (indexOf(states,"LinearMemory")>=0) linearMemory.loadState(states[indexOf(states,"LinearMemory")+1]); else loaderror("LinearMemory");
+		ioports=new IOPorts(this);
+		processor=new Processor(this); if (indexOf(states,"Processor")>=0) processor.loadState(states[indexOf(states,"Processor")+1]); else loaderror("Processor");
+		interruptController=new InterruptController(this); if (indexOf(states,"InterruptController")>=0) interruptController.loadState(states[indexOf(states,"InterruptController")+1]); else loaderror("InterruptController");
+		keyboard=new Keyboard(this); if (indexOf(states,"Keyboard")>=0) keyboard.loadState(states[indexOf(states,"Keyboard")+1]); else loaderror("Keyboard");
+		dma1 = new DMA(this,false,true);
+		dma2 = new DMA(this,false,false);
+		floppy = new Floppy(this);
+		harddrive=new HardDrive(this); if (indexOf(states,"HardDrive")>=0) harddrive.loadState(states[indexOf(states,"HardDrive")+1]); else loaderror("HardDrive");
+		cmos=new CMOS(this); if (indexOf(states,"CMOS")>=0) cmos.loadState(states[indexOf(states,"CMOS")+1]); else loaderror("CMOS");
 		clock=new Clock(); if (indexOf(states,"Clock")>=0) clock.loadState(states[indexOf(states,"Clock")+1]); else loaderror("Clock");
-		if (bootgui.includeDevice("Timer")) { timer=new Timer(this); if (indexOf(states,"Timer")>=0) timer.loadState(states[indexOf(states,"Timer")+1]); else loaderror("Timer");}
-		  if (bootgui.includeDevice("Serial Port")) serialport = new SerialPort(this);
-		if (bootgui.includeDevice("Video")) { video=new Video(this); if (indexOf(states,"Video")>=0) video.loadState(states[indexOf(states,"Video")+1]); else loaderror("Video");}
+		timer=new Timer(this); if (indexOf(states,"Timer")>=0) timer.loadState(states[indexOf(states,"Timer")+1]); else loaderror("Timer");
+		serialport = new SerialPort(this);
+		video=new Video(this); if (indexOf(states,"Video")>=0) video.loadState(states[indexOf(states,"Video")+1]); else loaderror("Video");
 		
 		if (indexOf(states,"Computer")>=0) 
 		{
@@ -133,8 +138,6 @@ public class Computer
 			videoGUI.repaint();
 		if (keyboardGUI!=null)
 			keyboardGUI.repaint();
-		if (controlGUI!=null)
-			controlGUI.repaint();
 		
 		System.out.println("state loaded");
 	}
@@ -142,13 +145,20 @@ public class Computer
 	public Computer(ComputerApplet applet)
 	{
 		this.applet=applet;
-		oneScreen=true;
+//		oneScreen=true;
 
 		startComputer();
 	}
 
 	public Computer()
 	{
+		this.args="";
+		startComputer();
+	}
+	
+	public Computer(String args)
+	{
+		this.args=args;
 		startComputer();
 	}
 	
@@ -157,7 +167,6 @@ public class Computer
 		computer=this;
 		initialize();
 		initializeGUIs();
-		controlGUI.refresh();
 		new Thread(new Runnable(){public void run(){
 			mainLoop(); }}).start();
 	}
@@ -167,23 +176,45 @@ public class Computer
 		stepLock=new Lock();
 		cycleEndLock=new Lock();
 
-		computerGUI=new ComputerGUI(computer,oneScreen);
+		computerGUI=new ComputerGUI(computer);
 
-		controlGUI=new ControlGUI(computer);
+		bootgui = new BootGUI(computer,new String[]{"Processor","Memory","BIOS ROM","VGA ROM","Registers","I/O Ports","Video","Keyboard","Floppy Controller","Interrupt Controller","IDE Controller","CMOS","Timer","DMA Controller","Serial Port"});
 
-		bootgui = new BootGUI(computer,
-new String[]{"Processor","Memory","BIOS ROM","VGA ROM","Registers","I/O Ports","Video","Keyboard","Floppy Controller","Interrupt Controller","IDE Controller","CMOS","Timer","DMA Controller","Serial Port"},
-new boolean[]{true,true,true,true,false,true,true,true,true,true,true,true,true,true,true},
-new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,true,false,true}
-);
-		stepLock.lockWait();
+//		if (args.equals(""))
+//			stepLock.lockWait();
+		if (args.indexOf(".img")!=-1)
+		{
+				computer.computerGUI.menubar.setVisible(true);
+				bootgui.setVisible(false);
+				bootgui.bootFromFloppy=true;
+				bootgui.diskField[0].setText(args);
+				bootgui.bootImageName=bootgui.diskField[0].getText();
+				computer.computerGUI.removeComponent(bootgui);
+				bootgui.updateCheckBoxes();
+		}
+		else if (args.indexOf(".xml")!=-1)
+		{
+					bootgui.bootFromFloppy=false;
+					bootgui.bootImageName="";
+					computer.computerGUI.menubar.setVisible(true);
+					bootgui.setVisible(false);
+					computer.computerGUI.removeComponent(bootgui);
+					bootgui.singlestepbox.setSelected(true);
+					bootgui.datapathField.setText(args);
+					bootgui.bootCustomProcessor=true;
+					bootgui.updateCheckBoxes();
+		}
+		else
+				stepLock.lockWait();
 	}
 
 	public void mainLoop()
 	{
 		while(true)
 		{
-			if (customProcessor!=null && customProcessor.active)
+//			if (customProcessor!=null && customProcessor.defaultModule.active)
+//				customProcessor.defaultModule.doCycle();
+			if (customProcessor!=null)
 				customProcessor.doCycle();
 			else
 				cycle();
@@ -201,22 +232,12 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 	{
 		clock = new Clock();
 
-		if (bootgui.diskGUI[0]) diskGUI[0]=new DiskGUI(computer,0);
-		if (bootgui.diskGUI[1]) diskGUI[1]=new DiskGUI(computer,1);
-		if (bootgui.diskGUI[2]) diskGUI[2]=new DiskGUI(computer,2);
-		if (bootgui.diskGUI[3]) diskGUI[3]=new DiskGUI(computer,3);
-
-		if (bootgui.sectorGUI[0]) sectorGUI[0]=new DiskSectorGUI(computer,0);
-		if (bootgui.sectorGUI[1]) sectorGUI[1]=new DiskSectorGUI(computer,1);
-		if (bootgui.sectorGUI[2]) sectorGUI[2]=new DiskSectorGUI(computer,2);
-		if (bootgui.sectorGUI[3]) sectorGUI[3]=new DiskSectorGUI(computer,3);
-
-		if (bootgui.includeDevice("Memory")) physicalMemory = new PhysicalMemory(computer);
-		if (bootgui.includeDevice("Memory")) linearMemory = new LinearMemory(computer);
+		physicalMemory = new PhysicalMemory(computer);
+		linearMemory = new LinearMemory(computer);
 		try
 		{
-			if (bootgui.includeDevice("BIOS ROM")) physicalMemory.loadBIOS(computer.getClass().getClassLoader().getResource("resource/bios.bin"),0xf0000,0xfffff);
-			if (bootgui.includeDevice("VGA ROM")) physicalMemory.loadBIOS(computer.getClass().getClassLoader().getResource("resource/vgabios.bin"),0xc0000,0xcffff);
+			physicalMemory.loadBIOS(computer.getClass().getClassLoader().getResource(bootgui.romImage),0xf0000,0xfffff);
+			physicalMemory.loadBIOS(computer.getClass().getClassLoader().getResource(bootgui.vromImage),0xc0000,0xcffff);
 		}
 		catch(IOException e)
 		{
@@ -228,27 +249,61 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 			System.out.println("Error loading BIOS image: "+e);
 			JOptionPane.showMessageDialog(null, "Cannot load the BIOS image");
 		}
-		if (bootgui.includeDevice("I/O Ports")) ioports=new IOPorts(this);
-		if (bootgui.includeDevice("Processor")) processor = new Processor(this);
-		if (bootgui.includeDevice("Interrupt Controller")) interruptController = new InterruptController(this);
-		if (bootgui.includeDevice("Keyboard")) keyboard = new Keyboard(this);
-		if (bootgui.includeDevice("DMA Controller")) dma1 = new DMA(this,false,true);
-		if (bootgui.includeDevice("DMA Controller")) dma2 = new DMA(this,false,false);
-		if (bootgui.includeDevice("Floppy Controller")) floppy = new Floppy(this);
-		if (bootgui.includeDevice("IDE Controller")) harddrive = new HardDrive(this);
-		if (bootgui.includeDevice("CMOS")) cmos = new CMOS(this);
-		if (bootgui.includeDevice("Timer")) timer = new Timer(this);
-		if (bootgui.includeDevice("Serial Port")) serialport = new SerialPort(this);
-		if (bootgui.includeDevice("Video")) video = new Video(this);
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+		ioports=new IOPorts(this);
+		processor = new Processor(this);
+		interruptController = new InterruptController(this);
+		keyboard = new Keyboard(this);
+		dma1 = new DMA(this,false,true);
+		dma2 = new DMA(this,false,false);
+		floppy = new Floppy(this);
+		harddrive = new HardDrive(this);
+		cmos = new CMOS(this);
+		timer = new Timer(this);
+		serialport = new SerialPort(this);
+		video = new Video(this);
 
-		if (bootgui.showGUI("Processor")) processorGUI=new ProcessorGUI(this);
-		if (bootgui.showGUI("Registers")) registerGUI=new RegisterGUI(this);
-		if (bootgui.showGUI("I/O Ports")) ioGUI=new IOGUI(this);
-		if (bootgui.showGUI("Timer")) timerGUI=new TimerGUI(this);
-		if (bootgui.showGUI("Memory")) memoryGUI=new MemoryGUI(this);
-		if (bootgui.showGUI("Video")) videoGUI=new VideoGUI(this);
-		if (bootgui.showGUI("Serial Port")) serialGUI=new SerialGUI(this);
-		if (bootgui.showGUI("Keyboard")) keyboardGUI=new KeyboardGUI(this);
+		if (!bootgui.memoryImage.equals(""))
+		{
+			MemoryTransferGUI.load(bootgui.memoryImage, bootgui.memoryImageStart, this);
+		}
+		
+		if (!bootgui.datapathxml.equals(""))
+		{
+			datapathBuilder=new DatapathBuilder(this);
+			datapathBuilder.doload(bootgui.datapathxml, datapathBuilder.defaultModule);
+			if (!bootgui.controlxml.equals(""))
+			{
+				controlBuilder=new ControlBuilder(this,datapathBuilder.defaultModule);
+				controlBuilder.clear();
+				ControlBuilder.doload(bootgui.controlxml,controlBuilder.defaultControl);
+				if (bootgui.bootCustomProcessor)
+				{
+					customProcessor=new CustomProcessor(this);
+				}
+			}
+		}
+		if (!bootgui.bootCustomProcessor)
+		{
+			memoryGUI=new MemoryGUI(this);
+			keyboardGUI=new KeyboardGUI(this);
+			videoGUI=new VideoGUI(this);
+			ioGUI=new IOGUI(this);
+			try { memoryGUI.setIcon(true); } catch (PropertyVetoException e) {}
+			try { keyboardGUI.setIcon(true); } catch (PropertyVetoException e) {}
+			try { ioGUI.setIcon(true); } catch (PropertyVetoException e) {}
+			keyboardGUI.setVisible(false);
+			ioGUI.setVisible(false);
+
+		}
+		else
+		{
+			if (datapathBuilder==null)
+				datapathBuilder=new DatapathBuilder(this);
+		}
 	}
 
 	public void cycle()
@@ -265,21 +320,20 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 		//execute an instruction
 		processor.executeAnInstruction();
 
-		//TODO: hope to get rid of this call eventually
-//		magic();
 		
 		//handle incoming interrupts
 		processor.processInterrupts();
 
-//this was just moved: verify that it's right
-		if (breakpointGUI!=null)
-		{
-			if (breakpointGUI.atBreakpoint())
-				controlGUI.pause();
-		}
-
 		if (registerGUI!=null)
 			registerGUI.readRegisters();
+
+		if (trace!=null)
+		{
+			trace.addRegisters(processor);
+			trace.closeTraceEntry();
+		}
+
+
 
 /*		if (registerGUI!=null)
 		{
@@ -287,22 +341,39 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 				processor.printRegisters();
 		}
 */
-		if (trace!=null)
-		{
-			trace.addRegisters(processor);
-			trace.closeTraceEntry();
-		}
 		
 		icount++;
 		
-		controlGUI.instructionCount();		
+		computerGUI.instructionCount();		
+
+		if (breakpointGUI!=null)
+		{
+			if (breakpointGUI.atBreakpoint())
+			{
+				computerGUI.pause();
+				computerGUI.statusfield.setText("BREAKPOINT REACHED: "+ icount+" instructions");
+				if (registerGUI!=null)
+					registerGUI.readRegisters();
+				if (!breakpointGUI.useropened)
+					breakpointGUI.close();
+			}
+		}
+
+		if (computer.icount%NICE_INTERVAL==0 || computer.updateGUIOnPlay)
+		{
+			try{Thread.sleep(1);}catch(InterruptedException e){}
+		}		
+		
 		cycleEndLock.lockResume();
 
 	}
 
 	public static void main(String[] args) throws IOException
 	{
-		new Computer();
+		if (args.length==0)
+			new Computer();
+		else
+			new Computer(args[0]);
 	}
 
 	public static class Lock
@@ -326,49 +397,6 @@ new boolean[]{true,true,false,false,true,true,true,true,false,false,false,false,
 			{
 				this.notify();
 			}
-		}
-	}
-	
-	//HACK
-	//"magically" change values so that the trace matches JPC's
-	//that way I can find the legitimate divergences
-	//specific to l.iso (ttylinux)
-	private void magic()
-	{
-/*		if (icount<3000000 && computer.processor.eip.getValue()==0x520 && computer.processor.edx.getValue()==0x177 && computer.processor.eax.getValue()==0x111101ff)
-			computer.processor.eax.setValue(0x11110100);
-		if (icount<3000000 && computer.processor.eip.getValue()==0x520 && computer.processor.edx.getValue()==0x172 && computer.processor.eax.getValue()==0x111101ff)
-			computer.processor.eax.setValue(0x11110101);
-		if (icount<3000000 && computer.processor.eip.getValue()==0x520 && computer.processor.edx.getValue()==0x173 && computer.processor.eax.getValue()==0x111101ff)
-			computer.processor.eax.setValue(0x11110101);
-		if (icount<3000000 && computer.processor.eip.getValue()==0x520 && computer.processor.edx.getValue()==0x174 && computer.processor.eax.getValue()==0x111101ff)
-			computer.processor.eax.setValue(0x11110114);
-		if (icount<3000000 && computer.processor.eip.getValue()==0x520 && computer.processor.edx.getValue()==0x175 && computer.processor.eax.getValue()==0x111101ff)
-			computer.processor.eax.setValue(0x111101eb);
-*/		
-		switch(icount)
-		{
-		//real mode changes - mostly devices
-		case 317797: computer.processor.eax.setLower8Value(6); break;
-		case 317860: computer.processor.eax.setValue(0xf002); break;
-		case 317928: computer.processor.eax.setValue(0x51); break;
-		case 317946: computer.processor.eax.setValue(0x34); break;
-		case 317964: computer.processor.eax.setValue(0x14); break;
-		case 318039: computer.processor.eax.setValue(0x11111234); break;
-		case 427261: computer.processor.eax.setValue(0x11119200); break;
-		case 447086: computer.processor.eax.setValue(0x11110309); break;
-		case 466536: computer.processor.eax.setValue(0x11110367); break;
-		case 594973: computer.processor.eax.setValue(0x11119200); break;
-		case 678123: computer.processor.eax.setValue(0x11119f00); break;
-		case 678130: computer.processor.eax.setValue(0x11119f00); break;
-
-		
-		//on a lodsb to memory e0010 (virtual c0e0010), jpc reports FF
-		//this apparently happened while jpc was in real mode
-		case 185785984:
-			for (int addr=0xe0000; addr<=0xeffff; addr++)
-				computer.physicalMemory.setByte(addr, (byte)0xff);
-			break;
 		}
 	}
 }
