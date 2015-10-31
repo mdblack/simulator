@@ -1160,6 +1160,37 @@ public class DatapathBuilder extends AbstractGUI
 				}});
 			add(button);
 			ctop+=25;
+			button=new JButton("Export");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.setToolTipText("Save the datapath as an Arduino C program");
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					System.out.println((new ToArduino(dumpXML())).getC());
+					JFileChooser fc = new JFileChooser();
+					fc.setCurrentDirectory(new File("."));
+					fc.showSaveDialog(null);
+					File f = fc.getSelectedFile();
+					if (f==null) return;
+					String name=f.getAbsolutePath();
+					try
+					{
+						PrintWriter p =new PrintWriter(name);
+						p.println((new ToArduino(dumpXML())).getC());
+						p.close();
+					}
+					catch(IOException x)
+					{
+						System.out.println("Error creating file "+name);
+					}	
+					catch(Exception x)
+					{
+						x.printStackTrace();
+					}
+					drawingcomponent.requestFocus();
+				}});
+			add(button);
+			ctop+=25;
 			button=new JButton("Undo");
 			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
 			button.setBounds(5,ctop,cwidth,20);
@@ -3254,6 +3285,20 @@ public class DatapathBuilder extends AbstractGUI
 		{
 			String xml = "<"+type+">\n<number>"+number+"</number>\n<name>"+name+"</name>\n<bits>"+bits+"</bits>\n<xcoordinate>"+xcoor+"</xcoordinate>\n<ycoordinate>"+ycoor+"</ycoordinate>\n";
 				xml+="<xcoordinate2>"+xcoor2+"</xcoordinate2>\n<ycoordinate2>"+ycoor2+"</ycoordinate2>\n<description>"+description+"</description>\n";
+			if (type.equals("register"))
+			{
+				if(getAddressInputBlock().length==1)
+				{
+					xml+="<enable>"+getAddressInputBlock()[0].number+"</enable>\n";
+				}
+			}
+			if (type.equals("memory")||type.equals("register file")||type.equals("ports")||type.equals("lookup table")||type.equals("multiplexor")||type.equals("data_multiplexor"))
+			{
+				if(getAddressInputBlock().length==1)
+				{
+					xml+="<address>"+getAddressInputBlock()[0].number+"</address>\n";
+				}				
+			}
 			if (type.equals("splitter"))
 			{
 				for (Enumeration e=bus.keys(); e.hasMoreElements();)
@@ -3622,7 +3667,7 @@ public class DatapathBuilder extends AbstractGUI
 	
 	//read in a datapath xml file and break it down
 	public class DatapathXMLParse
-	{
+	{ 
 		//list of tokens and contents
 		String[] xmlParts;
 		//the module into which the new blocks will be placed

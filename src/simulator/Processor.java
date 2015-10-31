@@ -253,6 +253,8 @@ public void executeAnInstruction()
 
 	try
 	{
+		boolean scheduletrap=false;
+		if(trap.read()) scheduletrap=true;
 	
 		if(processorGUICode!=null) processorGUICode.pushFetch(eip.getValue());
 	
@@ -265,6 +267,13 @@ public void executeAnInstruction()
 			if (computer.trace!=null) computer.trace.addProcessorCode(processorGUICode);
 			processorGUICode.updateMemoryGUI();
 			processorGUICode.updateGUI();
+		}
+		
+		//check for single step interrupt
+		if(scheduletrap)
+		{
+			trap.clear();
+			handleInterrupt(1);
 		}
 	}
 	catch(Processor_Exception e)

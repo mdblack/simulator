@@ -32,7 +32,7 @@ public class VideoGUI extends AbstractGUI
 	}
 	public void mouseClick(MouseEvent e)
 	{
-		if (computer.video.videoResolution()==Video.TEXTMODE)
+		if (e.getButton()==MouseEvent.BUTTON2 && computer.video.videoResolution()==Video.TEXTMODE)
 		{
 			int address=(2*(((e.getY()-Video.VOFFSET)/16)*80+((e.getX()-Video.VOFFSET)/9))+0xb8000);
 			computer.memoryGUI.dataFrame=new MemoryBlockGUI(computer,MemoryBlockGUI.DATA,address);
