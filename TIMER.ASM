@@ -1,25 +1,19 @@
-	assume cs:code, ss:stackseg, ds:data, es:nothing
-stackseg	segment
-thestack	db	100 dup(?)
-stackplace	db	0	
-stackseg	ends
-
+	assume cs:code, ss:code, ds:code, es:nothing
 code 	segment
 start:
 	mov	ax,1234h
 
-	mov	ax,stackseg
-	mov	ss,ax
-	mov	sp,offset stackplace
-
-;ds:dx to point userinput
-	mov	ax,data
+	mov	ax,code
 	mov	ds,ax
 
+	;set up a timer interrupt service routine
 	push	ds	;save my ds
+	; set ds to interrupt table
 	mov	ax,0
 	mov	ds,ax	;segment 0
 
+	; redirect interrupt 8
+	; put in the entry: myisr, code segment
 	mov	si,32	;32 = int 8 * 4
 	mov	ax,offset myisr
 	mov	[si],ax
@@ -28,24 +22,26 @@ start:
 	mov	[si],ax
 
 	pop	ds
-	cli
-; set up timer
-	mov	al,36h	;set up timer
-	out	43h,al
-	mov	al,0ffh
-	out	40h,al
-	mov	al,0ffh
-	out	40h,al
-	;hopefully, timer is set to go off in 10 cycles
 
+	; stop interrupts from happening
+	cli
+
+	; set up timer
+	mov	al,36h
+	out	43h,al
+
+	mov	al,0ffh
+	out	40h,al
+	mov	al,0ffh
+	out	40h,al
+	;hopefully, timer is set to go off in 64k cycles
+
+	; now let the interrupts go
 	sti
+
+	;hang up program here
 here:
 	jmp	here
-
-exittodos:
-	mov 	ah,0
-	int 	21h
-
 
 myisr:
 	mov	ah,9
@@ -56,10 +52,8 @@ myisr:
 	sti
 	iret
 
-code	ends
+isrmsg	db	"Interrupt $"
 
-data	segment
-isrmsg	db	"Hi from the ISR! $"
-data	ends
+code	ends
 
 	end 	start
