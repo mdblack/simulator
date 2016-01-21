@@ -1191,6 +1191,37 @@ public class DatapathBuilder extends AbstractGUI
 				}});
 			add(button);
 			ctop+=25;
+			button=new JButton("ExportVerilog");
+			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
+			button.setBounds(5,ctop,cwidth,20);
+			button.setToolTipText("Save the datapath as a Verilog program");
+			button.addActionListener(new ActionListener(){
+				public void actionPerformed(ActionEvent arg0) {
+					System.out.println((new ToVerilog(dumpXML())).getVerilog());
+					JFileChooser fc = new JFileChooser();
+					fc.setCurrentDirectory(new File("."));
+					fc.showSaveDialog(null);
+					File f = fc.getSelectedFile();
+					if (f==null) return;
+					String name=f.getAbsolutePath();
+					try
+					{
+						PrintWriter p =new PrintWriter(name);
+						p.println((new ToVerilog(dumpXML())).getVerilog());
+						p.close();
+					}
+					catch(IOException x)
+					{
+						System.out.println("Error creating file "+name);
+					}	
+					catch(Exception x)
+					{
+						x.printStackTrace();
+					}
+					drawingcomponent.requestFocus();
+				}});
+			add(button);
+			ctop+=25;
 			button=new JButton("Undo");
 			button.setFont(new Font("Dialog",Font.PLAIN,fontSize));
 			button.setBounds(5,ctop,cwidth,20);

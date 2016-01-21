@@ -631,7 +631,7 @@ System.out.println(loopCode);
 			v="registerInput["+number+"]="+tablestring(number,0)+";\n";
 			v+="table["+number+"]=memory["+number+"]["+tablestring(Integer.parseInt(a))+"];\n";
 		}
-		else if (type.equals("lookup table"))
+/*		else if (type.equals("lookup table"))
 		{
 			headerCode.append("int memory["+number+"][]={");
 			for(int i=0; i<busMasks.get(Integer.parseInt(a))+1; i++)
@@ -644,6 +644,21 @@ System.out.println(loopCode);
 			}
 			headerCode.append("};\n");
 			v="table["+number+"]=memory["+number+"]["+tablestring(Integer.parseInt(a))+"];\n";
+		}
+*/
+		else if (type.equals("lookup table"))
+		{
+			v="switch("+tablestring(Integer.parseInt(a))+") {\n";
+			for (int i=0; i<busMasks.get(Integer.parseInt(a))+1; i++)
+			{
+				String val=extractField(block,"<value "+i+">");
+				if(val!=null)
+				{
+					v+="case "+i+": ";
+					v+="table["+number+"] = 0x"+val+"; break;\n";
+				}
+			}
+			v+="default: table["+number+"]=0; }\n";
 		}
 		else if (type.equals("splitter"))
 		{
