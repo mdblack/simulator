@@ -64,10 +64,10 @@ public abstract class AbstractGUI extends JInternalFrame
 		this.resizable=true;
 		setLayout(null);
 
-
 		if (statusbar)
 		{
 			int topy=frameY-STATUSSIZE;
+			
 			statusComponent = new StatusComponent();
 			statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
 			statusComponent.setLabel("");
@@ -402,17 +402,24 @@ public abstract class AbstractGUI extends JInternalFrame
 		{
 			frameX=thisgui.getWidth();
 			frameY=thisgui.getHeight();
+			
+			/*
+			 * As the window components are being created, this method will be called to resize
+			 * based on the components.  This means that some components might not yet exist so
+			 * we need to check before doing anything with them.
+			 */
 			if (scrollpane)
 			{
 				int topy=0,height=statusbar? frameY-topy-STATUSSIZE:frameY-topy;
 				
 				scrollPane.setBounds(0,topy,frameX-scrollPane.getVerticalScrollBar().getWidth()-5,height-scrollPane.getHorizontalScrollBar().getHeight()-MARGIN);
 			}
-			if (statusbar)
+			if (statusbar && statusComponent != null)   // Make sure we have a status bar AND the pane exists
 			{
 				int topy=frameY-STATUSSIZE;
 				statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
 			}
+			
 			reSize(frameX,frameY);
 			thisgui.repaint();
 		}
