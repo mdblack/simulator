@@ -86,10 +86,16 @@ public class DatapathBuilder extends AbstractGUI
 	JScrollPane toolscroll;
 	public void reSize(int width, int height)
 	{
-		toolscroll.setBounds(0,0,toolcomponent.width+20,frameY-STATUSSIZE);
-		drawingcomponent.restoreSize();
-//		drawingcomponent.scroll.setBounds(toolcomponent.width+20,0,frameX-toolcomponent.width-20,frameY-STATUSSIZE);
-		drawingcomponent.scroll.revalidate();
+		// This is another place where we may be trying to scroll a pane/window but it 
+		// hasn't yet been fully realized.  So check first.
+		if (toolscroll == null) return;
+		
+		try {
+			toolscroll.setBounds(0,0,toolcomponent.width+20,frameY-STATUSSIZE);
+			drawingcomponent.restoreSize();
+	//		drawingcomponent.scroll.setBounds(toolcomponent.width+20,0,frameX-toolcomponent.width-20,frameY-STATUSSIZE);
+			drawingcomponent.scroll.revalidate();
+		} catch(Exception e) {}
 	}
 	public void constructGUI(GUIComponent guiComponent) 
 	{ 

@@ -2,6 +2,7 @@ package simulator;
 
 import java.awt.*;
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.event.InternalFrameEvent;
 import javax.swing.event.InternalFrameListener;
 
@@ -34,7 +35,7 @@ public abstract class AbstractGUI extends JInternalFrame
 	public AbstractGUI(Computer computer, String title, int canvaswidth, int canvasheight, boolean statusbar, boolean scrollpane, boolean buttonrow, boolean bigScreen)
 	{
 		this.computer=computer;
-	
+		
 		canvasX=canvaswidth;
 		canvasY=canvasheight;
 		
@@ -43,7 +44,7 @@ public abstract class AbstractGUI extends JInternalFrame
 		this.buttonrow=buttonrow;
 		this.bigScreen=bigScreen;
 
-		frameX=(canvasX+10<=MAX_X? canvasX+10:MAX_X);
+		frameX=(canvasX<=MAX_X-10? canvasX:MAX_X-10);
 		frameY=(canvasY+STATUSSIZE<=MAX_Y? canvasY+STATUSSIZE:MAX_Y);
 //		if (computer.computerGUI.singleFrame)
 //		{
@@ -52,11 +53,12 @@ public abstract class AbstractGUI extends JInternalFrame
 //		}
 		if (frameX>computer.computerGUI.XSIZE-MARGIN)
 			frameX=ComputerGUI.XSIZE-MARGIN;
+		
 		if (frameY>computer.computerGUI.MAINSIZE-MARGIN)
 			frameY=ComputerGUI.MAINSIZE-MARGIN;
 
 		setTitle(title);
-		setSize(frameX+10,frameY);
+		setSize(frameX,frameY);
 		addInternalFrameListener(new GUIWindowListener());
 		addComponentListener(new GUIWindowListener());
 		this.iconable=true;
@@ -64,15 +66,31 @@ public abstract class AbstractGUI extends JInternalFrame
 		this.resizable=true;
 		setLayout(null);
 
-
 		if (statusbar)
 		{
 			int topy=frameY-STATUSSIZE;
+			
 			statusComponent = new StatusComponent();
 			statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
 			statusComponent.setLabel("");
 			add(statusComponent);
 		}
+		
+		/*
+		 * The default border style is determined by the theme the system uses.  Mac seems to have
+		 * an issue with the Aqua theme that is putting a 'status' bar at the bottom as part of the
+		 * border itself. The issue this presents is that other systems don't do that using the same
+		 * code so instead of handling it elsewhere, just remove that portion of the border if it
+		 * exists.
+		 */
+		Border b=getBorder();
+		String n1 = b.getClass().getName();
+		
+		if (n1.contains("laf.AquaInternalFrameUI")) {
+			b = ((javax.swing.border.CompoundBorder)b).getInsideBorder();
+			setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.black), b));
+		}
+
 	}
 
 	//override these methods
@@ -402,17 +420,24 @@ public abstract class AbstractGUI extends JInternalFrame
 		{
 			frameX=thisgui.getWidth();
 			frameY=thisgui.getHeight();
+			
+			/*
+			 * As the window components are being created, this method will be called to resize
+			 * based on the components.  This means that some components might not yet exist so
+			 * we need to check before doing anything with them.
+			 */
 			if (scrollpane)
 			{
 				int topy=0,height=statusbar? frameY-topy-STATUSSIZE:frameY-topy;
 				
 				scrollPane.setBounds(0,topy,frameX-scrollPane.getVerticalScrollBar().getWidth()-5,height-scrollPane.getHorizontalScrollBar().getHeight()-MARGIN);
 			}
-			if (statusbar)
+			if (statusbar && statusComponent != null)   // Make sure we have a status bar AND the pane exists
 			{
 				int topy=frameY-STATUSSIZE;
 				statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
 			}
+			
 			reSize(frameX,frameY);
 			thisgui.repaint();
 		}
