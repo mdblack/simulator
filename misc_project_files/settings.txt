@@ -1,0 +1,6 @@
+DiskA /home/mblack/Desktop/COMP399_System_Level_Computing/demos/finalgraphicalos/source/floppya.img
+DiskB /home/mblack/floppy_blank.img
+DiskC harddiskc.img 0 306 4 17
+DiskD /home/mblack/eclipse/simulator/hd.img 0 615 6 17
+ROM resource/bios.bin
+VideoROM resource/vgabios.bin
