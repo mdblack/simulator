@@ -5,16 +5,27 @@ if [ "$1" != "" ]; then
    filename=$1
 fi
 
-if [ -d bin ]; then
-   echo "Creating jar file: ${filename}"
-   cd bin
-   echo "Class-Path: ." > .manifest
-   echo "Main-Class: simulator.Computer" >> .manifest
-   echo "" >> .manifest
-   jar cfm ../$filename .manifest simulator/*.class resource/*
-   rm .manifest
-   cd ..
-   echo "Done."
-else
-   echo "Not in the right place, don't see a bin directory."
+echo "Creating jar file: ${filename}"
+
+if [ -d out ]; then
+   echo "Using IntelliJ build"
+   filename=../../../$filename
+   bin=out/production/simulator
+else 
+   if [ -d bin ]; then
+      echo "Using Eclipse build"
+      filename=../$filename
+      bin=bin
+   else
+      echo "Can't find a way to build."
+      exit
+   fi
 fi
+
+cd ${bin}
+echo "Class-Path: ." > .manifest
+echo "Main-Class: simulator.Computer" >> .manifest
+echo "" >> .manifest
+jar cfm ${filename} .manifest simulator/*.class resource/*
+rm .manifest
+echo "Done."
