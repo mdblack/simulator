@@ -1,0 +1,20 @@
+#!/bin/bash
+
+filename="simulator.jar"
+if [ "$1" != "" ]; then
+   filename=$1
+fi
+
+if [ -d bin ]; then
+   echo "Creating jar file: ${filename}"
+   cd bin
+   echo "Class-Path: ." > .manifest
+   echo "Main-Class: simulator.Computer" >> .manifest
+   echo "" >> .manifest
+   jar cfm ../$filename .manifest simulator/*.class resource/*
+   rm .manifest
+   cd ..
+   echo "Done."
+else
+   echo "Not in the right place, don't see a bin directory."
+fi
