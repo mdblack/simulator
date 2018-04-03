@@ -1,5 +1,13 @@
 #!/bin/bash
 
+`which jar &> /dev/null`
+cmdstatus=$?
+
+if [ "$cmdstatus" == "1" ]; then
+   echo "The 'jar' command could not be found. Make sure it is installed and in your path."
+   exit
+fi 
+
 filename="simulator.jar"
 if [ "$1" != "" ]; then
    filename=$1
