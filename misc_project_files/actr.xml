@@ -1,0 +1,38 @@
+<processor>
+
+<module>
+<number>1</number>
+<name>counter</name>
+<xcoordinate>48</xcoordinate>
+<ycoordinate>39</ycoordinate>
+<xcoordinate2>88</xcoordinate2>
+<ycoordinate2>69</ycoordinate2>
+<absolutepath>/home/mblack/eclipse/simulator/ctr.xml</absolutepath>
+<filename>ctr.xml</filename>
+<outputpin>3</outputpin>
+</module>
+
+<output pin>
+<number>2</number>
+<name>output pin2</name>
+<bits>8</bits>
+<xcoordinate>42</xcoordinate>
+<ycoordinate>111</ycoordinate>
+<xcoordinate2>55</xcoordinate2>
+<ycoordinate2>121</ycoordinate2>
+</output pin>
+
+<bus>
+<number>3</number>
+<name></name>
+<bits>8</bits>
+<xcoordinate>48</xcoordinate>
+<ycoordinate>69</ycoordinate>
+<xcoordinate2>48</xcoordinate2>
+<ycoordinate2>111</ycoordinate2>
+<entry>1</entry>
+<exit>2</exit>
+</bus>
+
+</processor>
+

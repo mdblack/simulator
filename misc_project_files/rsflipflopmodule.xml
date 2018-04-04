@@ -1,0 +1,7 @@
+<module>
+<datapath>/home/mblack/eclipse/simulator/rsflipflop.xml</datapath>
+<control>/home/mblack/eclipse/simulator/rsflipflopcontrol.xml</control>
+<input pin> <number>1</number> <name>input pin1</name> <bits>1</bits> <xcoordinate>219</xcoordinate> <ycoordinate>66</ycoordinate> <xcoordinate2>232</xcoordinate2> <ycoordinate2>76</ycoordinate2> </input pin>
+<input pin> <number>2</number> <name>input pin2</name> <bits>1</bits> <xcoordinate>396</xcoordinate> <ycoordinate>69</ycoordinate> <xcoordinate2>409</xcoordinate2> <ycoordinate2>79</ycoordinate2> </input pin>
+<output pin> <number>5</number> <name>output pin5</name> <bits>1</bits> <xcoordinate>378</xcoordinate> <ycoordinate>225</ycoordinate> <xcoordinate2>391</xcoordinate2> <ycoordinate2>235</ycoordinate2> </output pin>
+</module>

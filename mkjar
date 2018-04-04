@@ -1,0 +1,39 @@
+#!/bin/bash
+
+`which jar &> /dev/null`
+cmdstatus=$?
+
+if [ "$cmdstatus" == "1" ]; then
+   echo "The 'jar' command could not be found. Make sure it is installed and in your path."
+   exit
+fi 
+
+filename="simulator.jar"
+if [ "$1" != "" ]; then
+   filename=$1
+fi
+
+echo "Creating jar file: ${filename}"
+
+if [ -d out ]; then
+   echo "Using IntelliJ build"
+   filename=../../../$filename
+   bin=out/production/simulator
+else 
+   if [ -d bin ]; then
+      echo "Using Eclipse build"
+      filename=../$filename
+      bin=bin
+   else
+      echo "Can't find a way to build."
+      exit
+   fi
+fi
+
+cd ${bin}
+echo "Class-Path: ." > .manifest
+echo "Main-Class: simulator.Computer" >> .manifest
+echo "" >> .manifest
+jar cfm ${filename} .manifest simulator/*.class resource/*
+rm .manifest
+echo "Done."

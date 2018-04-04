@@ -1,5 +1,0 @@
-<module>
-<datapath>/home/mblack/eclipse/simulator/ctrd.xml</datapath>
-<control>/home/mblack/eclipse/simulator/ctrc.xml</control>
-<output pin> <number>3</number> <name>value</name> <bits>8</bits> <xcoordinate>126</xcoordinate> <ycoordinate>249</ycoordinate> <xcoordinate2>139</xcoordinate2> <ycoordinate2>259</ycoordinate2> </output pin>
-</module>
