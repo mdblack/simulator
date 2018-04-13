@@ -41,6 +41,9 @@ public class CustomProcessor extends IODevice
 		defaultModule.active=true;
 		defaultModule.updateGUIs=true;
 		
+		while (computer.datapathBuilder.modules.size() > 0)
+			computer.datapathBuilder.modules.remove(0);
+
 		computer.datapathBuilder.modules.add(defaultModule);
 
 		computer.datapathBuilder.repaint();
