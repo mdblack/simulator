@@ -83,12 +83,12 @@ public abstract class AbstractGUI extends JInternalFrame
 		 * code so instead of handling it elsewhere, just remove that portion of the border if it
 		 * exists.
 		 */
-		Border b=getBorder();
-		String n1 = b.getClass().getName();
+		Border frameBorder=getBorder();
+		String borderName = frameBorder.getClass().getName();
 		
-		if (n1.contains("laf.AquaInternalFrameUI")) {
-			b = ((javax.swing.border.CompoundBorder)b).getInsideBorder();
-			setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.black), b));
+		if (borderName.contains("laf.AquaInternalFrameUI")) {
+			frameBorder = ((javax.swing.border.CompoundBorder)frameBorder).getInsideBorder();
+			setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.black), frameBorder));
 		}
 
 	}
