@@ -441,9 +441,14 @@ public class ComputerGUI
 				computer.processorBuilder=new ProcessorBuilder(computer);
 			}
 			else if (e.getActionCommand().equals("Datapath"))
-			{
-				computer.datapathBuilder=new DatapathBuilder(computer);
-			}
+				if (computer.datapathBuilder==null)
+				{
+					computer.datapathBuilder=new DatapathBuilder(computer);
+				}
+				else
+				{
+					computer.datapathBuilder.setStatusLabel("Save and close current Datapath to open another Datapath");
+				}
 			else if (e.getActionCommand().equals("Control"))
 			{
 				if (computer.datapathBuilder!=null)
