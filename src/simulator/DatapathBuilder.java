@@ -58,7 +58,8 @@ public class DatapathBuilder extends AbstractGUI
 	
 	private Stack<String> undolog;
 	public ArrayList<CustomProcessor.CustomProcessorModule> modules;
-	
+	private GUIComponent guiComponent;
+
 	public DatapathBuilder(Computer computer)
 	{
 		super(computer,"Datapath Builder",1000,700,true,false,false,true);
@@ -86,19 +87,28 @@ public class DatapathBuilder extends AbstractGUI
 	JScrollPane toolscroll;
 	public void reSize(int width, int height)
 	{
+		//setCanvasCoordinates(width, height);
+		//setFrameCoordinates(width, height);
+		
 		// This is another place where we may be trying to scroll a pane/window but it 
 		// hasn't yet been fully realized.  So check first.
 		if (toolscroll == null) return;
 		
 		try {
-			toolscroll.setBounds(0,0,toolcomponent.width+20,frameY-STATUSSIZE);
+			// Change the height of the main gui container and the tool scroll.
+			guiComponent.setBounds(0, 0, width, height);
+			toolscroll.setBounds(0,0,toolcomponent.width+20,height-STATUSSIZE);
+
 			drawingcomponent.restoreSize();
-	//		drawingcomponent.scroll.setBounds(toolcomponent.width+20,0,frameX-toolcomponent.width-20,frameY-STATUSSIZE);
 			drawingcomponent.scroll.revalidate();
 		} catch(Exception e) {}
+		
+		revalidate();
+		repaint();
 	}
 	public void constructGUI(GUIComponent guiComponent) 
 	{ 
+		this.guiComponent = guiComponent;
 		toolcomponent=new ToolComponent();
 		toolscroll=new JScrollPane(toolcomponent);
 		toolscroll.setBounds(0,0,toolcomponent.width+20,frameY-STATUSSIZE);
@@ -578,6 +588,7 @@ public class DatapathBuilder extends AbstractGUI
 			public void keyTyped(KeyEvent arg0) {}
 			});
 		drawingcomponent.setFocusable(true);
+
 	}
 	private void clearAction()
 	{
@@ -1071,9 +1082,8 @@ public class DatapathBuilder extends AbstractGUI
 			add(saveChanges);
 			
 			scroll=new JScrollPane(this);
-			scroll.setBounds(toolcomponent.width+20,0,width+20,frameY-STATUSSIZE);
 			guiComponent.add(scroll);
-			drawingcomponent.scroll.setBounds(toolcomponent.width+20+width+20,0,frameX-toolcomponent.width-width,frameY-STATUSSIZE);
+			drawingcomponent.restoreSize();
 			guiComponent.revalidate();
 		}
 		public void paintComponent(Graphics g)
@@ -1447,7 +1457,7 @@ public class DatapathBuilder extends AbstractGUI
 		{
 			super();
 			scroll=new JScrollPane(this);
-			scroll.setBounds(toolcomponent.width+20,0,frameX-toolcomponent.width-20,frameY-STATUSSIZE);
+			restoreSize();
 			scroll.getHorizontalScrollBar().setValue(dpwidth/2);
 			scroll.getVerticalScrollBar().setValue(dpheight/2);
 			scroll.getHorizontalScrollBar().addAdjustmentListener(new AdjustmentListener(){
@@ -1475,7 +1485,8 @@ public class DatapathBuilder extends AbstractGUI
 		}
 		public void restoreSize()
 		{
-			scroll.setBounds(toolcomponent.width+20,0,frameX-toolcomponent.width-20,frameY-STATUSSIZE);			
+			int offset = (int) scroll.getVerticalScrollBar().getPreferredSize().getWidth();
+			scroll.setBounds(toolscroll.getWidth(),0,frameX-toolscroll.getWidth(),frameY-STATUSSIZE);			
 		}
 		public Dimension getPreferredSize()
 		{

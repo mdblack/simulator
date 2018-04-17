@@ -34,18 +34,18 @@ public abstract class AbstractGUI extends JInternalFrame
 
 	public AbstractGUI(Computer computer, String title, int canvaswidth, int canvasheight, boolean statusbar, boolean scrollpane, boolean buttonrow, boolean bigScreen)
 	{
-		this.computer=computer;
+		super(title, true, true, true, true);
 		
-		canvasX=canvaswidth;
-		canvasY=canvasheight;
+		this.computer=computer;
 		
 		this.scrollpane=scrollpane;
 		this.statusbar=statusbar;
 		this.buttonrow=buttonrow;
 		this.bigScreen=bigScreen;
 
-		frameX=(canvasX<=MAX_X-10? canvasX:MAX_X-10);
-		frameY=(canvasY+STATUSSIZE<=MAX_Y? canvasY+STATUSSIZE:MAX_Y);
+		setCanvasCoordinates(canvaswidth, canvasheight);
+		setFrameCoordinates(canvasX, canvasY);
+		
 //		if (computer.computerGUI.singleFrame)
 //		{
 //			frameX=computer.computerGUI.getW(this);
@@ -57,13 +57,10 @@ public abstract class AbstractGUI extends JInternalFrame
 		if (frameY>computer.computerGUI.MAINSIZE-MARGIN)
 			frameY=ComputerGUI.MAINSIZE-MARGIN;
 
-		setTitle(title);
 		setSize(frameX,frameY);
 		addInternalFrameListener(new GUIWindowListener());
 		addComponentListener(new GUIWindowListener());
-		this.iconable=true;
-		this.closable=true;
-		this.resizable=true;
+
 		setLayout(null);
 
 		if (statusbar)
@@ -92,6 +89,15 @@ public abstract class AbstractGUI extends JInternalFrame
 
 	}
 
+	public void setCanvasCoordinates(int canvaswidth, int canvasheight) {
+		canvasX=canvaswidth;
+		canvasY=canvasheight;
+	}
+	public void setFrameCoordinates(int canvasX, int canvasY) {
+		frameX=(canvasX<=MAX_X-10? canvasX:MAX_X-10);
+		frameY=(canvasY+STATUSSIZE<=MAX_Y? canvasY+STATUSSIZE:MAX_Y);
+	}
+	
 	//override these methods
 	public void constructGUI(GUIComponent guiComponent) { }
 	public void doPaint(Graphics g) { }

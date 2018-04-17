@@ -1,8 +1,10 @@
 *.class
 bin/
+.project
 .project/
 .classpath
 .idea/
 out/
 simulator.iml
+.settings/
 settings.txt
