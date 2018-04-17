@@ -77,18 +77,17 @@ public abstract class AbstractGUI extends JInternalFrame
 		}
 		
 		/*
-		 * The default border style is determined by the theme the system uses.  Mac seems to have
-		 * an issue with the Aqua theme that is putting a 'status' bar at the bottom as part of the
-		 * border itself. The issue this presents is that other systems don't do that using the same
-		 * code so instead of handling it elsewhere, just remove that portion of the border if it
-		 * exists.
+		 * The borders might be different on various devices so instead of using whatever the
+		 * default it, force it to be a line border.
 		 */
-		Border frameBorder=getBorder();
-		String borderName = frameBorder.getClass().getName();
 		
-		if (borderName.contains("laf.AquaInternalFrameUI")) {
+		try {
+			Border frameBorder=getBorder();
+			
 			frameBorder = ((javax.swing.border.CompoundBorder)frameBorder).getInsideBorder();
 			setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.black), frameBorder));
+		} catch (ClassCastException e) {
+			setBorder(BorderFactory.createLineBorder(Color.black, 1));
 		}
 
 	}
