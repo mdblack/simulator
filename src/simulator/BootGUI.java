@@ -118,73 +118,78 @@ public class BootGUI extends AbstractGUI
 		memoryImage="";
 		datapathxml="";
 		controlxml="";
-		
-		try
-		{
-			FileReader fr=new FileReader("settings.txt");
-			Scanner scan=new Scanner(fr);
-			while(true)
-			{
-				if (!scan.hasNext())
-					break;
-				String type=scan.next();
-				if (type.equals("DiskA"))
-				{
-					diskIncluded[0]=true;
-					diskImage[0]=scan.next();
-				}
-				if (type.equals("DiskB"))
-				{
-					diskIncluded[1]=true;
-					diskImage[1]=scan.next();
-				}
-				if (type.equals("DiskC"))
-				{
-					diskIncluded[2]=true;
-					diskImage[2]=scan.next();
-					isCD[2]=scan.nextInt()==1;
-					cylinders[2]=scan.nextInt();
-					heads[2]=scan.nextInt();
-					sectors[2]=scan.nextInt();
-				}
-				if (type.equals("DiskD"))
-				{
-					diskIncluded[3]=true;
-					diskImage[3]=scan.next();
-					isCD[3]=scan.nextInt()==1;
-					cylinders[3]=scan.nextInt();
-					heads[3]=scan.nextInt();
-					sectors[3]=scan.nextInt();
-				}
-				if (type.equals("ROM"))
-				{
-					romImage=scan.next();
-				}
-				if (type.equals("VideoROM"))
-				{
-					vromImage=scan.next();
-				}
-				if (type.equals("MemoryContents"))
-				{
-					memoryImage=scan.next();
-					memoryImageStart=Integer.parseInt(scan.next(),16);
-				}
-				if (type.equals("CustomProcessor"))
-				{
-					try{
-					datapathxml=scan.next();
-					controlxml=scan.next();
-					}catch(java.util.NoSuchElementException e){}
-				}
-			}
-		}
+
+        try
+        {
+            FileReader fr = new FileReader("settings.txt");
+            Scanner scan = new Scanner(fr);
+            while(scan.hasNext())
+            {
+                findBootType(scan);
+            }
+        }
+
+        catch (java.io.FileNotFoundException e) {
+            System.out.println("Error: Settings.txt not found");
+        }
 		catch(Exception e)
 		{
 			e.printStackTrace();
 		}
+
 		computer.computerGUI.menubar.setVisible(false);
 		refresh();
 	}
+
+	public void findBootType(Scanner scan) {
+        String type=scan.next();
+        if (type.equals("DiskA"))
+        {
+            diskIncluded[0]=true;
+            diskImage[0]=scan.next();
+        }
+        else if (type.equals("DiskB"))
+        {
+            diskIncluded[1]=true;
+            diskImage[1]=scan.next();
+        }
+        else if (type.equals("DiskC"))
+        {
+            diskIncluded[2]=true;
+            diskImage[2]=scan.next();
+            isCD[2]=scan.nextInt()==1;
+            cylinders[2]=scan.nextInt();
+            heads[2]=scan.nextInt();
+            sectors[2]=scan.nextInt();
+        }
+        else if (type.equals("DiskD"))
+        {
+            diskIncluded[3]=true;
+            diskImage[3]=scan.next();
+            isCD[3]=scan.nextInt()==1;
+            cylinders[3]=scan.nextInt();
+            heads[3]=scan.nextInt();
+            sectors[3]=scan.nextInt();
+        }
+        else if (type.equals("ROM"))
+        {
+            romImage=scan.next();
+        }
+        else if (type.equals("VideoROM"))
+        {
+            vromImage=scan.next();
+        }
+        else if (type.equals("MemoryContents"))
+        {
+            memoryImage=scan.next();
+            memoryImageStart=Integer.parseInt(scan.next(),16);
+        }
+        else if (type.equals("CustomProcessor"))
+        {
+            datapathxml=scan.next();
+            controlxml=scan.next();
+        }
+    }
 	
 	public void closeGUI()
 	{
@@ -671,8 +676,8 @@ public class BootGUI extends AbstractGUI
 				setVisible(false);
 				computer.computerGUI.menubar.setVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
-				updateCheckBoxes();
 				computer.stepLock.lockResume();
+
 			}
 			else if (e.getActionCommand().equals("Boot Disk C:"))
 			{
@@ -681,8 +686,6 @@ public class BootGUI extends AbstractGUI
 				setVisible(false);
 				computer.computerGUI.menubar.setVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
-				updateCheckBoxes();
-
 				computer.stepLock.lockResume();
 			}
 			else if (e.getActionCommand().equals("Boot No Disk"))
@@ -693,8 +696,6 @@ public class BootGUI extends AbstractGUI
 				computer.computerGUI.menubar.setVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
 				singlestepbox.setSelected(true);
-
-				updateCheckBoxes();
 				computer.stepLock.lockResume();
 			}
 			else if (e.getActionCommand().equals("Processor Design"))

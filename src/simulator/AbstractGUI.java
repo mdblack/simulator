@@ -8,6 +8,8 @@ import javax.swing.event.InternalFrameListener;
 
 import java.awt.event.*;
 
+//TODO: there is a scrollpane (bool) and scrollPane (JScrollPane)
+
 public abstract class AbstractGUI extends JInternalFrame
 {
 	public static final int STATUSSIZE=50;
@@ -434,8 +436,9 @@ public abstract class AbstractGUI extends JInternalFrame
 			if (scrollpane)
 			{
 				int topy=0,height=statusbar? frameY-topy-STATUSSIZE:frameY-topy;
-				
-				scrollPane.setBounds(0,topy,frameX-scrollPane.getVerticalScrollBar().getWidth()-5,height-scrollPane.getHorizontalScrollBar().getHeight()-MARGIN);
+				if(scrollPane != null) {
+                    scrollPane.setBounds(0,topy,frameX-scrollPane.getVerticalScrollBar().getWidth()-5,height-scrollPane.getHorizontalScrollBar().getHeight()-MARGIN);
+                }
 			}
 			if (statusbar && statusComponent != null)   // Make sure we have a status bar AND the pane exists
 			{
