@@ -1323,7 +1323,14 @@ public class DatapathBuilder extends AbstractGUI
 			button.setToolTipText("Open up a new Control Builder window");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
-					computer.controlBuilder=new ControlBuilder(computer,computer.datapathBuilder.defaultModule);
+					if (computer.controlBuilder==null)
+					{
+						computer.controlBuilder=new ControlBuilder(computer,computer.datapathBuilder.defaultModule);
+					}
+					else
+					{
+						setStatusLabel("Save and close the open Control to open another Control");
+					}
 				}});
 			add(button);
 			ctop+=25;
