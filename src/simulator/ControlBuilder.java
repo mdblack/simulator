@@ -23,6 +23,7 @@ public class ControlBuilder extends AbstractGUI
 	public ControlModule defaultControl;
 	public ControlControl controlControl;
 	public DrawingComponent drawingcomponent;
+	public JScrollPane scroll;
 
 	public ControlBuilder(Computer computer, DatapathBuilder.DatapathModule datapathModule)
 	{
@@ -37,7 +38,7 @@ public class ControlBuilder extends AbstractGUI
 
 	public void constructGUI(GUIComponent guiComponent)
 	{
-		JScrollPane scroll;
+		
 		controlControl=new ControlControl();
 		scroll=new JScrollPane(controlControl);
 		scroll.setBounds(0,0,controlControl.width+20,frameY-STATUSSIZE);
@@ -64,8 +65,10 @@ public class ControlBuilder extends AbstractGUI
 			// Change the height of the main gui container and the controlControl.
 			guiComponent.setBounds(0, 0, width, height);
 			controlControl.setBounds(0,0,controlControl.width+20,height-STATUSSIZE);
+			scroll.setBounds(0,0,controlControl.width+20,height-STATUSSIZE);
 
 			drawingcomponent.restoreSize();
+			
 		} catch(Exception e) {}
 
 	}
