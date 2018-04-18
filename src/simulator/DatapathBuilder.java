@@ -97,10 +97,17 @@ public class DatapathBuilder extends AbstractGUI
 		try {
 			// Change the height of the main gui container and the tool scroll.
 			guiComponent.setBounds(0, 0, width, height);
-			toolscroll.setBounds(0,0,toolcomponent.width+20,height-STATUSSIZE);
+			if (toolscroll != null)
+				toolscroll.setBounds(0,0,toolcomponent.width+20,height-STATUSSIZE);
 
-			drawingcomponent.restoreSize();
-			drawingcomponent.scroll.revalidate();
+			if (drawingcomponent != null) {
+				drawingcomponent.restoreSize();
+				drawingcomponent.scroll.revalidate();
+				}
+			
+			if (modificationcomponent != null)
+				modificationcomponent.restoreSize();
+			
 		} catch(Exception e) {}
 		
 		revalidate();
@@ -1083,12 +1090,15 @@ public class DatapathBuilder extends AbstractGUI
 			add(saveChanges);
 			
 			scroll=new JScrollPane(this);
-			scroll.setBounds(toolscroll.getWidth(), 0,width + MARGIN,frameY-STATUSSIZE);
 
 			guiComponent.add(scroll);
+			restoreSize();
+			guiComponent.revalidate();
+		}
+		public void restoreSize() {
+			scroll.setBounds(toolscroll.getWidth(), 0,width + MARGIN,frameY-STATUSSIZE);
 			drawingcomponent.setLeft(toolscroll.getWidth() + width + MARGIN);
 			drawingcomponent.restoreSize();
-			guiComponent.revalidate();
 		}
 		public void paintComponent(Graphics g)
 		{
