@@ -23,6 +23,7 @@ public class ControlBuilder extends AbstractGUI
 	public ControlModule defaultControl;
 	public ControlControl controlControl;
 	public DrawingComponent drawingcomponent;
+	public JScrollPane scroll;
 
 	public ControlBuilder(Computer computer, DatapathBuilder.DatapathModule datapathModule)
 	{
@@ -37,7 +38,7 @@ public class ControlBuilder extends AbstractGUI
 
 	public void constructGUI(GUIComponent guiComponent)
 	{
-		JScrollPane scroll;
+		
 		controlControl=new ControlControl();
 		scroll=new JScrollPane(controlControl);
 		scroll.setBounds(0,0,controlControl.width+20,frameY-STATUSSIZE);
@@ -53,6 +54,26 @@ public class ControlBuilder extends AbstractGUI
 			public void mouseReleased(MouseEvent arg0) {}});
 		guiComponent.add(drawingcomponent.scroll);
 	}
+
+	public void reSize(int width, int height)
+	{
+		// This is another place where we may be trying to scroll a pane/window but it
+		// hasn't yet been fully realized.  So check first.
+		if (controlControl == null) return;
+
+		try {
+			// Change the height of the main gui container and the controlControl.
+			guiComponent.setBounds(0, 0, width, height);
+			controlControl.setBounds(0,0,controlControl.width+20,height-STATUSSIZE);
+			scroll.setBounds(0,0,controlControl.width+20,height-STATUSSIZE);
+
+			drawingcomponent.restoreSize();
+			
+		} catch(Exception e) {}
+
+	}
+
+
 	public class DrawingComponent extends JComponent
 	{
 		Block tempblock=null;
