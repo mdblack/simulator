@@ -56,9 +56,6 @@ public class ControlBuilder extends AbstractGUI
 
 	public void reSize(int width, int height)
 	{
-		//setCanvasCoordinates(width, height);
-		//setFrameCoordinates(width, height);
-
 		// This is another place where we may be trying to scroll a pane/window but it
 		// hasn't yet been fully realized.  So check first.
 		if (controlControl == null) return;
