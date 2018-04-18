@@ -903,7 +903,8 @@ public class DatapathBuilder extends AbstractGUI
 		public ModificationComponent(int block,int bus)
 		{
 			super();
-			currentBlock=block; currentBus=bus;
+			currentBlock=block; 
+			currentBus=bus;
 			int ctop=0;
 			itemlabel=new JLabel[TYPES];
 			itemfield=new JTextField[TYPES];
@@ -1082,7 +1083,10 @@ public class DatapathBuilder extends AbstractGUI
 			add(saveChanges);
 			
 			scroll=new JScrollPane(this);
+			scroll.setBounds(toolscroll.getWidth(), 0,width + MARGIN,frameY-STATUSSIZE);
+
 			guiComponent.add(scroll);
+			drawingcomponent.setLeft(toolscroll.getWidth() + width + MARGIN);
 			drawingcomponent.restoreSize();
 			guiComponent.revalidate();
 		}
@@ -1101,6 +1105,7 @@ public class DatapathBuilder extends AbstractGUI
 		{
 			guiComponent.remove(scroll);
 			modificationcomponent=null;
+			drawingcomponent.resetLeft();
 			drawingcomponent.restoreSize();
 			guiComponent.revalidate();
 		}
@@ -1456,6 +1461,7 @@ public class DatapathBuilder extends AbstractGUI
 		public DrawingComponent()
 		{
 			super();
+			resetLeft();
 			scroll=new JScrollPane(this);
 			restoreSize();
 			scroll.getHorizontalScrollBar().setValue(dpwidth/2);
@@ -1483,10 +1489,15 @@ public class DatapathBuilder extends AbstractGUI
 					}
 				}});
 		}
-		public void restoreSize()
-		{
-			int offset = (int) scroll.getVerticalScrollBar().getPreferredSize().getWidth();
-			scroll.setBounds(toolscroll.getWidth(),0,frameX-toolscroll.getWidth(),frameY-STATUSSIZE);			
+		public void restoreSize() {
+			scroll.setBounds(left,0,frameX-toolscroll.getWidth(),frameY-STATUSSIZE);			
+		}
+		int left;
+		public void setLeft(int left) {
+			this.left = left;
+		}
+		public void resetLeft() {
+			setLeft(toolscroll.getWidth());
 		}
 		public Dimension getPreferredSize()
 		{
@@ -1814,7 +1825,7 @@ public class DatapathBuilder extends AbstractGUI
 		
 		public void edit()
 		{
-			modificationcomponent=new ModificationComponent(-1,number);			
+			modificationcomponent=new ModificationComponent(-1,number);	
 		}
 		
 		public void select()
@@ -2204,7 +2215,7 @@ public class DatapathBuilder extends AbstractGUI
 		
 		public void edit()
 		{
-			modificationcomponent=new ModificationComponent(number,-1);			
+			modificationcomponent=new ModificationComponent(number,-1);	
 		}
 		
 		public void select()
