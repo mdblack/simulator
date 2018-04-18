@@ -1329,7 +1329,7 @@ public class DatapathBuilder extends AbstractGUI
 					}
 					else
 					{
-						setStatusLabel("Save and close the open Control to open another Control");
+						setStatusLabel("Save and close the current Control to open another Control");
 					}
 				}});
 			add(button);
