@@ -427,8 +427,14 @@ public abstract class AbstractGUI extends JInternalFrame
 		{
 			frameX=thisgui.getWidth();
 			frameY=thisgui.getHeight();
-			
-			/*
+            Boolean isMax =   ((JInternalFrame)e.getComponent()).isMaximum();
+
+            if(isMax)
+            {
+				frameX = thisgui.getParent().getWidth()-25;
+				thisgui.setSize(new Dimension(frameX, frameY));
+            }
+                /*
 			 * As the window components are being created, this method will be called to resize
 			 * based on the components.  This means that some components might not yet exist so
 			 * we need to check before doing anything with them.
