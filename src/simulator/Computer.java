@@ -7,6 +7,8 @@ Computer builds the PC, starts it running
 */
 
 package simulator;
+import java.awt.Dimension;
+import java.awt.Toolkit;
 import java.beans.PropertyVetoException;
 import java.io.*;
 import java.util.Scanner;
@@ -176,7 +178,11 @@ public class Computer
 		stepLock=new Lock();
 		cycleEndLock=new Lock();
 
-		computerGUI=new ComputerGUI(computer);
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        double screenWidth = screenSize.getWidth();
+        double screenHeight = screenSize.getHeight();
+
+        computerGUI = new ComputerGUI(computer, screenWidth, screenHeight);
 
 		bootgui = new BootGUI(computer,new String[]{"Processor","Memory","BIOS ROM","VGA ROM","Registers","I/O Ports","Video","Keyboard","Floppy Controller","Interrupt Controller","IDE Controller","CMOS","Timer","DMA Controller","Serial Port"});
 

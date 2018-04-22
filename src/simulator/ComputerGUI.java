@@ -18,7 +18,13 @@ import simulator.DatapathBuilder.DatapathModule;
 
 public class ComputerGUI
 {
-	static int XSIZE=1000,YSIZE=730,BUTTONSIZE=100,STATUSSIZE=30,MAINSIZE=YSIZE-BUTTONSIZE-STATUSSIZE;
+	static int XSIZE = 1000;
+	static int YSIZE = 730;
+
+	static int BUTTONSIZE = 100;
+	static int STATUSSIZE = 30;
+	static int MAINSIZE = YSIZE - BUTTONSIZE - STATUSSIZE;
+	
 	private static final int INSTRUCTION_COUNT_UPDATE=50000;
 //	static int BIGWIDTH=(int)(0.6*XSIZE),BIGHEIGHT=(int)(0.62*YSIZE);
 	Computer computer;
@@ -27,9 +33,11 @@ public class ComputerGUI
 	JTextField statusfield;
 	JPanel buttonpanel,statuspanel;
 	
-	public ComputerGUI(Computer computer)
+    public ComputerGUI(Computer computer, double screenWidth, double screenHeight)
 	{
 		this.computer=computer;
+		this.XSIZE = (int) (screenWidth * .5);
+		this.YSIZE = (int) (screenHeight * .8);
 		
 /*        try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
