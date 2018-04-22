@@ -183,5 +183,8 @@ public class MemoryTransferGUI extends AbstractGUI {
             }
             i++;
         }
+        if (byteReady){
+            computer.physicalMemory.setByte(a, b);
+        }
     }
 }
