@@ -62,7 +62,7 @@ public class DatapathBuilder extends AbstractGUI
 
 	public DatapathBuilder(Computer computer)
 	{
-		super(computer,"Datapath Builder",1000,700,true,false,false,true);
+		super(computer,"Datapath Builder",computer.resolution.newComponentWidth,computer.resolution.newComponentHeight,true,false,false,true);
 		undolog=new Stack<String>();
 		modules=new ArrayList<CustomProcessorModule>();
 		errorlog=new ArrayList<ErrorEntry>();
