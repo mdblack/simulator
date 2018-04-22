@@ -73,6 +73,7 @@ public class Computer
 	public ComputerApplet applet=null;
 	
 	public String args="";
+	public Resolution resolution;
 	
 	public String saveState()
 	{
@@ -177,12 +178,9 @@ public class Computer
 	{
 		stepLock=new Lock();
 		cycleEndLock=new Lock();
+		resolution = new Resolution();
 
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        double screenWidth = screenSize.getWidth();
-        double screenHeight = screenSize.getHeight();
-
-        computerGUI = new ComputerGUI(computer, screenWidth, screenHeight);
+        computerGUI = new ComputerGUI(computer);
 
 		bootgui = new BootGUI(computer,new String[]{"Processor","Memory","BIOS ROM","VGA ROM","Registers","I/O Ports","Video","Keyboard","Floppy Controller","Interrupt Controller","IDE Controller","CMOS","Timer","DMA Controller","Serial Port"});
 

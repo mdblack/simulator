@@ -18,26 +18,18 @@ import simulator.DatapathBuilder.DatapathModule;
 
 public class ComputerGUI
 {
-	static int XSIZE = 1000;
-	static int YSIZE = 730;
-
-	static int BUTTONSIZE = 100;
-	static int STATUSSIZE = 30;
-	static int MAINSIZE = YSIZE - BUTTONSIZE - STATUSSIZE;
 	
 	private static final int INSTRUCTION_COUNT_UPDATE=50000;
-//	static int BIGWIDTH=(int)(0.6*XSIZE),BIGHEIGHT=(int)(0.62*YSIZE);
+
 	Computer computer;
 	JDesktopPane dframe;
 	boolean singleFrame=true;
 	JTextField statusfield;
 	JPanel buttonpanel,statuspanel;
 	
-    public ComputerGUI(Computer computer, double screenWidth, double screenHeight)
+    public ComputerGUI(Computer computer)
 	{
 		this.computer=computer;
-		this.XSIZE = (int) (screenWidth * .5);
-		this.YSIZE = (int) (screenHeight * .8);
 		
 /*        try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
@@ -56,15 +48,15 @@ public class ComputerGUI
         }		
 */		
 		dframe=new ComputerDesktopPane();
-		dframe.setBounds(0,0,XSIZE,MAINSIZE);
+		dframe.setBounds(0,0,computer.resolution.desktopPanelWidth,computer.resolution.desktopPanelHeight);
 		buttonpanel=new JPanel();
-		buttonpanel.setBounds(0,MAINSIZE+STATUSSIZE,XSIZE,BUTTONSIZE);
+		buttonpanel.setBounds(0,computer.resolution.desktopPanelHeight+computer.resolution.statusHeight,computer.resolution.desktopPanelWidth,computer.resolution.buttonHeight);
 		generateButtons(buttonpanel);
 		statuspanel=new JPanel();
-		statuspanel.setBounds(0,MAINSIZE,XSIZE,STATUSSIZE);
+		statuspanel.setBounds(0,computer.resolution.desktopPanelHeight,computer.resolution.desktopPanelWidth,computer.resolution.statusHeight);
 		statuspanel.setLayout(null);
 		statusfield=new JTextField();
-		statusfield.setBounds(0,0,XSIZE,STATUSSIZE);
+		statusfield.setBounds(0,0,computer.resolution.desktopPanelWidth,computer.resolution.statusHeight);
 		statusfield.setFont(statusfield.getFont().deriveFont(statusfield.getFont().getStyle() ^ Font.BOLD));
 		statuspanel.add(statusfield);
 		
@@ -72,7 +64,7 @@ public class ComputerGUI
 		if (computer.applet==null)
 		{
 			final JFrame computerFrame = new JFrame("Simulator");
-			computerFrame.setSize(XSIZE,YSIZE);
+			computerFrame.setSize(computer.resolution.desktopPanelWidth,computer.resolution.desktopPanelHeight);
 			computerFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			computerFrame.setLayout(null);
 
@@ -86,13 +78,12 @@ public class ComputerGUI
 				public void componentMoved(ComponentEvent arg0) {}
 				public void componentResized(ComponentEvent arg0) 
 				{ 
-					XSIZE=computerFrame.getWidth();
-					YSIZE=computerFrame.getHeight();
-					MAINSIZE=YSIZE-BUTTONSIZE-STATUSSIZE;
-					dframe.setBounds(0,0,XSIZE,MAINSIZE);
-					statuspanel.setBounds(0,MAINSIZE,XSIZE,STATUSSIZE);
-					statusfield.setBounds(0,0,XSIZE,STATUSSIZE);
-					buttonpanel.setBounds(0,MAINSIZE+STATUSSIZE,XSIZE,BUTTONSIZE);
+					computer.resolution.setDesktopDimensions(computerFrame.getWidth(), computerFrame.getHeight());
+
+					dframe.setBounds(0,0,computer.resolution.desktopWindowWidth,computer.resolution.desktopWindowHeight);
+					statuspanel.setBounds(0,computer.resolution.desktopWindowHeight,computer.resolution.desktopWindowWidth,computer.resolution.statusHeight);
+					statusfield.setBounds(0,0,computer.resolution.desktopWindowWidth,computer.resolution.statusHeight);
+					buttonpanel.setBounds(0,computer.resolution.desktopWindowHeight+computer.resolution.statusHeight,computer.resolution.desktopWindowWidth,computer.resolution.buttonWidth);
 				}
 				public void componentShown(ComponentEvent arg0) {}
 				});
@@ -871,7 +862,7 @@ public class ComputerGUI
 //		dframe.repaint();
 		if (paintNext||(computer.ioGUI!=null &&(computer.ioGUI.portRead||computer.ioGUI.portWrite||computer.ioGUI.interruptRequested||computer.ioGUI.interruptTriggered)))
 		{
-			dframe.paintImmediately(0, 0, XSIZE,YSIZE);
+			dframe.paintImmediately(0, 0, computer.resolution.desktopPanelWidth,computer.resolution.desktopPanelHeight);
 			paintNext=false;
 		}
 		else if (computer.memoryGUI!=null && (computer.memoryGUI.memoryRead||computer.memoryGUI.memoryWrite||computer.memoryGUI.romRead))
