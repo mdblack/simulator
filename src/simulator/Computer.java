@@ -268,7 +268,11 @@ public class Computer
 
 		if (!bootgui.memoryImage.equals(""))
 		{
-			MemoryTransferGUI.load(bootgui.memoryImage, bootgui.memoryImageStart, this);
+			try {
+				MemoryTransferGUI.load(bootgui.memoryImage, bootgui.memoryImageStart, this);
+			} catch (NullPointerException e) {
+				System.out.println("Error loading memory image");
+			}
 		}
 		
 		if (!bootgui.datapathxml.equals(""))
