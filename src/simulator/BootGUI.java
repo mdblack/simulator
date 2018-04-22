@@ -668,13 +668,13 @@ public class BootGUI extends AbstractGUI
 	private class ButtonListener implements ActionListener
 	{
 		public void actionPerformed(ActionEvent e)
-		{
+		{ 
 			if (e.getActionCommand().equals("Boot Floppy A:"))
 			{
 				bootFromFloppy=true;
 				bootImageName=diskField[0].getText();
 				setVisible(false);
-				computer.computerGUI.menubar.setVisible(true);
+				computer.computerGUI.setMenubarVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
 				computer.stepLock.lockResume();
 
@@ -684,7 +684,7 @@ public class BootGUI extends AbstractGUI
 				bootFromFloppy=false;
 				bootImageName=diskField[2].getText();
 				setVisible(false);
-				computer.computerGUI.menubar.setVisible(true);
+				computer.computerGUI.setMenubarVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
 				computer.stepLock.lockResume();
 			}
@@ -693,7 +693,7 @@ public class BootGUI extends AbstractGUI
 				bootFromFloppy=false;
 				bootImageName="";
 				setVisible(false);
-				computer.computerGUI.menubar.setVisible(true);
+				computer.computerGUI.setMenubarVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
 				singlestepbox.setSelected(true);
 				computer.stepLock.lockResume();
@@ -703,7 +703,7 @@ public class BootGUI extends AbstractGUI
 				bootFromFloppy=false;
 				bootImageName="";
 				setVisible(false);
-				computer.computerGUI.menubar.setVisible(true);
+				computer.computerGUI.setMenubarVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
 				singlestepbox.setSelected(true);
 
