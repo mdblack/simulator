@@ -29,7 +29,7 @@ public class Resolution {
         screenWidth = (int) screenSize.getWidth();
         screenHeight = (int) screenSize.getHeight();
         
-        multiplier = screenWidth / 1440.0 + 0.5;
+        multiplier = screenWidth / 1440.0;
         
         setDesktopDimensions((int)(screenWidth * 0.7), (int)(screenHeight * 0.8));
 	}
@@ -64,7 +64,7 @@ public class Resolution {
 	}
 	
 	public int getButtonHeightAndSpace() {
-		return (int)(21 * multiplier);
+		return (int)(25 * multiplier);
 	}
 	
 	public int getDatapathModificationComponentWidth() {
