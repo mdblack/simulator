@@ -1089,7 +1089,7 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			
-			height = frameY > ctop ? frameY : ctop;
+			height = computer.resolution.screenHeight > ctop ? computer.resolution.screenHeight : ctop;
 			saveChanges.setEnabled(true);
 			add(saveChanges);
 			
