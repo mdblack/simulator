@@ -3,6 +3,8 @@ package simulator;
 import java.awt.Dimension;
 import java.awt.Toolkit;
 
+import javax.swing.UIManager;
+
 public class Resolution {
 	public int screenWidth;
 	public int screenHeight;
@@ -15,6 +17,8 @@ public class Resolution {
 	public int statusHeight = 30;
 	public int desktopPanelHeight;
 	public int desktopPanelWidth;
+	
+	public int defaultStatusBarWidth = 15;
 	
 	public int newComponentHeight;
 	public int newComponentWidth;
@@ -69,5 +73,12 @@ public class Resolution {
 	
 	public int getDatapathModificationComponentWidth() {
 		return (int)(100 * multiplier);
+	}
+	
+	public int getScrollbarWidth() {
+		return (int) UIManager.get("ScrollBar.width") + 1;
+	}
+	public void setScrollbars() {
+        UIManager.put("ScrollBar.width", (int)(defaultStatusBarWidth * multiplier));
 	}
 }

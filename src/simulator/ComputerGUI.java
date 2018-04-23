@@ -48,6 +48,7 @@ public class ComputerGUI
 		{
 			final JFrame computerFrame = new JFrame("Simulator v1.5");
 			setUIFont (new javax.swing.plaf.FontUIResource(Font.SANS_SERIF,Font.PLAIN,computer.resolution.getFontSize()+3));
+			computer.resolution.setScrollbars();
 			computerFrame.setSize(computer.resolution.desktopPanelWidth,computer.resolution.desktopWindowHeight);
 			computerFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			computerFrame.setLayout(null);
@@ -81,7 +82,7 @@ public class ComputerGUI
 			computer.applet.panel.revalidate();
 		}
 	}
-    public static void setUIFont (javax.swing.plaf.FontUIResource f){
+    public void setUIFont (javax.swing.plaf.FontUIResource f){
         java.util.Enumeration keys = UIManager.getDefaults().keys();
         while (keys.hasMoreElements()) {
           Object key = keys.nextElement();

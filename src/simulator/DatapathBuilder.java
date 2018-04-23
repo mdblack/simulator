@@ -31,6 +31,8 @@ import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
+import com.sun.javafx.geom.Rectangle;
+
 import simulator.CustomProcessor.CustomProcessorModule;
 
 public class DatapathBuilder extends AbstractGUI
@@ -100,7 +102,7 @@ public class DatapathBuilder extends AbstractGUI
 			// Change the height of the main gui container and the tool scroll.
 			guiComponent.setBounds(0, 0, width, height);
 			if (toolscroll != null)
-				toolscroll.setBounds(0,0,toolcomponent.width+20,height-STATUSSIZE);
+				toolscroll.setBounds(0,0,toolcomponent.width+computer.resolution.getScrollbarWidth(),height-STATUSSIZE);
 
 			if (drawingcomponent != null) {
 				drawingcomponent.restoreSize();
@@ -120,7 +122,7 @@ public class DatapathBuilder extends AbstractGUI
 		this.guiComponent = guiComponent;
 		toolcomponent=new ToolComponent();
 		toolscroll=new JScrollPane(toolcomponent);
-		toolscroll.setBounds(0,0,toolcomponent.width+20,frameY-STATUSSIZE);
+		toolscroll.setBounds(0,0,toolcomponent.width+computer.resolution.getScrollbarWidth(),frameY-STATUSSIZE);
 		guiComponent.add(toolscroll);
 		drawingcomponent=new DrawingComponent();
 		guiComponent.add(drawingcomponent.scroll);
@@ -1101,7 +1103,7 @@ public class DatapathBuilder extends AbstractGUI
 			
 		}
 		public void restoreSize() {
-			modificationScroll.setBounds(toolscroll.getWidth(), 0,width + MARGIN,frameY-STATUSSIZE);
+			modificationScroll.setBounds(toolscroll.getWidth(), 0,width + computer.resolution.getScrollbarWidth(),frameY-STATUSSIZE);
 			drawingcomponent.setLeft(toolscroll.getWidth() + width + MARGIN);
 			drawingcomponent.restoreSize();
 		}
@@ -1489,6 +1491,7 @@ public class DatapathBuilder extends AbstractGUI
 			super();
 			resetLeft();
 			scroll=new JScrollPane(this);
+			//scroll.getVerticalScrollBar().setPreferredSize(new Dimension(44, 0));
 			restoreSize();
 			scroll.getHorizontalScrollBar().setValue(dpwidth/2);
 			scroll.getVerticalScrollBar().setValue(dpheight/2);
