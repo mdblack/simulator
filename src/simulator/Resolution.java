@@ -19,7 +19,7 @@ public class Resolution {
 	public int newComponentHeight;
 	public int newComponentWidth;
 	
-	private int fontSize = 14;
+	private int fontSize = 20;
 	private double scalingFactor = 1.6;
 
 	public Resolution() {
