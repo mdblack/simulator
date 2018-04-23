@@ -18,7 +18,7 @@ public class Resolution {
 	public int desktopPanelHeight;
 	public int desktopPanelWidth;
 	
-	public int defaultStatusBarWidth = 15;
+	public int defaultStatusBarWidth = 16;
 	
 	public int newComponentHeight;
 	public int newComponentWidth;
@@ -76,7 +76,7 @@ public class Resolution {
 	}
 	
 	public int getScrollbarWidth() {
-		return (int) UIManager.get("ScrollBar.width") + 1;
+		return (int) UIManager.get("ScrollBar.width") + 4;
 	}
 	public void setScrollbars() {
         UIManager.put("ScrollBar.width", (int)(defaultStatusBarWidth * multiplier));
