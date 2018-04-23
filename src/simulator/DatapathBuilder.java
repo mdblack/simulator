@@ -896,7 +896,8 @@ public class DatapathBuilder extends AbstractGUI
 
 	public class ModificationComponent extends JComponent
 	{
-		int width=100, height=1000;
+		int width=100;
+		int height=computer.resolution.newComponentHeight;
 		JLabel[] itemlabel;
 		JTextField[] itemfield;
 		JButton saveChanges;
@@ -1015,23 +1016,23 @@ public class DatapathBuilder extends AbstractGUI
 			else
 				itemlabel[0]=new JLabel("Bus "+bu.number);
 			itemlabel[0].setFont(new Font("Dialog",Font.BOLD,computer.resolution.getFontSize()));
-			itemlabel[0].setBounds(5,ctop+=50,cwidth,45);
+			itemlabel[0].setBounds(5,ctop+=computer.resolution.getButtonHeightAndSpace(),cwidth,computer.resolution.getButtonHeight());
 			add(itemlabel[0]);
 
 			for (int i=1; i<TYPES; i++)
 			{
 				if (itemfield[i].isVisible())
 				{
-					itemlabel[i].setBounds(5,ctop+=50,cwidth,45);
+					itemlabel[i].setBounds(5,ctop+=computer.resolution.getButtonHeightAndSpace(),cwidth,computer.resolution.getButtonHeight());
 					add(itemlabel[i]);
-					itemfield[i].setBounds(5,ctop+=50,cwidth,45);
+					itemfield[i].setBounds(5,ctop+=computer.resolution.getButtonHeightAndSpace(),cwidth,computer.resolution.getButtonHeight());
 					add(itemfield[i]);
 				}
 			}
 
 			saveChanges=new JButton("Update");
 			saveChanges.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			saveChanges.setBounds(5,ctop+=50,cwidth,45);
+			saveChanges.setBounds(5,ctop+=computer.resolution.getButtonHeightAndSpace(),cwidth,computer.resolution.getButtonHeight());
 			saveChanges.setVisible(true);
 			saveChanges.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1087,6 +1088,8 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.repaint();
 					drawingcomponent.requestFocus();
 				}});
+			
+			height = frameY > ctop ? frameY : ctop;
 			saveChanges.setEnabled(true);
 			add(saveChanges);
 			
@@ -1095,6 +1098,7 @@ public class DatapathBuilder extends AbstractGUI
 			guiComponent.add(modificationScroll);
 			restoreSize();
 			guiComponent.revalidate();
+			
 		}
 		public void restoreSize() {
 			modificationScroll.setBounds(toolscroll.getWidth(), 0,width + MARGIN,frameY-STATUSSIZE);
@@ -1125,12 +1129,13 @@ public class DatapathBuilder extends AbstractGUI
 	
 	public class ToolComponent extends JComponent
 	{
-		int width=100, height=2000;
+		int width=100;
+		int height;
 		int line1,line2;
 		
 		public Dimension getPreferredSize()
 		{
-			return new Dimension(width,height);
+			return new Dimension(width, height);
 		}
 		public ToolComponent()
 		{
@@ -1145,27 +1150,27 @@ public class DatapathBuilder extends AbstractGUI
 						
 			button=new JButton("Close");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Close this window.  All unsaved work will be lost.");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
 					close();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Load");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Load a previously saved datapath from an xml file");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
 					doload();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Save");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Save the datapath as an xml file");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1193,10 +1198,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Export");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Save the datapath as an Arduino C program");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1224,10 +1229,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("ExportVerilog");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Save the datapath as a Verilog program");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1255,10 +1260,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Undo");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Undo the last modification made to the datapath (also the Z key)");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1266,10 +1271,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Unselect All");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Unselect all datapath blocks (also done by right-clicking on an empty area)");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1277,10 +1282,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Mass Select");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Select all blocks in a rectangular region");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1288,10 +1293,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Duplicate");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Paste a new copy of all selected blocks");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1299,10 +1304,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Delete");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("All selected blocks are removed (also DEL key)");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1310,10 +1315,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Verify");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Check for errors in the datapath.  Blocks with errors are selected.");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1321,10 +1326,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Zoom In");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
 					scaling+=0.2;
@@ -1332,10 +1337,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Zoom Out");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
 					scaling-=0.2;
@@ -1344,10 +1349,10 @@ public class DatapathBuilder extends AbstractGUI
 					drawingcomponent.requestFocus();
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Control");
 			button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Open up a new Control Builder window");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1361,10 +1366,10 @@ public class DatapathBuilder extends AbstractGUI
 					}
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			button=new JButton("Simulate");
 			button.setFont(new Font("Dialog",Font.BOLD,computer.resolution.getFontSize()));
-			button.setBounds(5,ctop,cwidth,45);
+			button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			button.setToolTipText("Start running your datapath.  If a datapath is already running, stop it.");
 			button.addActionListener(new ActionListener(){
 				public void actionPerformed(ActionEvent arg0) {
@@ -1385,15 +1390,15 @@ public class DatapathBuilder extends AbstractGUI
 					}
 				}});
 			add(button);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 
 			line1=ctop;
 			ctop+=5;
 			label=new JLabel("Place a new:");
 			label.setFont(new Font("Dialog",Font.BOLD,computer.resolution.getFontSize()));
-			label.setBounds(5,ctop,cwidth,45);
+			label.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			add(label);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			
 			int tooltipnumber=0;
 			String[] tooltips=new String[]{"A set of wires that connect the output of one block to the input of another (also the B key)","merge several buses together to form a larger bus.  buses on the left form the high order bits of the output bus","extract a subset of wires from a bus to form a smaller bus","a storage unit that saves a value on each clock cycle.  registers can be enabled/disabled with the control unit, or with a one-bit enabler bus connecting to the side","a one-bit register","a table of registers.  an address bus connected to the side selects a register from the table","connect to physical memory. an address input bus connects to the side, data to the top and bottom","connect to the simulated I/O ports.  port is selected with an address bus connected to the side, data buses connects to the top and bottom.","routes one or more input buses to a single output bus.  selection can be done with a side-connected bus or from the control unit.  input buses are numbered from 0 starting at the left.","has one input bus of b width, and 2^b output buses.  one of the output buses is chosen based on the value at the input and set to 1.","2-input unit that can do various arithmetic operations. the operation is selected by the control unit.","transfer the value from a smaller bus to a larger bus, preserving the sign","source a constant hexadecimal value.  the name of the block is the value sourced","a simple ROM that holds a truth table.  the output is selected from a side address input.","sources a value chosen by the user at runtime","displays a value at runtime","connect a bus to the control unit.  the bus's value can be used to make conditional control statements","load a previously designed datapath/control into the datapath as a single block","draw a text label on the datapath"};
@@ -1401,7 +1406,7 @@ public class DatapathBuilder extends AbstractGUI
 			{
 				button=new JButton(s);
 				button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-				button.setBounds(5,ctop,cwidth,45);
+				button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 				button.setToolTipText(tooltips[tooltipnumber++]);
 				final String s2=s;
 				button.addActionListener(new ActionListener(){
@@ -1434,21 +1439,21 @@ public class DatapathBuilder extends AbstractGUI
 						drawingcomponent.requestFocus();
 					}});
 				add(button);
-				ctop+=50;				
+				ctop+=computer.resolution.getButtonHeightAndSpace();				
 			}
 
 			line2=ctop;
 			ctop+=5;
 			label=new JLabel("Combinational:");
 			label.setFont(new Font("Dialog",Font.BOLD,computer.resolution.getFontSize()));
-			label.setBounds(5,ctop,cwidth,45);
+			label.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 			add(label);
-			ctop+=50;
+			ctop+=computer.resolution.getButtonHeightAndSpace();
 			for (String s:new String[]{"adder","negate","increment","decrement","and","or","nand","nor","not","xor","equal-to","less-than","shift-left","shift-right"})
 			{
 				button=new JButton(s);
 				button.setFont(new Font("Dialog",Font.PLAIN,computer.resolution.getFontSize()));
-				button.setBounds(5,ctop,cwidth,45);
+				button.setBounds(5,ctop,cwidth,computer.resolution.getButtonHeight());
 				final String s2="combinational-"+s;
 				button.addActionListener(new ActionListener(){
 					public void actionPerformed(ActionEvent arg0) {
@@ -1459,8 +1464,9 @@ public class DatapathBuilder extends AbstractGUI
 						drawingcomponent.requestFocus();
 					}});
 				add(button);
-				ctop+=50;				
+				ctop+=computer.resolution.getButtonHeightAndSpace();				
 			}
+			height = ctop;
 		}
 		public void paintComponent(Graphics g)
 		{

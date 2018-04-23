@@ -19,13 +19,17 @@ public class Resolution {
 	public int newComponentHeight;
 	public int newComponentWidth;
 	
-	private int fontSize = 20;
-	private double scalingFactor = 1.6;
+	private int fontSize = 10;
+	private double scalingFactor = 0.6;
+	
+	double multiplier;
 
 	public Resolution() {
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         screenWidth = (int) screenSize.getWidth();
         screenHeight = (int) screenSize.getHeight();
+        
+        multiplier = screenWidth / 1440.0 + 0.5;
         
         setDesktopDimensions((int)(screenWidth * 0.7), (int)(screenHeight * 0.8));
 	}
@@ -39,29 +43,31 @@ public class Resolution {
         // Calculate the panel size, leaving room for 3 status heights.
         desktopPanelHeight = desktopWindowHeight - (buttonHeight*3);
     	
-	    	newComponentHeight = (int)(desktopPanelHeight * 0.8);
-	    	newComponentWidth = (int)(desktopPanelWidth * 0.9);
+    	newComponentHeight = (int)(desktopPanelHeight * 0.8);
+    	newComponentWidth = (int)(desktopPanelWidth * 0.9);
 	}
 	
 	public double getScalingFactor() {
-		return scalingFactor;
+		return scalingFactor + multiplier;
 	}
 	
 	public int getFontSize() {
-		return fontSize;
+		return (int)(fontSize * multiplier);
 	}
 	
 	public int getDatapathToolComponentWidth() {
-		return 150;
+		return (int)(100 * multiplier);
 	}
 	
 	public int getButtonHeight() {
-		return 45;
+		return (int)(20 * multiplier);
 	}
+	
 	public int getButtonHeightAndSpace() {
-		return 50;
+		return (int)(21 * multiplier);
 	}
+	
 	public int getDatapathModificationComponentWidth() {
-		return 150;
+		return (int)(100 * multiplier);
 	}
 }
