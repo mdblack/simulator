@@ -47,7 +47,7 @@ public class ComputerGUI
 		if (computer.applet==null)
 		{
 			final JFrame computerFrame = new JFrame("Simulator v1.5");
-			setUIFont (new javax.swing.plaf.FontUIResource(Font.SANS_SERIF,Font.PLAIN,computer.resolution.getFontSize()));
+			setUIFont (new javax.swing.plaf.FontUIResource(Font.SANS_SERIF,Font.PLAIN,computer.resolution.getFontSize()+3));
 			computerFrame.setSize(computer.resolution.desktopPanelWidth,computer.resolution.desktopWindowHeight);
 			computerFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			computerFrame.setLayout(null);
