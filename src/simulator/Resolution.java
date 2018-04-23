@@ -41,7 +41,7 @@ public class Resolution {
         desktopPanelWidth = desktopWindowWidth;
         
         // Calculate the panel size, leaving room for 3 status heights.
-        desktopPanelHeight = desktopWindowHeight - (buttonHeight*3);
+        desktopPanelHeight = desktopWindowHeight - (int)(buttonHeight*3*multiplier);
     	
     	newComponentHeight = (int)(desktopPanelHeight * 0.8);
     	newComponentWidth = (int)(desktopPanelWidth * 0.9);
