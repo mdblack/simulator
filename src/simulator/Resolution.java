@@ -13,8 +13,6 @@ public class Resolution {
 	private final int STATUS_HEIGHT = 30;
 	private final int DEFAULT_STATUS_BAR_THICKNESS = 15;
 	
-	private double scalingFactor = 0.6;
-	
 	double multiplier;
 
 	Desktop desktop;
@@ -46,6 +44,10 @@ public class Resolution {
 		}
 		
 		public int getStatusBarThickness() {
+			return (int)(DEFAULT_STATUS_BAR_THICKNESS * multiplier);
+		}
+		
+		public int getScrollbarThickness() {
 			return (int)(DEFAULT_STATUS_BAR_THICKNESS * multiplier);
 		}
 	}
@@ -91,13 +93,14 @@ public class Resolution {
 	    }
 		
 		public void setScrollbars() {
-	        UIManager.put("ScrollBar.width", getStatusBarThickness());
+	        UIManager.put("ScrollBar.width", getScrollbarThickness());
 		}
 	}
 	
 	public class Datapath extends AbstractWindow {
 		InnerWindow toolComponent;
 		InnerWindow modificationComponent;
+		private double scalingFactor = 0.6;
 		
 		public Datapath() {
 			width = desktop.pane.preferredWidth;
@@ -105,6 +108,10 @@ public class Resolution {
 			
 			toolComponent = new InnerWindow((int)(100 * multiplier));
 			modificationComponent = new InnerWindow((int)(100 * multiplier));
+		}
+		
+		public double getScalingFactor() {
+			return scalingFactor + multiplier;
 		}
 	}
 	
@@ -117,10 +124,4 @@ public class Resolution {
         desktop = new Desktop(monitor.width, monitor.height);
         datapath = new Datapath();
  	}
-	
-	public double getScalingFactor() {
-		return scalingFactor + multiplier;
-	}
-	
-	
 }

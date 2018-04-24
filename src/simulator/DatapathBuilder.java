@@ -73,7 +73,7 @@ public class DatapathBuilder extends AbstractGUI
 		errorlog=new ArrayList<ErrorEntry>();
 		defaultModule=new DatapathModule();
 		undolog.push(dumpXML());
-		scaling = computer.resolution.getScalingFactor();
+		scaling = computer.resolution.datapath.getScalingFactor();
 		refresh();
 	}
 
@@ -104,7 +104,7 @@ public class DatapathBuilder extends AbstractGUI
 			// Change the height of the main gui container and the tool scroll.
 			guiComponent.setBounds(0, 0, width, height);
 			if (toolscroll != null)
-				toolscroll.setBounds(0,0,toolcomponent.width+computer.resolution.datapath.toolComponent.getScrollbarWidth(),height-STATUSSIZE);
+				toolscroll.setBounds(0,0,toolcomponent.width+computer.resolution.datapath.toolComponent.getScrollbarWidth(),height-computer.resolution.datapath.getStatusBarThickness());
 
 			if (drawingcomponent != null) {
 				drawingcomponent.restoreSize();
@@ -124,7 +124,7 @@ public class DatapathBuilder extends AbstractGUI
 		this.guiComponent = guiComponent;
 		toolcomponent=new ToolComponent();
 		toolscroll=new JScrollPane(toolcomponent);
-		toolscroll.setBounds(0,0,toolcomponent.width+computer.resolution.datapath.toolComponent.getScrollbarWidth(),frameY-STATUSSIZE);
+		toolscroll.setBounds(0,0,toolcomponent.width+computer.resolution.datapath.toolComponent.getScrollbarWidth(),frameY-computer.resolution.datapath.getStatusBarThickness());
 		guiComponent.add(toolscroll);
 		drawingcomponent=new DrawingComponent();
 		guiComponent.add(drawingcomponent.scroll);
@@ -1105,7 +1105,7 @@ public class DatapathBuilder extends AbstractGUI
 			
 		}
 		public void restoreSize() {
-			modificationScroll.setBounds(toolscroll.getWidth(), 0,width + computer.resolution.datapath.toolComponent.getScrollbarWidth(),frameY-STATUSSIZE);
+			modificationScroll.setBounds(toolscroll.getWidth(), 0,width + computer.resolution.datapath.toolComponent.getScrollbarWidth(),frameY-computer.resolution.datapath.getStatusBarThickness());
 			drawingcomponent.setLeft(toolscroll.getWidth() + width + MARGIN);
 			drawingcomponent.restoreSize();
 		}
@@ -1521,7 +1521,7 @@ public class DatapathBuilder extends AbstractGUI
 				}});
 		}
 		public void restoreSize() {
-			scroll.setBounds(left,0,frameX-left,frameY-STATUSSIZE);			
+			scroll.setBounds(left,0,frameX-left,frameY-computer.resolution.datapath.getStatusBarThickness());			
 		}
 		int left;
 		public void setLeft(int left) {

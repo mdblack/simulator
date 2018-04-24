@@ -111,16 +111,16 @@ public class ComputerGUI
     private void setStatusPanelBounds() {
 		statuspanel.setBounds(0, computer.resolution.desktop.pane.height-getMenubarOffset(),
 				computer.resolution.desktop.pane.width,
-				computer.resolution.desktop.getStatusBarThickness());
+				computer.resolution.desktop.getScrollbarThickness());
     }
     private void setStatusFieldBounds() {
 		statusfield.setBounds(0,0,
 				computer.resolution.desktop.width,
-				computer.resolution.desktop.getStatusBarThickness());
+				computer.resolution.desktop.getScrollbarThickness());
     }
     private void setButtonPanelBounds() {
 		buttonpanel.setBounds(0,
-				computer.resolution.desktop.pane.height+computer.resolution.desktop.getStatusBarThickness()-getMenubarOffset(),
+				computer.resolution.desktop.pane.height+computer.resolution.desktop.getScrollbarThickness()-getMenubarOffset(),
 				computer.resolution.desktop.pane.width,
 				computer.resolution.desktop.getButtonHeight());
     }
