@@ -46,7 +46,7 @@ public class DatapathBuilder extends AbstractGUI
 	public int gridsize=3;
 //	public int blocknumber=1;
 	public int defaultbits=1;
-	
+
 	private ToolComponent toolcomponent;
 	private DrawingComponent drawingcomponent;
 	private ModificationComponent modificationcomponent;
@@ -68,6 +68,7 @@ public class DatapathBuilder extends AbstractGUI
 		super(computer,"Datapath Builder",
 				computer.resolution.datapath.width,
 				computer.resolution.datapath.height,true,false,false,true);
+	
 		undolog=new Stack<String>();
 		modules=new ArrayList<CustomProcessorModule>();
 		errorlog=new ArrayList<ErrorEntry>();

@@ -11,7 +11,8 @@ public class Resolution {
 	private final int BUTTON_COMPONENT_WIDTH = 100;
 	private final int BUTTON_HEIGHT = 20;
 	private final int STATUS_HEIGHT = 30;
-	private final int DEFAULT_STATUS_BAR_THICKNESS = 15;
+	private final int DEFAULT_STATUS_BAR_THICKNESS = 30;
+	private final int DEFAULT_SCROLL_BAR_THICKNESS = 15;
 	
 	double multiplier;
 
@@ -21,10 +22,8 @@ public class Resolution {
 	
 	public class AbstractWindow {
 		public int width;
-		public int height;
-		
+		public int height;	
 		public InnerPane pane;
-		
 		public int fontSize = 10;
 		
 		public int getFontSize() {
@@ -48,7 +47,7 @@ public class Resolution {
 		}
 		
 		public int getScrollbarThickness() {
-			return (int)(DEFAULT_STATUS_BAR_THICKNESS * multiplier);
+			return (int)(DEFAULT_SCROLL_BAR_THICKNESS * multiplier);
 		}
 	}
 	public class InnerPane extends AbstractWindow{

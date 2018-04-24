@@ -12,7 +12,7 @@ import java.awt.event.*;
 
 public abstract class AbstractGUI extends JInternalFrame
 {
-	public static final int STATUSSIZE=50;
+	public static int STATUSSIZE=50;
 	public static final int BUTTONROWSIZE=30;
 	public static final int MARGIN=20;
 	public static final int MAX_X=10000,MAX_Y=7000;
@@ -39,7 +39,7 @@ public abstract class AbstractGUI extends JInternalFrame
 		super(title, true, true, true, true);
 		
 		this.computer=computer;
-		
+		this.STATUSSIZE = computer.resolution.desktop.getStatusBarThickness();
 		this.scrollpane=scrollpane;
 		this.statusbar=statusbar;
 		this.buttonrow=buttonrow;
@@ -71,6 +71,8 @@ public abstract class AbstractGUI extends JInternalFrame
 			
 			statusComponent = new StatusComponent();
 			statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
+			statusComponent.setFont(new Font("Dialog",Font.ITALIC,computer.resolution.desktop.getFontSize()));
+			
 			statusComponent.setLabel("");
 			add(statusComponent);
 		}
@@ -166,8 +168,10 @@ public abstract class AbstractGUI extends JInternalFrame
 	}
 	public void setStatusLabel(String label)
 	{
-		if(statusComponent!=null)
+		if(statusComponent!=null) {
+			statusComponent.setFont(new Font("Dialog",Font.ITALIC,20));//computer.resolution.desktop.getFontSize()));
 			statusComponent.setLabel(label);
+		}
 	}
 
 	public void statusEdit(String baselabel, int exactlength, boolean hexonly)
@@ -327,7 +331,7 @@ public abstract class AbstractGUI extends JInternalFrame
 			g.setColor(Color.BLACK);
 			g.drawLine(0,0,frameX,0);
 
-			int fontSize=12;
+			int fontSize=computer.resolution.desktop.getFontSize();
 			g.setFont(new Font("Dialog",Font.BOLD,fontSize));
 			g.drawString(statusLabel,STATUSSIZE-MARGIN,fontSize);
 		}
