@@ -11,7 +11,7 @@ public class Resolution {
 	private final int BUTTON_COMPONENT_WIDTH = 100;
 	private final int BUTTON_HEIGHT = 20;
 	private final int STATUS_HEIGHT = 30;
-	private final int DEFAULT_STATUS_BAR_THICKNESS = 30;
+	private final int DEFAULT_STATUS_BAR_THICKNESS = 35;
 	private final int DEFAULT_SCROLL_BAR_THICKNESS = 15;
 	
 	double multiplier;
