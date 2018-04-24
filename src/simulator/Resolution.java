@@ -3,82 +3,124 @@ package simulator;
 import java.awt.Dimension;
 import java.awt.Toolkit;
 
+import javax.swing.JComponent;
 import javax.swing.UIManager;
 
 public class Resolution {
-	public int screenWidth;
-	public int screenHeight;
 	
-	public int desktopWindowWidth;
-	public int desktopWindowHeight;
+	private final int BUTTON_COMPONENT_WIDTH = 100;
+	private final int BUTTON_HEIGHT = 20;
+	private final int STATUS_HEIGHT = 30;
+	private final int DEFAULT_STATUS_BAR_THICKNESS = 15;
 	
-	public int buttonWidth = 100;
-	public int buttonHeight = 30;
-	public int statusHeight = 30;
-	public int desktopPanelHeight;
-	public int desktopPanelWidth;
-	
-	public int defaultStatusBarWidth = 16;
-	
-	public int newComponentHeight;
-	public int newComponentWidth;
-	
-	private int fontSize = 10;
 	private double scalingFactor = 0.6;
 	
 	double multiplier;
 
-	public Resolution() {
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        screenWidth = (int) screenSize.getWidth();
-        screenHeight = (int) screenSize.getHeight();
-        
-        multiplier = screenWidth / 1440.0;
-        
-        setDesktopDimensions((int)(screenWidth * 0.7), (int)(screenHeight * 0.8));
+	Desktop desktop;
+	Monitor monitor;
+	Datapath datapath;
+	
+	public class AbstractWindow {
+		public int width;
+		public int height;
+		
+		public InnerPane pane;
+		
+		public int fontSize = 10;
+		
+		public int getFontSize() {
+			return (int)(fontSize * multiplier);
+		}
+	
+		public int getScrollbarWidth() {
+			return (int) UIManager.get("ScrollBar.width") + 4;
+		}
+		
+		public int getButtonHeight() {
+			return (int)(BUTTON_HEIGHT * multiplier);
+		}
+		
+		public int getButtonHeightAndSpace() {
+			return (int)(BUTTON_HEIGHT * multiplier + 5);
+		}
+		
+		public int getStatusBarThickness() {
+			return (int)(DEFAULT_STATUS_BAR_THICKNESS * multiplier);
+		}
+	}
+	public class InnerPane extends AbstractWindow{
+		public int preferredWidth;
+		public int preferredHeight;
+	}
+
+	public class InnerWindow extends AbstractWindow{
+		public InnerWindow(int width, int height) {
+			this.width = width;
+			this.height = height;
+		}
+		public InnerWindow() {
+		}
+		public InnerWindow(int width) {
+			this(width, 0);
+		}
 	}
 	
-	public void setDesktopDimensions(int newWidth, int newHeight) {
-        desktopWindowWidth = newWidth;
-        desktopWindowHeight = newHeight;
-        
-        desktopPanelWidth = desktopWindowWidth;
-        
-        // Calculate the panel size, leaving room for 3 status heights.
-        desktopPanelHeight = desktopWindowHeight - (int)(buttonHeight*3*multiplier);
-    	
-    	newComponentHeight = (int)(desktopPanelHeight * 0.8);
-    	newComponentWidth = (int)(desktopPanelWidth * 0.9);
+	public class Monitor extends AbstractWindow {
+		public Monitor() {
+	        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+	        width = (int) screenSize.getWidth();
+	        height = (int) screenSize.getHeight();
+		}
 	}
+	
+	public class Desktop extends AbstractWindow{
+		public Desktop(int screenWidth, int screenHeight) {
+			width = (int)(screenWidth * 0.7);
+			height = (int)(screenHeight * 0.8);
+			pane = new InnerPane();
+			
+			setInnerPane(width, height);
+		}
+		
+		public void setInnerPane(int basedOnWidth, int basedOnHeight) {
+	        pane.width = basedOnWidth;
+	        pane.height = basedOnHeight - (int)(BUTTON_HEIGHT*3*multiplier);
+	        pane.preferredWidth = (int)(pane.width * 0.9);
+	        pane.preferredHeight = (int)(pane.height * 0.8);
+	    }
+		
+		public void setScrollbars() {
+	        UIManager.put("ScrollBar.width", getStatusBarThickness());
+		}
+	}
+	
+	public class Datapath extends AbstractWindow {
+		InnerWindow toolComponent;
+		InnerWindow modificationComponent;
+		
+		public Datapath() {
+			width = desktop.pane.preferredWidth;
+			height = desktop.pane.preferredHeight;
+			
+			toolComponent = new InnerWindow((int)(100 * multiplier));
+			modificationComponent = new InnerWindow((int)(100 * multiplier));
+		}
+	}
+	
+	//////////////////////////
+	
+	public Resolution() {
+        monitor = new Monitor();
+        multiplier = monitor.width / 1440.0;
+        
+        desktop = new Desktop(monitor.width, monitor.height);
+        datapath = new Datapath();
+ 	}
 	
 	public double getScalingFactor() {
 		return scalingFactor + multiplier;
 	}
 	
-	public int getFontSize() {
-		return (int)(fontSize * multiplier);
-	}
 	
-	public int getDatapathToolComponentWidth() {
-		return (int)(100 * multiplier);
-	}
-	
-	public int getButtonHeight() {
-		return (int)(20 * multiplier);
-	}
-	
-	public int getButtonHeightAndSpace() {
-		return (int)(25 * multiplier);
-	}
-	
-	public int getDatapathModificationComponentWidth() {
-		return (int)(100 * multiplier);
-	}
-	
-	public int getScrollbarWidth() {
-		return (int) UIManager.get("ScrollBar.width") + 4;
-	}
-	public void setScrollbars() {
-        UIManager.put("ScrollBar.width", (int)(defaultStatusBarWidth * multiplier));
-	}
 }

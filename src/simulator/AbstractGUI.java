@@ -53,11 +53,11 @@ public abstract class AbstractGUI extends JInternalFrame
 //			frameX=computer.computerGUI.getW(this);
 //			frameY=computer.computerGUI.getH(this);
 //		}
-		if (frameX>computer.resolution.desktopWindowWidth-MARGIN)
-			frameX=computer.resolution.desktopWindowWidth-MARGIN;
+		if (frameX>computer.resolution.desktop.width-MARGIN)
+			frameX=computer.resolution.desktop.width-MARGIN;
 		
-		if (frameY>computer.resolution.desktopWindowHeight-MARGIN)
-			frameY=computer.resolution.desktopWindowHeight-MARGIN;
+		if (frameY>computer.resolution.desktop.height-MARGIN)
+			frameY=computer.resolution.desktop.height-MARGIN;
 
 		setSize(frameX,frameY);
 		addInternalFrameListener(new GUIWindowListener());

@@ -47,9 +47,9 @@ public class ComputerGUI
 		if (computer.applet==null)
 		{
 			final JFrame computerFrame = new JFrame("Simulator v1.5");
-			setUIFont (new javax.swing.plaf.FontUIResource(Font.SANS_SERIF,Font.PLAIN,computer.resolution.getFontSize()+3));
-			computer.resolution.setScrollbars();
-			computerFrame.setSize(computer.resolution.desktopPanelWidth,computer.resolution.desktopWindowHeight);
+			setUIFont (new javax.swing.plaf.FontUIResource(Font.SANS_SERIF,Font.PLAIN,computer.resolution.desktop.getFontSize()+3));
+			computer.resolution.desktop.setScrollbars();
+			computerFrame.setSize(computer.resolution.desktop.width,computer.resolution.desktop.height);
 			computerFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			computerFrame.setLayout(null);
 
@@ -63,7 +63,7 @@ public class ComputerGUI
 				public void componentMoved(ComponentEvent arg0) {}
 				public void componentResized(ComponentEvent arg0) 
 				{ 
-					computer.resolution.setDesktopDimensions(computerFrame.getWidth(), computerFrame.getHeight());
+					computer.resolution.desktop.setInnerPane(computerFrame.getWidth(), computerFrame.getHeight());
 
 					setDFrameBounds();
 					setStatusPanelBounds();
@@ -104,16 +104,25 @@ public class ComputerGUI
 		return 0;
 	}
     private void setDFrameBounds() {
-		dframe.setBounds(0,0,computer.resolution.desktopWindowWidth,computer.resolution.desktopPanelHeight - getMenubarOffset());
+		dframe.setBounds(0,0,
+				computer.resolution.desktop.width,
+				computer.resolution.desktop.pane.height - getMenubarOffset());
     }
     private void setStatusPanelBounds() {
-		statuspanel.setBounds(0,computer.resolution.desktopPanelHeight-getMenubarOffset(),computer.resolution.desktopPanelWidth,computer.resolution.statusHeight);
+		statuspanel.setBounds(0, computer.resolution.desktop.pane.height-getMenubarOffset(),
+				computer.resolution.desktop.pane.width,
+				computer.resolution.desktop.getStatusBarThickness());
     }
     private void setStatusFieldBounds() {
-		statusfield.setBounds(0,0,computer.resolution.desktopWindowWidth,computer.resolution.statusHeight);
+		statusfield.setBounds(0,0,
+				computer.resolution.desktop.width,
+				computer.resolution.desktop.getStatusBarThickness());
     }
     private void setButtonPanelBounds() {
-		buttonpanel.setBounds(0,computer.resolution.desktopPanelHeight+computer.resolution.statusHeight-getMenubarOffset(),computer.resolution.desktopPanelWidth,computer.resolution.buttonHeight);
+		buttonpanel.setBounds(0,
+				computer.resolution.desktop.pane.height+computer.resolution.desktop.getStatusBarThickness()-getMenubarOffset(),
+				computer.resolution.desktop.pane.width,
+				computer.resolution.desktop.getButtonHeight());
     }
 	JMenuBar menubar;
 	private JMenuBar constructMenuBar()
@@ -879,7 +888,9 @@ public class ComputerGUI
 //		dframe.repaint();
 		if (paintNext||(computer.ioGUI!=null &&(computer.ioGUI.portRead||computer.ioGUI.portWrite||computer.ioGUI.interruptRequested||computer.ioGUI.interruptTriggered)))
 		{
-			dframe.paintImmediately(0, 0, computer.resolution.desktopPanelWidth,computer.resolution.desktopPanelHeight);
+			dframe.paintImmediately(0, 0, 
+					computer.resolution.desktop.pane.width,
+					computer.resolution.desktop.pane.height);
 			paintNext=false;
 		}
 		else if (computer.memoryGUI!=null && (computer.memoryGUI.memoryRead||computer.memoryGUI.memoryWrite||computer.memoryGUI.romRead))
