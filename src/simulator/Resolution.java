@@ -7,6 +7,8 @@ import javax.swing.JComponent;
 import javax.swing.UIManager;
 
 public class Resolution {
+	public final boolean USE_SCALING_FETURE = false;
+	
 	Desktop desktop;
 	Monitor monitor;
 	Datapath datapath;
@@ -29,20 +31,23 @@ public class Resolution {
 	}
 	
 	public class Monitor extends AbstractWindow {
+		private final double STANDARD_WIDTH = 1440.0;
+		private final double STANDARD_HEIGHT = 900.0;
+		
 		public Monitor() {
 	        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 	        
-	        width = (int) screenSize.getWidth();
-	        height = (int) screenSize.getHeight();
+	        width = USE_SCALING_FETURE ? (int) screenSize.getWidth() : (int)STANDARD_WIDTH;
+	        height = USE_SCALING_FETURE ? (int) screenSize.getHeight() : (int)STANDARD_HEIGHT;
 	        
-	        multiplier = width / 1440.0;
+	        multiplier = width / STANDARD_WIDTH;
 		}
 	}
 	
 	public class Desktop extends AbstractWindow{
-		public Desktop(int screenWidth, int screenHeight) {
-			width = (int)(screenWidth * 0.7);
-			height = (int)(screenHeight * 0.8);
+		public Desktop() {
+			width = (int)(monitor.width * 0.7);
+			height = (int)(monitor.height * 0.8);
 			pane = new InnerPane();
 			
 			setInnerPane(width, height);
@@ -84,7 +89,9 @@ public class Resolution {
 	public Resolution() {
         monitor = new Monitor();
         
-        desktop = new Desktop(monitor.width, monitor.height);
-        datapath = new Datapath();
+        System.out.println("Width: " + monitor.width + " Height: " + monitor.height);
+	    desktop = new Desktop();
+	    datapath = new Datapath();
+        
  	}
 }
