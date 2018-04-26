@@ -33,12 +33,28 @@ public abstract class AbstractGUI extends JInternalFrame
 	
 	protected Computer computer;
 	private AbstractGUI thisgui=this;
+	
+	public AbstractWindow resolution;
 
+	/*
+	 * All GUI windows need to be able to handle additional screen resolutions.  This
+	 * is part of an ongoing project. Therefore, we're overloading the constructor
+	 * to accommodate the old style of creating the GUI and the new style (with a
+	 * resolution parameter).
+	 */
 	public AbstractGUI(Computer computer, String title, int canvaswidth, int canvasheight, boolean statusbar, boolean scrollpane, boolean buttonrow, boolean bigScreen)
+	{
+		this(computer, title, statusbar, scrollpane, buttonrow, bigScreen, new AbstractWindow(canvaswidth, canvasheight));
+	}
+	
+	public AbstractGUI(Computer computer, String title, boolean statusbar, boolean scrollpane, boolean buttonrow, boolean bigScreen, AbstractWindow resolution)
 	{
 		super(title, true, true, true, true);
 		
+		int canvaswidth = resolution.width;
+		int canvasheight = resolution.height;
 		this.computer=computer;
+		this.resolution = resolution;
 		this.STATUSSIZE = computer.resolution.desktop.getStatusBarThickness();
 		this.scrollpane=scrollpane;
 		this.statusbar=statusbar;

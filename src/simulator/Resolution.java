@@ -7,61 +7,21 @@ import javax.swing.JComponent;
 import javax.swing.UIManager;
 
 public class Resolution {
-	
-	private final int BUTTON_COMPONENT_WIDTH = 100;
-	private final int BUTTON_HEIGHT = 20;
-	private final int STATUS_HEIGHT = 30;
-	private final int DEFAULT_STATUS_BAR_THICKNESS = 35;
-	private final int DEFAULT_SCROLL_BAR_THICKNESS = 15;
-	private final int SCROLL_BAR_PADDING = 4;
-	
-	double multiplier;
-
 	Desktop desktop;
 	Monitor monitor;
 	Datapath datapath;
-	
-	public class AbstractWindow {
-		public int width;
-		public int height;	
-		public InnerPane pane;
-		private int fontSize = 10;
-
-		public int getFontSize() {
-			return (int)(fontSize * multiplier);
-		}
-	
-		public int getScrollbarWidth() {
-			return (int) UIManager.get("ScrollBar.width") + SCROLL_BAR_PADDING;
-		}
 		
-		public int getButtonHeight() {
-			return (int)(BUTTON_HEIGHT * multiplier);
-		}
-		
-		public int getButtonHeightAndSpace() {
-			return (int)(BUTTON_HEIGHT * multiplier + 5);
-		}
-		
-		public int getStatusBarThickness() {
-			return (int)(DEFAULT_STATUS_BAR_THICKNESS * multiplier);
-		}
-		
-		public int getScrollbarThickness() {
-			return (int)(DEFAULT_SCROLL_BAR_THICKNESS * multiplier);
-		}
-	}
 	public class InnerPane extends AbstractWindow{
 		public int preferredWidth;
-		public int preferredHeight;
+		public int preferredHeight;		
 	}
 
 	public class InnerWindow extends AbstractWindow{
 		public InnerWindow(int width, int height) {
-			this.width = width;
-			this.height = height;
+			super(width, height);
 		}
 		public InnerWindow() {
+			this(0, 0);
 		}
 		public InnerWindow(int width) {
 			this(width, 0);
@@ -71,8 +31,11 @@ public class Resolution {
 	public class Monitor extends AbstractWindow {
 		public Monitor() {
 	        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+	        
 	        width = (int) screenSize.getWidth();
 	        height = (int) screenSize.getHeight();
+	        
+	        multiplier = width / 1440.0;
 		}
 	}
 	
@@ -106,8 +69,8 @@ public class Resolution {
 			width = desktop.pane.preferredWidth;
 			height = desktop.pane.preferredHeight;
 			
-			toolComponent = new InnerWindow((int)(100 * multiplier));
-			modificationComponent = new InnerWindow((int)(100 * multiplier));
+			toolComponent = new InnerWindow((int)(BUTTON_COMPONENT_WIDTH * multiplier));
+			modificationComponent = new InnerWindow((int)(BUTTON_COMPONENT_WIDTH * multiplier));
 		}
 		
 		public double getScalingFactor() {
@@ -120,7 +83,6 @@ public class Resolution {
 	
 	public Resolution() {
         monitor = new Monitor();
-        multiplier = monitor.width / 1440.0;
         
         desktop = new Desktop(monitor.width, monitor.height);
         datapath = new Datapath();
