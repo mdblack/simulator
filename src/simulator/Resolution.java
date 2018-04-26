@@ -13,6 +13,7 @@ public class Resolution {
 	private final int STATUS_HEIGHT = 30;
 	private final int DEFAULT_STATUS_BAR_THICKNESS = 35;
 	private final int DEFAULT_SCROLL_BAR_THICKNESS = 15;
+	private final int SCROLL_BAR_PADDING = 4;
 	
 	double multiplier;
 
@@ -24,14 +25,14 @@ public class Resolution {
 		public int width;
 		public int height;	
 		public InnerPane pane;
-		public int fontSize = 10;
-		
+		private int fontSize = 10;
+
 		public int getFontSize() {
 			return (int)(fontSize * multiplier);
 		}
 	
 		public int getScrollbarWidth() {
-			return (int) UIManager.get("ScrollBar.width") + 4;
+			return (int) UIManager.get("ScrollBar.width") + SCROLL_BAR_PADDING;
 		}
 		
 		public int getButtonHeight() {
@@ -114,6 +115,7 @@ public class Resolution {
 		}
 	}
 	
+
 	//////////////////////////
 	
 	public Resolution() {
