@@ -63,7 +63,7 @@ public class ComputerGUI
 		
 		if (computer.applet==null)
 		{
-			final JFrame computerFrame = new JFrame("Simulator");
+			final JFrame computerFrame = new JFrame("Simulator " + Version.version);
 			computerFrame.setSize(XSIZE,YSIZE);
 			computerFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			computerFrame.setLayout(null);
