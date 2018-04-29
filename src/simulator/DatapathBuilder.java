@@ -31,8 +31,6 @@ import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
-import com.sun.javafx.geom.Rectangle;
-
 import simulator.CustomProcessor.CustomProcessorModule;
 
 public class DatapathBuilder extends AbstractGUI

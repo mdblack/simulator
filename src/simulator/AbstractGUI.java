@@ -9,7 +9,6 @@ import javax.swing.event.InternalFrameListener;
 import java.awt.event.*;
 
 //TODO: there is a scrollpane (bool) and scrollPane (JScrollPane)
-// so????
 
 public abstract class AbstractGUI extends JInternalFrame
 {
