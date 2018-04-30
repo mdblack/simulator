@@ -47,6 +47,7 @@ public class ComputerGUI
 		if (computer.applet==null)
 		{
 			final JFrame computerFrame = new JFrame("Simulator " + Version.version);
+
 			setUIFont (new javax.swing.plaf.FontUIResource(Font.SANS_SERIF,Font.PLAIN,computer.resolution.desktop.getFontSize()+3));
 			computer.resolution.desktop.setScrollbars();
 			computerFrame.setSize(computer.resolution.desktop.width,computer.resolution.desktop.height);
@@ -105,7 +106,7 @@ public class ComputerGUI
 	}
     private void setDFrameBounds() {
 		dframe.setBounds(0,0,
-				computer.resolution.desktop.width,
+				computer.resolution.desktop.pane.width,
 				computer.resolution.desktop.pane.height - getMenubarOffset());
     }
     private void setStatusPanelBounds() {
@@ -115,7 +116,7 @@ public class ComputerGUI
     }
     private void setStatusFieldBounds() {
 		statusfield.setBounds(0,0,
-				computer.resolution.desktop.width,
+				computer.resolution.desktop.pane.width,
 				computer.resolution.desktop.getScrollbarThickness());
     }
     private void setButtonPanelBounds() {
