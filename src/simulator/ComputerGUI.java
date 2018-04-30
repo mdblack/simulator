@@ -18,73 +18,58 @@ import simulator.DatapathBuilder.DatapathModule;
 
 public class ComputerGUI
 {
-	static int XSIZE=1000,YSIZE=730,BUTTONSIZE=100,STATUSSIZE=30,MAINSIZE=YSIZE-BUTTONSIZE-STATUSSIZE;
+	
 	private static final int INSTRUCTION_COUNT_UPDATE=50000;
-//	static int BIGWIDTH=(int)(0.6*XSIZE),BIGHEIGHT=(int)(0.62*YSIZE);
+
 	Computer computer;
 	JDesktopPane dframe;
 	boolean singleFrame=true;
 	JTextField statusfield;
 	JPanel buttonpanel,statuspanel;
 	
-	public ComputerGUI(Computer computer)
+    public ComputerGUI(Computer computer)
 	{
 		this.computer=computer;
-		
-/*        try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-//            	System.out.println(info.getName());
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                 
-                    break;
-                
-                }
-            }
-        } catch (ClassNotFoundException ex) {
-        } catch (InstantiationException ex) {
-        } catch (IllegalAccessException ex) {
-         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-        }		
-*/		
+		constructMenuBar();
 		dframe=new ComputerDesktopPane();
-		dframe.setBounds(0,0,XSIZE,MAINSIZE);
+		setDFrameBounds();
 		buttonpanel=new JPanel();
-		buttonpanel.setBounds(0,MAINSIZE+STATUSSIZE,XSIZE,BUTTONSIZE);
+		setButtonPanelBounds();
 		generateButtons(buttonpanel);
 		statuspanel=new JPanel();
-		statuspanel.setBounds(0,MAINSIZE,XSIZE,STATUSSIZE);
+		setStatusPanelBounds();
 		statuspanel.setLayout(null);
 		statusfield=new JTextField();
-		statusfield.setBounds(0,0,XSIZE,STATUSSIZE);
+		setStatusFieldBounds();
 		statusfield.setFont(statusfield.getFont().deriveFont(statusfield.getFont().getStyle() ^ Font.BOLD));
 		statuspanel.add(statusfield);
-		
 		
 		if (computer.applet==null)
 		{
 			final JFrame computerFrame = new JFrame("Simulator " + Version.version);
-			computerFrame.setSize(XSIZE,YSIZE);
+
+			setUIFont (new javax.swing.plaf.FontUIResource(Font.SANS_SERIF,Font.PLAIN,computer.resolution.desktop.getFontSize()+3));
+			computer.resolution.desktop.setScrollbars();
+			computerFrame.setSize(computer.resolution.desktop.width,computer.resolution.desktop.height);
 			computerFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			computerFrame.setLayout(null);
 
 			computerFrame.add(statuspanel);
 			computerFrame.add(buttonpanel);
 			computerFrame.add(dframe);
-			computerFrame.setJMenuBar(constructMenuBar());
+			computerFrame.setJMenuBar(menubar);
 			computerFrame.setVisible(true);
 			computerFrame.addComponentListener(new ComponentListener(){
 				public void componentHidden(ComponentEvent arg0) {}
 				public void componentMoved(ComponentEvent arg0) {}
 				public void componentResized(ComponentEvent arg0) 
 				{ 
-					XSIZE=computerFrame.getWidth();
-					YSIZE=computerFrame.getHeight();
-					MAINSIZE=YSIZE-BUTTONSIZE-STATUSSIZE;
-					dframe.setBounds(0,0,XSIZE,MAINSIZE);
-					statuspanel.setBounds(0,MAINSIZE,XSIZE,STATUSSIZE);
-					statusfield.setBounds(0,0,XSIZE,STATUSSIZE);
-					buttonpanel.setBounds(0,MAINSIZE+STATUSSIZE,XSIZE,BUTTONSIZE);
+					computer.resolution.desktop.setInnerPane(computerFrame.getWidth(), computerFrame.getHeight());
+
+					setDFrameBounds();
+					setStatusPanelBounds();
+					setStatusFieldBounds();
+					setButtonPanelBounds();
 				}
 				public void componentShown(ComponentEvent arg0) {}
 				});
@@ -98,7 +83,48 @@ public class ComputerGUI
 			computer.applet.panel.revalidate();
 		}
 	}
-	
+    public void setUIFont (javax.swing.plaf.FontUIResource f){
+        java.util.Enumeration keys = UIManager.getDefaults().keys();
+        while (keys.hasMoreElements()) {
+          Object key = keys.nextElement();
+          Object value = UIManager.get (key);
+          if (value instanceof javax.swing.plaf.FontUIResource)
+            UIManager.put (key, f);
+          }
+        } 
+	public void setMenubarVisible(boolean visible) {
+		menubar.setVisible(visible);
+		setDFrameBounds();
+		setStatusPanelBounds();
+		setStatusFieldBounds();
+		setButtonPanelBounds();
+	}
+	private int getMenubarOffset() {
+		if (menubar.isVisible())
+			return menubar.getHeight();
+		return 0;
+	}
+    private void setDFrameBounds() {
+		dframe.setBounds(0,0,
+				computer.resolution.desktop.pane.width,
+				computer.resolution.desktop.pane.height - getMenubarOffset());
+    }
+    private void setStatusPanelBounds() {
+		statuspanel.setBounds(0, computer.resolution.desktop.pane.height-getMenubarOffset(),
+				computer.resolution.desktop.pane.width,
+				computer.resolution.desktop.getScrollbarThickness());
+    }
+    private void setStatusFieldBounds() {
+		statusfield.setBounds(0,0,
+				computer.resolution.desktop.pane.width,
+				computer.resolution.desktop.getScrollbarThickness());
+    }
+    private void setButtonPanelBounds() {
+		buttonpanel.setBounds(0,
+				computer.resolution.desktop.pane.height+computer.resolution.desktop.getScrollbarThickness()-getMenubarOffset(),
+				computer.resolution.desktop.pane.width,
+				computer.resolution.desktop.getButtonHeight());
+    }
 	JMenuBar menubar;
 	private JMenuBar constructMenuBar()
 	{
@@ -863,7 +889,9 @@ public class ComputerGUI
 //		dframe.repaint();
 		if (paintNext||(computer.ioGUI!=null &&(computer.ioGUI.portRead||computer.ioGUI.portWrite||computer.ioGUI.interruptRequested||computer.ioGUI.interruptTriggered)))
 		{
-			dframe.paintImmediately(0, 0, XSIZE,YSIZE);
+			dframe.paintImmediately(0, 0, 
+					computer.resolution.desktop.pane.width,
+					computer.resolution.desktop.pane.height);
 			paintNext=false;
 		}
 		else if (computer.memoryGUI!=null && (computer.memoryGUI.memoryRead||computer.memoryGUI.memoryWrite||computer.memoryGUI.romRead))
