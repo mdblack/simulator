@@ -126,12 +126,8 @@ public class ComputerGUI
     }
     private void setButtonPanelBounds() {
 		buttonpanel.setBounds(0, dframe.getHeight() + statuspanel.getHeight(),
-//				computer.resolution.desktop.pane.height
-//						+ computer.resolution.desktop.getScrollbarThickness()
-//						- getMenubarOffset() - 50,
 				computer.resolution.desktop.pane.width,
-				computer.resolution.desktop.getButtonHeight()*2);
-		buttonpanel.setBackground(Color.BLACK);
+				computer.resolution.desktop.getButtonHeight()*3);
 	}
 	JMenuBar menubar;
 	private JMenuBar constructMenuBar()
