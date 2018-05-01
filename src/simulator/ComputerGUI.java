@@ -34,10 +34,10 @@ public class ComputerGUI
 		dframe=new ComputerDesktopPane();
 		setDFrameBounds();
 		buttonpanel=new JPanel();
+        statuspanel=new JPanel();
+        setStatusPanelBounds();
 		setButtonPanelBounds();
         generateButtons(buttonpanel);
-		statuspanel=new JPanel();
-		setStatusPanelBounds();
 		statuspanel.setLayout(null);
 		statusfield=new JTextField();
 		setStatusFieldBounds();
@@ -125,12 +125,13 @@ public class ComputerGUI
 				computer.resolution.desktop.getScrollbarThickness() + 10);
     }
     private void setButtonPanelBounds() {
-		buttonpanel.setBounds(0,
-				computer.resolution.desktop.pane.height
-						+ computer.resolution.desktop.getScrollbarThickness()
-						- getMenubarOffset() - 10,
+		buttonpanel.setBounds(0, dframe.getHeight() + statuspanel.getHeight(),
+//				computer.resolution.desktop.pane.height
+//						+ computer.resolution.desktop.getScrollbarThickness()
+//						- getMenubarOffset() - 50,
 				computer.resolution.desktop.pane.width,
-				computer.resolution.desktop.getButtonHeight());
+				computer.resolution.desktop.getButtonHeight()*2);
+		buttonpanel.setBackground(Color.BLACK);
 	}
 	JMenuBar menubar;
 	private JMenuBar constructMenuBar()
