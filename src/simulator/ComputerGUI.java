@@ -100,8 +100,8 @@ public class ComputerGUI
 	}
 	private int getMenubarOffset() {
 		if (menubar.isVisible())
-			return menubar.getHeight();
-		return 0;
+			return 23;//menubar.getHeight();
+		return 23;
 	}
 
 	// The DFrame (Display Frame) is where the general graphics fit.  It is the size of the window,
