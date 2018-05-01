@@ -105,7 +105,7 @@ public class ComputerGUI
 	}
     private void setDFrameBounds() {
 		dframe.setBounds(0,0,
-				computer.resolution.desktop.width,
+				computer.resolution.desktop.pane.width,
 				computer.resolution.desktop.pane.height - getMenubarOffset());
     }
     private void setStatusPanelBounds() {
@@ -115,7 +115,7 @@ public class ComputerGUI
     }
     private void setStatusFieldBounds() {
 		statusfield.setBounds(0,0,
-				computer.resolution.desktop.width,
+				computer.resolution.desktop.pane.width,
 				computer.resolution.desktop.getScrollbarThickness() + 10);
     }
     private void setButtonPanelBounds() {
