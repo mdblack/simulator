@@ -100,8 +100,8 @@ public class ComputerGUI
 	}
 	private int getMenubarOffset() {
 		if (menubar.isVisible())
-			return 23;//menubar.getHeight();
-		return 23;
+			return menubar.getHeight();
+		return 0;
 	}
 
 	// The DFrame (Display Frame) is where the general graphics fit.  It is the size of the window,
@@ -127,7 +127,7 @@ public class ComputerGUI
     private void setButtonPanelBounds() {
 		buttonpanel.setBounds(0, dframe.getHeight() + statuspanel.getHeight(),
 				computer.resolution.desktop.pane.width,
-				computer.resolution.desktop.getButtonHeight()*3);
+				computer.resolution.desktop.getButtonHeight());
 	}
 	JMenuBar menubar;
 	private JMenuBar constructMenuBar()
