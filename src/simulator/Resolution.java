@@ -35,10 +35,14 @@ public class Resolution {
 		private final double STANDARD_HEIGHT = 900.0;
 		
 		public Monitor() {
-	        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+	        Dimension screenSize;
+	        if (USE_SCALING_FETURE)
+	        	screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+	        else
+	        	screenSize = new Dimension((int)STANDARD_WIDTH, (int)STANDARD_HEIGHT);
 	        
-	        width = USE_SCALING_FETURE ? (int) screenSize.getWidth() : (int)STANDARD_WIDTH;
-	        height = USE_SCALING_FETURE ? (int) screenSize.getHeight() : (int)STANDARD_HEIGHT;
+	        width = (int)screenSize.getWidth();
+	        height = (int)screenSize.getHeight();
 	        
 	        multiplier = width / STANDARD_WIDTH;
 		}
