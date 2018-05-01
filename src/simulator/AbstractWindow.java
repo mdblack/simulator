@@ -1,12 +1,12 @@
 package simulator;
 
-import javax.swing.UIManager;
+import javax.swing.*;
 
 import simulator.Resolution.InnerPane;
 
 public class AbstractWindow {
 	protected final int BUTTON_COMPONENT_WIDTH = 100;
-	protected final int BUTTON_HEIGHT = 20;
+	protected final int BUTTON_HEIGHT = 25;
 	protected final int STATUS_HEIGHT = 30;
 	protected final int DEFAULT_STATUS_BAR_THICKNESS = 35;
 	protected final int DEFAULT_SCROLL_BAR_THICKNESS = 15;
@@ -36,9 +36,10 @@ public class AbstractWindow {
 	}
 	
 	public int getButtonHeight() {
-		return (int)(BUTTON_HEIGHT * multiplier);
+		//return (int)(BUTTON_HEIGHT * multiplier);
+		return (new JButton()).getHeight();
 	}
-	
+
 	public int getButtonHeightAndSpace() {
 		return (int)(BUTTON_HEIGHT * multiplier + 5);
 	}

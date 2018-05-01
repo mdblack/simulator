@@ -35,7 +35,7 @@ public class ComputerGUI
 		setDFrameBounds();
 		buttonpanel=new JPanel();
 		setButtonPanelBounds();
-		generateButtons(buttonpanel);
+        generateButtons(buttonpanel);
 		statuspanel=new JPanel();
 		setStatusPanelBounds();
 		statuspanel.setLayout(null);
@@ -103,10 +103,16 @@ public class ComputerGUI
 			return menubar.getHeight();
 		return 0;
 	}
+
+	// The DFrame (Display Frame) is where the general graphics fit.  It is the size of the window,
+    // offset by other items on the window.  It is redrawn whenever the mouse goes over it, etc.
     private void setDFrameBounds() {
 		dframe.setBounds(0,0,
 				computer.resolution.desktop.pane.width,
-				computer.resolution.desktop.pane.height - getMenubarOffset());
+				computer.resolution.desktop.pane.height
+                        - getMenubarOffset()
+                        - computer.resolution.desktop.getStatusBarThickness()
+                        + computer.resolution.desktop.getScrollbarThickness());
     }
     private void setStatusPanelBounds() {
 		statuspanel.setBounds(0, computer.resolution.desktop.pane.height-getMenubarOffset() - 20,
@@ -124,7 +130,7 @@ public class ComputerGUI
 						+ computer.resolution.desktop.getScrollbarThickness()
 						- getMenubarOffset() - 10,
 				computer.resolution.desktop.pane.width,
-				computer.resolution.desktop.getButtonHeight() + 10);
+				computer.resolution.desktop.getButtonHeight());
 	}
 	JMenuBar menubar;
 	private JMenuBar constructMenuBar()
