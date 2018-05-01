@@ -99,8 +99,11 @@ public class ComputerGUI
 		setButtonPanelBounds();
 	}
 	private int getMenubarOffset() {
+        System.out.println("getMenuOffset: visible: " +
+                (menubar.isVisible() ? "Yes" : "no") + "  Height: " + menubar.getPreferredSize().height);
 		if (menubar.isVisible())
-			return menubar.getHeight();
+			return menubar.getPreferredSize().height;
+		
 		return 0;
 	}
 
@@ -167,6 +170,7 @@ public class ComputerGUI
 		menubar.add(menuGUI);
 		menubar.add(menuDisk);
 		menubar.add(menuConstruct);
+		menubar.setVisible(false);
 		return menubar;
 	}
 	
