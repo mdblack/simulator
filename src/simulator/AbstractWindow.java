@@ -36,8 +36,7 @@ public class AbstractWindow {
 	}
 	
 	public int getButtonHeight() {
-		//return (int)(BUTTON_HEIGHT * multiplier);
-		return (new JButton()).getHeight();
+		return (int)(BUTTON_HEIGHT * multiplier);
 	}
 
 	public int getButtonHeightAndSpace() {
