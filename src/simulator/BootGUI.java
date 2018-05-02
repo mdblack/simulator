@@ -572,6 +572,22 @@ public class BootGUI extends AbstractGUI
 		{
 			memoryImage="";
 		}
+		if (singlestepbox.isSelected())
+		{
+			computer.debugMode=true;
+			computer.computerGUI.stepButton.setEnabled(true);
+			computer.computerGUI.playButton.setEnabled(true);
+			computer.computerGUI.fastPlayButton.setEnabled(true);
+			computer.computerGUI.pauseButton.setEnabled(false);
+		}
+		else
+		{
+			computer.debugMode=false;
+			computer.computerGUI.stepButton.setEnabled(false);
+			computer.computerGUI.playButton.setEnabled(false);
+			computer.computerGUI.fastPlayButton.setEnabled(false);
+			computer.computerGUI.pauseButton.setEnabled(true);
+		}
 		
 	}
 	
