@@ -12,7 +12,7 @@ import java.awt.event.*;
 
 public abstract class AbstractGUI extends JInternalFrame
 {
-	public static int STATUSSIZE=50;
+	public static int STATUSSIZE=40;
 	public static final int BUTTONROWSIZE=30;
 	public static final int MARGIN=20;
 	public static final int MAX_X=10000,MAX_Y=7000;
@@ -64,11 +64,6 @@ public abstract class AbstractGUI extends JInternalFrame
 		setCanvasCoordinates(canvaswidth, canvasheight);
 		setFrameCoordinates(canvasX, canvasY);
 		
-//		if (computer.computerGUI.singleFrame)
-//		{
-//			frameX=computer.computerGUI.getW(this);
-//			frameY=computer.computerGUI.getH(this);
-//		}
 		if (frameX>computer.resolution.desktop.width-MARGIN)
 			frameX=computer.resolution.desktop.width-MARGIN;
 		
@@ -469,7 +464,7 @@ public abstract class AbstractGUI extends JInternalFrame
 			if (statusbar && statusComponent != null)   // Make sure we have a status bar AND the pane exists
 			{
 				int topy=frameY-STATUSSIZE;
-				statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
+                statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
 			}
 			
 			reSize(frameX,frameY);

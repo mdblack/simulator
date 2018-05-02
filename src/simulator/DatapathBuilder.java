@@ -108,7 +108,9 @@ public class DatapathBuilder extends AbstractGUI
 			// Change the height of the main gui container and the tool scroll.
 			guiComponent.setBounds(0, 0, width, height);
 			if (toolscroll != null)
-				toolscroll.setBounds(0,0,toolcomponent.width+resolution.toolComponent.getScrollbarWidth(),height-resolution.getStatusBarThickness());
+				toolscroll.setBounds(0,0,
+						toolcomponent.width+resolution.toolComponent.getScrollbarWidth(),
+						height-resolution.getStatusBarThickness());
 
 			if (drawingcomponent != null) {
 				drawingcomponent.restoreSize();
@@ -128,7 +130,9 @@ public class DatapathBuilder extends AbstractGUI
 		this.guiComponent = guiComponent;
 		toolcomponent=new ToolComponent();
 		toolscroll=new JScrollPane(toolcomponent);
-		toolscroll.setBounds(0,0,toolcomponent.width+resolution.toolComponent.getScrollbarWidth(),frameY-resolution.getStatusBarThickness());
+		toolscroll.setBounds(0,0,
+				toolcomponent.width+resolution.toolComponent.getScrollbarWidth(),
+				frameY-resolution.getStatusBarThickness());
 		guiComponent.add(toolscroll);
 		drawingcomponent=new DrawingComponent();
 		guiComponent.add(drawingcomponent.scroll);
@@ -1109,7 +1113,9 @@ public class DatapathBuilder extends AbstractGUI
 			
 		}
 		public void restoreSize() {
-			modificationScroll.setBounds(toolscroll.getWidth(), 0,width + resolution.toolComponent.getScrollbarWidth(),frameY-resolution.getStatusBarThickness());
+			modificationScroll.setBounds(toolscroll.getWidth(), 0,
+					width + resolution.toolComponent.getScrollbarWidth(),
+					frameY-resolution.getStatusBarThickness());
 			drawingcomponent.setLeft(toolscroll.getWidth() + width + MARGIN);
 			drawingcomponent.restoreSize();
 		}
@@ -1525,7 +1531,10 @@ public class DatapathBuilder extends AbstractGUI
 				}});
 		}
 		public void restoreSize() {
-			scroll.setBounds(left,0,frameX-left,frameY-resolution.getStatusBarThickness());			
+
+			scroll.setBounds(left,0,
+					frameX-left,
+					frameY-resolution.getStatusBarThickness());
 		}
 		int left;
 		public void setLeft(int left) {
