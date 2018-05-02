@@ -12,7 +12,7 @@ import java.awt.Toolkit;
 import java.beans.PropertyVetoException;
 import java.io.*;
 import java.util.Scanner;
-import javax.swing.JOptionPane;
+import javax.swing.*;
 
 public class Computer
 {
@@ -275,7 +275,11 @@ public class Computer
 			try {
 				MemoryTransferGUI.load(bootgui.memoryImage, bootgui.memoryImageStart, this);
 			} catch (NullPointerException e) {
-				System.out.println("Error loading memory image");
+				final JPanel panel = new JPanel();
+
+				JOptionPane.showMessageDialog(panel, "Memory could not be loaded. Check your file path: " +
+								bootgui.memoryImage, "Warning",
+						JOptionPane.WARNING_MESSAGE);
 			}
 		}
 		
