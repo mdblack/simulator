@@ -1,10 +1,42 @@
 #!/bin/bash
 
 `which jar &> /dev/null`
-cmdstatus=$?
+jar_status=$?
 
-if [ "$cmdstatus" == "1" ]; then
+if [ "$1" == "-h" ]; then
+   echo "Usage: mkjar [-i | -h | jar_name]"
+   echo ""
+   echo "By default, mkjar will attempt to build a jar file from the source, this"
+   echo "includes compilation and archiving.  If a jar_name is specified, that name"
+   echo "will be used for the completed jar file, otherwise 'simulator.jar' is used."
+   echo ""
+   echo "Switches:"
+   echo "  -h   This message"
+   echo "  -i   Install - used when you are not set up as a developer, this will get"
+   echo "       a pre-built jar file."
+   exit
+fi
+
+if [ "$1" == "-i" ]; then
+   echo "Retrieving jar file from release area."
+   curl -O https://raw.githubusercontent.com/DaveChamberlain/casim/master/simulator.jar
+   exit
+fi
+
+if [ "$jar_status" == "1" ]; then
    echo "The 'jar' command could not be found. Make sure it is installed and in your path."
+   echo "Likely that you may have installed the JRE but not the JDK, make sure you have"
+   echo "installed the JDK."
+   echo ""
+   echo "On Ubuntu 16.04, try installing with: "
+   echo "   sudo add-apt-repository ppa:webupd8team/java"
+   echo "   sudo apt-get update"
+   echo "   sudo apt-get install oracle-java8-installer"
+   echo ""
+   echo "Otherwise, you will need to open your IDE and load the project and build."
+   echo ""
+   echo "NOTE: You may also retrieve one using the -i switch:"
+   echo "      mkjar -i"
    exit
 fi 
 
@@ -15,25 +47,19 @@ fi
 
 echo "Creating jar file: ${filename}"
 
-if [ -d out ]; then
-   echo "Using IntelliJ build"
-   filename=../../../$filename
-   bin=out/production/simulator
-else 
-   if [ -d bin ]; then
-      echo "Using Eclipse build"
-      filename=../$filename
-      bin=bin
-   else
-      echo "Can't find a way to build."
-      exit
-   fi
-fi
+src=src/simulator
+resource=resource
+bin=${src}
+here=`pwd`
+filename=${here}/${filename}
+javac ${src}/*.java 2>&1 | grep -v Note
 
-cd ${bin}
+cd ${bin}/..
 echo "Class-Path: ." > .manifest
 echo "Main-Class: simulator.Computer" >> .manifest
 echo "" >> .manifest
-jar cfm ${filename} .manifest simulator/*.class resource/*
+jar cfm ${filename} .manifest simulator/*.class ${resource}/*
 rm .manifest
+cd ${here}
+rm ${src}/*.class
 echo "Done."

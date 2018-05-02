@@ -12,7 +12,7 @@ import java.awt.event.*;
 
 public abstract class AbstractGUI extends JInternalFrame
 {
-	public static final int STATUSSIZE=50;
+	public static int STATUSSIZE=40;
 	public static final int BUTTONROWSIZE=30;
 	public static final int MARGIN=20;
 	public static final int MAX_X=10000,MAX_Y=7000;
@@ -33,13 +33,29 @@ public abstract class AbstractGUI extends JInternalFrame
 	
 	protected Computer computer;
 	private AbstractGUI thisgui=this;
+	
+	public AbstractWindow resolution;
 
+	/*
+	 * All GUI windows need to be able to handle additional screen resolutions.  This
+	 * is part of an ongoing project. Therefore, we're overloading the constructor
+	 * to accommodate the old style of creating the GUI and the new style (with a
+	 * resolution parameter).
+	 */
 	public AbstractGUI(Computer computer, String title, int canvaswidth, int canvasheight, boolean statusbar, boolean scrollpane, boolean buttonrow, boolean bigScreen)
+	{
+		this(computer, title, statusbar, scrollpane, buttonrow, bigScreen, new AbstractWindow(canvaswidth, canvasheight));
+	}
+	
+	public AbstractGUI(Computer computer, String title, boolean statusbar, boolean scrollpane, boolean buttonrow, boolean bigScreen, AbstractWindow resolution)
 	{
 		super(title, true, true, true, true);
 		
+		int canvaswidth = resolution.width;
+		int canvasheight = resolution.height;
 		this.computer=computer;
-		
+		this.resolution = resolution;
+		this.STATUSSIZE = computer.resolution.desktop.getStatusBarThickness();
 		this.scrollpane=scrollpane;
 		this.statusbar=statusbar;
 		this.buttonrow=buttonrow;
@@ -48,16 +64,11 @@ public abstract class AbstractGUI extends JInternalFrame
 		setCanvasCoordinates(canvaswidth, canvasheight);
 		setFrameCoordinates(canvasX, canvasY);
 		
-//		if (computer.computerGUI.singleFrame)
-//		{
-//			frameX=computer.computerGUI.getW(this);
-//			frameY=computer.computerGUI.getH(this);
-//		}
-		if (frameX>computer.computerGUI.XSIZE-MARGIN)
-			frameX=ComputerGUI.XSIZE-MARGIN;
+		if (frameX>computer.resolution.desktop.width-MARGIN)
+			frameX=computer.resolution.desktop.width-MARGIN;
 		
-		if (frameY>computer.computerGUI.MAINSIZE-MARGIN)
-			frameY=ComputerGUI.MAINSIZE-MARGIN;
+		if (frameY>computer.resolution.desktop.height-MARGIN)
+			frameY=computer.resolution.desktop.height-MARGIN;
 
 		setSize(frameX,frameY);
 		addInternalFrameListener(new GUIWindowListener());
@@ -71,6 +82,8 @@ public abstract class AbstractGUI extends JInternalFrame
 			
 			statusComponent = new StatusComponent();
 			statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
+			statusComponent.setFont(new Font("Dialog",Font.ITALIC,computer.resolution.desktop.getFontSize()));
+			
 			statusComponent.setLabel("");
 			add(statusComponent);
 		}
@@ -84,7 +97,7 @@ public abstract class AbstractGUI extends JInternalFrame
 			Border frameBorder=getBorder();
 			
 			frameBorder = ((javax.swing.border.CompoundBorder)frameBorder).getInsideBorder();
-			setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.black), frameBorder));
+			setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.black,1), frameBorder));
 		} catch (ClassCastException e) {
 			setBorder(BorderFactory.createLineBorder(Color.black, 1));
 		}
@@ -166,8 +179,10 @@ public abstract class AbstractGUI extends JInternalFrame
 	}
 	public void setStatusLabel(String label)
 	{
-		if(statusComponent!=null)
+		if(statusComponent!=null) {
+			statusComponent.setFont(new Font("Dialog",Font.ITALIC,20));//computer.resolution.desktop.getFontSize()));
 			statusComponent.setLabel(label);
+		}
 	}
 
 	public void statusEdit(String baselabel, int exactlength, boolean hexonly)
@@ -327,7 +342,7 @@ public abstract class AbstractGUI extends JInternalFrame
 			g.setColor(Color.BLACK);
 			g.drawLine(0,0,frameX,0);
 
-			int fontSize=12;
+			int fontSize=computer.resolution.desktop.getFontSize();
 			g.setFont(new Font("Dialog",Font.BOLD,fontSize));
 			g.drawString(statusLabel,STATUSSIZE-MARGIN,fontSize);
 		}
@@ -449,7 +464,7 @@ public abstract class AbstractGUI extends JInternalFrame
 			if (statusbar && statusComponent != null)   // Make sure we have a status bar AND the pane exists
 			{
 				int topy=frameY-STATUSSIZE;
-				statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
+                statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
 			}
 			
 			reSize(frameX,frameY);

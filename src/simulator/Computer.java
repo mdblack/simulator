@@ -7,6 +7,8 @@ Computer builds the PC, starts it running
 */
 
 package simulator;
+import java.awt.Dimension;
+import java.awt.Toolkit;
 import java.beans.PropertyVetoException;
 import java.io.*;
 import java.util.Scanner;
@@ -71,6 +73,7 @@ public class Computer
 	public ComputerApplet applet=null;
 	
 	public String args="";
+	public Resolution resolution;
 	
 	public String saveState()
 	{
@@ -175,8 +178,9 @@ public class Computer
 	{
 		stepLock=new Lock();
 		cycleEndLock=new Lock();
+		resolution = new Resolution();
 
-		computerGUI=new ComputerGUI(computer);
+        computerGUI = new ComputerGUI(computer);
 
 		bootgui = new BootGUI(computer,new String[]{"Processor","Memory","BIOS ROM","VGA ROM","Registers","I/O Ports","Video","Keyboard","Floppy Controller","Interrupt Controller","IDE Controller","CMOS","Timer","DMA Controller","Serial Port"});
 

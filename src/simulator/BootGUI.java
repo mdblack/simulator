@@ -52,7 +52,7 @@ public class BootGUI extends AbstractGUI
 	boolean bootFromFloppy;
 	boolean bootCustomProcessor=false;
 	BootGUI bootgui;
-	
+
 	public void loadState(String state)
 	{
 		Scanner loader=new Scanner(state);
@@ -73,7 +73,7 @@ public class BootGUI extends AbstractGUI
 		bootImageName=bootImageName.substring(5,bootImageName.length());
 		System.out.println("loaded bootgui");
 	}
-	
+
 	public String saveState()
 	{
 		String state="";
@@ -99,7 +99,7 @@ public class BootGUI extends AbstractGUI
 	{
 		super(computer, "Boot",BWIDTH,BHEIGHT,false,true,false,true);
 		bootgui=this;
-		
+
 		deviceName=devices;
 		diskIncluded=new boolean[4];
 		diskImage=new String[4];
@@ -119,19 +119,19 @@ public class BootGUI extends AbstractGUI
 		datapathxml="";
 		controlxml="";
 
-        try
-        {
-            FileReader fr = new FileReader("settings.txt");
-            Scanner scan = new Scanner(fr);
-            while(scan.hasNext())
-            {
-                findBootType(scan);
-            }
-        }
+		try
+		{
+			FileReader fr = new FileReader("settings.txt");
+			Scanner scan = new Scanner(fr);
+			while(scan.hasNext())
+			{
+				findBootType(scan);
+			}
+		}
 
-        catch (java.io.FileNotFoundException e) {
-            System.out.println("Error: Settings.txt not found");
-        }
+		catch (java.io.FileNotFoundException e) {
+			System.out.println("Error: Settings.txt not found");
+		}
 		catch(Exception e)
 		{
 			e.printStackTrace();
@@ -142,55 +142,55 @@ public class BootGUI extends AbstractGUI
 	}
 
 	public void findBootType(Scanner scan) {
-        String type=scan.next();
-        if (type.equals("DiskA"))
-        {
-            diskIncluded[0]=true;
-            diskImage[0]=scan.next();
-        }
-        else if (type.equals("DiskB"))
-        {
-            diskIncluded[1]=true;
-            diskImage[1]=scan.next();
-        }
-        else if (type.equals("DiskC"))
-        {
-            diskIncluded[2]=true;
-            diskImage[2]=scan.next();
-            isCD[2]=scan.nextInt()==1;
-            cylinders[2]=scan.nextInt();
-            heads[2]=scan.nextInt();
-            sectors[2]=scan.nextInt();
-        }
-        else if (type.equals("DiskD"))
-        {
-            diskIncluded[3]=true;
-            diskImage[3]=scan.next();
-            isCD[3]=scan.nextInt()==1;
-            cylinders[3]=scan.nextInt();
-            heads[3]=scan.nextInt();
-            sectors[3]=scan.nextInt();
-        }
-        else if (type.equals("ROM"))
-        {
-            romImage=scan.next();
-        }
-        else if (type.equals("VideoROM"))
-        {
-            vromImage=scan.next();
-        }
-        else if (type.equals("MemoryContents"))
-        {
-            memoryImage=scan.next();
-            memoryImageStart=Integer.parseInt(scan.next(),16);
-        }
-        else if (type.equals("CustomProcessor"))
-        {
-            datapathxml=scan.next();
-            controlxml=scan.next();
-        }
-    }
-	
+		String type=scan.next();
+		if (type.equals("DiskA"))
+		{
+			diskIncluded[0]=true;
+			diskImage[0]=scan.next();
+		}
+		else if (type.equals("DiskB"))
+		{
+			diskIncluded[1]=true;
+			diskImage[1]=scan.next();
+		}
+		else if (type.equals("DiskC"))
+		{
+			diskIncluded[2]=true;
+			diskImage[2]=scan.next();
+			isCD[2]=scan.nextInt()==1;
+			cylinders[2]=scan.nextInt();
+			heads[2]=scan.nextInt();
+			sectors[2]=scan.nextInt();
+		}
+		else if (type.equals("DiskD"))
+		{
+			diskIncluded[3]=true;
+			diskImage[3]=scan.next();
+			isCD[3]=scan.nextInt()==1;
+			cylinders[3]=scan.nextInt();
+			heads[3]=scan.nextInt();
+			sectors[3]=scan.nextInt();
+		}
+		else if (type.equals("ROM"))
+		{
+			romImage=scan.next();
+		}
+		else if (type.equals("VideoROM"))
+		{
+			vromImage=scan.next();
+		}
+		else if (type.equals("MemoryContents"))
+		{
+			memoryImage=scan.next();
+			memoryImageStart=Integer.parseInt(scan.next(),16);
+		}
+		else if (type.equals("CustomProcessor"))
+		{
+			datapathxml=scan.next();
+			controlxml=scan.next();
+		}
+	}
+
 	public void closeGUI()
 	{
 		computer.computerGUI.menubar.setVisible(true);
@@ -200,7 +200,7 @@ public class BootGUI extends AbstractGUI
 	{
 		System.exit(0);
 	}
-	
+
 	public int width()
 	{
 		return BWIDTH;
@@ -225,32 +225,32 @@ public class BootGUI extends AbstractGUI
 	{
 		JLabel label;
 		JButton button;
-		
+
 		int row=ROWHEIGHT;
 		label=new JLabel("Storage Devices:");
 		label.setBounds(10,row,200,ROWHEIGHT-2);
 		guicomponent.add(label);
 		row+=ROWHEIGHT;
-		
+
 		getStartedButton=new JButton("Make me some disks");
 		getStartedButton.setBounds(10,row,200,ROWHEIGHT-2);
 		getStartedButton.addActionListener(new ActionListener(){
-					public void actionPerformed(ActionEvent arg0) {
-						computer.bootgui.setVisible(false);
-						String title="Are you sure?";
-						String message="This will create two fresh disk images\n floppya.img and harddiskc.img\n  and save them to your home directory.  \nIf you already have files with those names, they will be overwritten.  \n\nThe operation may take a few minutes.  \n\nPress YES to proceed.";
-						int reply = JOptionPane.showConfirmDialog(null, message, title, JOptionPane.YES_NO_OPTION);
-						if (reply==JOptionPane.YES_OPTION)
-						{
-							makefreshdisks();
-							JOptionPane.showMessageDialog(null, "Disk images are ready.\nPress BOOT FLOPPY A: to get started, \nand wait until you see an A:> prompt.");
-						}
-						computer.bootgui.setVisible(true);
-					}});
+			public void actionPerformed(ActionEvent arg0) {
+				computer.bootgui.setVisible(false);
+				String title="Are you sure?";
+				String message="This will create two fresh disk images\n floppya.img and harddiskc.img\n  and save them to your home directory.  \nIf you already have files with those names, they will be overwritten.  \n\nThe operation may take a few minutes.  \n\nPress YES to proceed.";
+				int reply = JOptionPane.showConfirmDialog(null, message, title, JOptionPane.YES_NO_OPTION);
+				if (reply==JOptionPane.YES_OPTION)
+				{
+					makefreshdisks();
+					JOptionPane.showMessageDialog(null, "Disk images are ready.\nPress BOOT FLOPPY A: to get started, \nand wait until you see an A:> prompt.");
+				}
+				computer.bootgui.setVisible(true);
+			}});
 		guicomponent.add(getStartedButton);
-		row+=ROWHEIGHT;		
+		row+=ROWHEIGHT;
 
-		
+
 		includeBox=new JCheckBox[4];
 		cdBox=new JCheckBox[4];
 		cBox=new JTextField[4];
@@ -274,7 +274,7 @@ public class BootGUI extends AbstractGUI
 			column+=210;
 			diskField[i].setText(diskImage[i]);
 			guicomponent.add(diskField[i]);
-			
+
 			button=new JButton("Choose");
 			button.setBounds(column,row,90,ROWHEIGHT-2);
 			final int disknumber=i;
@@ -293,20 +293,20 @@ public class BootGUI extends AbstractGUI
 				}});
 			guicomponent.add(button);
 			column+=95;
-			
+
 			if (i>=2)
 			{
 				label=new JLabel("CD?");
 				label.setBounds(column,row,30,ROWHEIGHT-2);
 				guicomponent.add(label);
 				column+=40;
-				
+
 				cdBox[i]=new JCheckBox();
 				cdBox[i].setBounds(column,row,20,ROWHEIGHT-2);
 				cdBox[i].setSelected(isCD[i]);
 				guicomponent.add(cdBox[i]);
 				column+=30;
-				
+
 				label=new JLabel("Cylinders");
 				label.setBounds(column,row,75,ROWHEIGHT-2);
 				guicomponent.add(label);
@@ -316,7 +316,7 @@ public class BootGUI extends AbstractGUI
 				cBox[i].setText(""+cylinders[i]);
 				guicomponent.add(cBox[i]);
 				column+=40;
-				
+
 				label=new JLabel("Heads");
 				label.setBounds(column,row,50,ROWHEIGHT-2);
 				guicomponent.add(label);
@@ -326,7 +326,7 @@ public class BootGUI extends AbstractGUI
 				hBox[i].setText(""+heads[i]);
 				guicomponent.add(hBox[i]);
 				column+=40;
-				
+
 				label=new JLabel("Sectors");
 				label.setBounds(column,row,60,ROWHEIGHT-2);
 				guicomponent.add(label);
@@ -337,16 +337,16 @@ public class BootGUI extends AbstractGUI
 				guicomponent.add(sBox[i]);
 				column+=40;
 			}
-			
+
 			row+=ROWHEIGHT;
 		}
 		row+=ROWHEIGHT;
-		
+
 		label=new JLabel("Memory Images:");
 		label.setBounds(10,row,200,ROWHEIGHT-2);
 		guicomponent.add(label);
 		row+=ROWHEIGHT;
-		
+
 		label=new JLabel("ROM BIOS");
 		label.setBounds(10,row,150,ROWHEIGHT-2);
 		guicomponent.add(label);
@@ -389,9 +389,9 @@ public class BootGUI extends AbstractGUI
 		memoryStartField.setBounds(580,row,100,ROWHEIGHT-2);
 		guicomponent.add(memoryStartField);
 		row+=ROWHEIGHT;
-		
+
 		row+=ROWHEIGHT;
-		
+
 		label=new JLabel("Custom Processor:");
 		label.setBounds(10,row,150,ROWHEIGHT-2);
 		guicomponent.add(label);
@@ -433,7 +433,7 @@ public class BootGUI extends AbstractGUI
 		row+=ROWHEIGHT;
 
 		label = new JLabel("Start in single step mode? ");
-		label.setBounds(10,row,200,ROWHEIGHT-2);		
+		label.setBounds(10,row,200,ROWHEIGHT-2);
 		guicomponent.add(label);
 		singlestepbox = new JCheckBox();
 		singlestepbox.setBounds(220,row,50,ROWHEIGHT-2);
@@ -464,7 +464,7 @@ public class BootGUI extends AbstractGUI
 		guicomponent.add(cancel);
 
 		if (computer.applet==null) setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		
+
 	}
 
 	private int diskediting=-1;
@@ -481,7 +481,7 @@ public class BootGUI extends AbstractGUI
 		make.constructImage("template_floppy_freedos.img", "floppya.img");
 		diskediting=2;
 		make.constructImage("template_306_4_17_programming.img", "harddiskc.img");
-		includeBox[3].setSelected(false);		
+		includeBox[3].setSelected(false);
 		includeBox[1].setSelected(false);
 	}
 	public void editdisk(String name, int c, int h, int s)
@@ -500,19 +500,19 @@ public class BootGUI extends AbstractGUI
 		}
 		includeBox[diskediting].setSelected(true);
 	}
-	
+
 	private void choosedisk(int i)
 	{
 		JFileChooser fc = new JFileChooser();
 		fc.setCurrentDirectory(new File("."));
 		fc.showOpenDialog(null);
 		File f=fc.getSelectedFile();
-		if (f==null) 
+		if (f==null)
 		{
-			diskField[i].setText(""); 
+			diskField[i].setText("");
 			includeBox[i].setSelected(false);
 		}
-		else 
+		else
 		{
 			diskField[i].setText(f.getAbsolutePath());
 			includeBox[i].setSelected(true);
@@ -525,9 +525,9 @@ public class BootGUI extends AbstractGUI
 		fc.showOpenDialog(null);
 		File f=fc.getSelectedFile();
 		if (f==null) datapathField.setText("");
-		else datapathField.setText(f.getAbsolutePath());		
+		else datapathField.setText(f.getAbsolutePath());
 	}
-	
+
 	private void editcontrol()
 	{
 		JFileChooser fc = new JFileChooser();
@@ -535,9 +535,9 @@ public class BootGUI extends AbstractGUI
 		fc.showOpenDialog(null);
 		File f=fc.getSelectedFile();
 		if (f==null) controlField.setText("");
-		else controlField.setText(f.getAbsolutePath());				
+		else controlField.setText(f.getAbsolutePath());
 	}
-	
+
 	private void editmemory()
 	{
 		JFileChooser fc = new JFileChooser();
@@ -545,9 +545,9 @@ public class BootGUI extends AbstractGUI
 		fc.showOpenDialog(null);
 		File f=fc.getSelectedFile();
 		if (f==null) memoryField.setText("");
-		else memoryField.setText(f.getAbsolutePath());				
+		else memoryField.setText(f.getAbsolutePath());
 	}
-	
+
 	public void doPaint(Graphics g)
 	{
 		for (int i=0; i<20; i++)
@@ -557,9 +557,75 @@ public class BootGUI extends AbstractGUI
 			g.fillRect(0,ROWHEIGHT+i*ROWHEIGHT,BWIDTH,ROWHEIGHT);
 		}
 	}
+	
+	public void bootProcessorDesign()
+	{
+		datapathxml=datapathField.getText();
+		controlxml=controlField.getText();
+	
+		if (memoryimagebox.isSelected())
+		{
+			memoryImage=memoryField.getText();
+			memoryImageStart=Integer.parseInt(memoryStartField.getText(),16);
+		}
+		else
+		{
+			memoryImage="";
+		}
+		if (singlestepbox.isSelected())
+		{
+			computer.debugMode=true;
+			computer.computerGUI.stepButton.setEnabled(true);
+			computer.computerGUI.playButton.setEnabled(true);
+			computer.computerGUI.fastPlayButton.setEnabled(true);
+			computer.computerGUI.pauseButton.setEnabled(false);
+		}
+		else
+		{
+			computer.debugMode=false;
+			computer.computerGUI.stepButton.setEnabled(false);
+			computer.computerGUI.playButton.setEnabled(false);
+			computer.computerGUI.fastPlayButton.setEnabled(false);
+			computer.computerGUI.pauseButton.setEnabled(true);
+		}
+		
+	}
+	
+	public void updateSettings()
+	{
+		try
+		{
+			PrintWriter pw=new PrintWriter("settings.txt");
+			if (diskIncluded[0])
+				pw.println("DiskA "+diskImage[0]);
+			if (diskIncluded[1])
+				pw.println("DiskB "+diskImage[1]);
+			if (diskIncluded[2])
+				pw.println("DiskC "+diskImage[2]+" "+(isCD[2]?1:0)+" "+cylinders[2]+" "+heads[2]+" "+sectors[2]);
+			if (diskIncluded[3])
+				pw.println("DiskD "+diskImage[3]+" "+(isCD[3]?1:0)+" "+cylinders[3]+" "+heads[3]+" "+sectors[3]);
+			pw.println("ROM "+romImage);
+			pw.println("VideoROM "+vromImage);
+			if (!memoryImage.equals(""))
+				pw.println("MemoryContents "+memoryImage+" "+Integer.toHexString(memoryImageStart));
+			if (customprocessorbox.isSelected())
+				pw.println("CustomProcessor "+datapathxml+" "+controlxml);
+			pw.close();
+		}
+		catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+	}
 
 	public void updateCheckBoxes()
 	{
+		romImage=romField.getText();
+		vromImage=vromField.getText();
 		if (includeBox[0].isSelected())
 		{
 			diskIncluded[0]=true;
@@ -606,47 +672,8 @@ public class BootGUI extends AbstractGUI
 				sectors[3]=Integer.parseInt(sBox[3].getText());
 			}
 		}
-		romImage=romField.getText();
-		vromImage=vromField.getText();
-		if (memoryimagebox.isSelected())
-		{
-			memoryImage=memoryField.getText();
-			memoryImageStart=Integer.parseInt(memoryStartField.getText(),16);
-		}
-		else
-		{
-			memoryImage="";
-		}
-		datapathxml=datapathField.getText();
-		controlxml=controlField.getText();
-
-		try
-		{
-			PrintWriter pw=new PrintWriter("settings.txt");
-			if (diskIncluded[0])
-				pw.println("DiskA "+diskImage[0]);
-			if (diskIncluded[1])
-				pw.println("DiskB "+diskImage[1]);
-			if (diskIncluded[2])
-				pw.println("DiskC "+diskImage[2]+" "+(isCD[2]?1:0)+" "+cylinders[2]+" "+heads[2]+" "+sectors[2]);
-			if (diskIncluded[3])
-				pw.println("DiskD "+diskImage[3]+" "+(isCD[3]?1:0)+" "+cylinders[3]+" "+heads[3]+" "+sectors[3]);
-			pw.println("ROM "+romImage);
-			pw.println("VideoROM "+vromImage);
-			if (!memoryImage.equals(""))
-				pw.println("MemoryContents "+memoryImage+" "+Integer.toHexString(memoryImageStart));
-			if (customprocessorbox.isSelected())
-				pw.println("CustomProcessor "+datapathxml+" "+controlxml);
-			pw.close();
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-		}
+		
+		
 		if (singlestepbox.isSelected())
 		{
 			computer.debugMode=true;
@@ -668,24 +695,27 @@ public class BootGUI extends AbstractGUI
 	private class ButtonListener implements ActionListener
 	{
 		public void actionPerformed(ActionEvent e)
-		{
+		{ 
 			if (e.getActionCommand().equals("Boot Floppy A:"))
 			{
 				bootFromFloppy=true;
 				bootImageName=diskField[0].getText();
 				setVisible(false);
-				computer.computerGUI.menubar.setVisible(true);
+				computer.computerGUI.setMenubarVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
+				updateCheckBoxes();
+				updateSettings();
 				computer.stepLock.lockResume();
-
 			}
 			else if (e.getActionCommand().equals("Boot Disk C:"))
 			{
 				bootFromFloppy=false;
 				bootImageName=diskField[2].getText();
 				setVisible(false);
-				computer.computerGUI.menubar.setVisible(true);
+				computer.computerGUI.setMenubarVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
+				updateCheckBoxes();
+				updateSettings();
 				computer.stepLock.lockResume();
 			}
 			else if (e.getActionCommand().equals("Boot No Disk"))
@@ -693,9 +723,11 @@ public class BootGUI extends AbstractGUI
 				bootFromFloppy=false;
 				bootImageName="";
 				setVisible(false);
-				computer.computerGUI.menubar.setVisible(true);
+				computer.computerGUI.setMenubarVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
 				singlestepbox.setSelected(true);
+				updateCheckBoxes();
+				updateSettings();
 				computer.stepLock.lockResume();
 			}
 			else if (e.getActionCommand().equals("Processor Design"))
@@ -703,11 +735,11 @@ public class BootGUI extends AbstractGUI
 				bootFromFloppy=false;
 				bootImageName="";
 				setVisible(false);
-				computer.computerGUI.menubar.setVisible(true);
+				computer.computerGUI.setMenubarVisible(true);
 				computer.computerGUI.removeComponent(bootgui);
 				singlestepbox.setSelected(true);
-
-				updateCheckBoxes();
+				bootProcessorDesign();
+				updateSettings();
 				bootCustomProcessor=true;
 				computer.stepLock.lockResume();
 			}
