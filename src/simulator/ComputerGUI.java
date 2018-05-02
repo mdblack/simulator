@@ -130,7 +130,6 @@ public class ComputerGUI
                         - desktopResolution.getStatusBarThickness(),
                 desktopResolution.pane.width,
                 desktopResolution.getStatusBarThickness());
-        statuspanel.setBackground(Color.YELLOW);
     }
     private void setStatusFieldBounds() {
         statusfield.setBounds(0,0,
@@ -141,14 +140,10 @@ public class ComputerGUI
         int yloc = desktopResolution.pane.height
                 - getMenubarOffset()
                 - desktopResolution.getButtonHeight();
-//        if (yloc > desktopResolution.pane.height)
-//            yloc = desktopResolution.pane.height - (yloc - desktopResolution.pane.height);
-        System.out.println("Pane height: " + desktopResolution.pane.height + "yloc: " + yloc);
         buttonpanel.setBounds(0,
                 yloc,
                 desktopResolution.pane.width,
                 desktopResolution.getButtonHeight()+3);
-        buttonpanel.setBackground(Color.ORANGE);
     }
     JMenuBar menubar;
     private JMenuBar constructMenuBar()

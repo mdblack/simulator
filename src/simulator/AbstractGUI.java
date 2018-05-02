@@ -84,7 +84,7 @@ public abstract class AbstractGUI extends JInternalFrame
 			statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
 			statusComponent.setFont(new Font("Dialog",Font.ITALIC,computer.resolution.desktop.getFontSize()));
 			
-			statusComponent.setLabel("************");
+			statusComponent.setLabel("");
 			add(statusComponent);
 		}
 		
