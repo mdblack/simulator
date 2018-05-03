@@ -1,7 +1,0 @@
-<module>
-<datapath>/home/mblack/eclipse/simulator/addmuld.xml</datapath>
-<control>/home/mblack/eclipse/simulator/addmulc.xml</control>
-<input pin> <number>8</number> <name>input pin8</name> <bits>8</bits> <xcoordinate>120</xcoordinate> <ycoordinate>36</ycoordinate> <xcoordinate2>133</xcoordinate2> <ycoordinate2>46</ycoordinate2> </input pin>
-<input pin> <number>9</number> <name>input pin9</name> <bits>8</bits> <xcoordinate>156</xcoordinate> <ycoordinate>36</ycoordinate> <xcoordinate2>169</xcoordinate2> <ycoordinate2>46</ycoordinate2> </input pin>
-<output pin> <number>10</number> <name>output pin10</name> <bits>8</bits> <xcoordinate>180</xcoordinate> <ycoordinate>234</ycoordinate> <xcoordinate2>193</xcoordinate2> <ycoordinate2>244</ycoordinate2> </output pin>
-</module>

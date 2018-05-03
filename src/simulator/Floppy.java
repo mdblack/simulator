@@ -13,8 +13,7 @@ Simulates the floppy disk controller
 
 package simulator;
 
-public class Floppy extends IODevice implements DMA.DMATransferCapable
-{
+public class Floppy extends IODevice implements DMA.DMATransferCapable {
 
     public static enum DriveType {DRIVE_144, DRIVE_288, DRIVE_120, DRIVE_NONE}
 
@@ -49,7 +48,7 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
     private static final int DMA_CHANNEL = 2;
     private static final int IOPORT_BASE = 0x3f0;
     private boolean drivesUpdated;
-//    private Timer resultTimer;
+    //    private Timer resultTimer;
 //    private Clock clock;
     private int state;
     private int currentDrive;
@@ -81,15 +80,14 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
     private InterruptController irqDevice;
     private DMA dma;
 
-	private Processor cpu;
-	public  Computer computer;
+    private Processor cpu;
+    public Computer computer;
 
-    public Floppy(Computer computer)
-    {
-    	this.computer=computer;
-    	cpu=computer.processor;
-    	irqDevice=computer.interruptController;
-    	dma=computer.dma1;
+    public Floppy(Computer computer) {
+        this.computer = computer;
+        cpu = computer.processor;
+        irqDevice = computer.interruptController;
+        dma = computer.dma1;
 
         drives = new FloppyDrive[2];
 
@@ -98,73 +96,66 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
 
         fifo = new byte[SECTOR_LENGTH];
 
-	if (computer.bootgui.diskIncluded[0]) drives[0]=new FloppyDrive(0);
-	if (computer.bootgui.diskIncluded[1]) drives[1]=new FloppyDrive(1);
+        if (computer.bootgui.diskIncluded[0]) drives[0] = new FloppyDrive(0);
+        if (computer.bootgui.diskIncluded[1]) drives[1] = new FloppyDrive(1);
 
-	if (drives[0]!=null)
-	{
+        if (drives[0] != null) {
 //	if (computer.applet==null)
-		drives[0].changeDisk(new Disk(computer.bootgui.diskImage[0]));
+            drives[0].changeDisk(new Disk(computer.bootgui.diskImage[0]));
 //	else
 //		drives[0].changeDisk(new Disk(computer.getClass().getResource(computer.bootgui.diskImage[0])));
-	}
+        }
 
-	if (drives[1]!=null)
-	{
+        if (drives[1] != null) {
 //	if (computer.applet==null)
-		drives[1].changeDisk(new Disk(computer.bootgui.diskImage[1]));
+            drives[1].changeDisk(new Disk(computer.bootgui.diskImage[1]));
 //	else
 //		drives[1].changeDisk(new Disk(computer.getClass().getResource(computer.bootgui.diskImage[1])));
-	}
-	dmaEnabled=true;
-	dma.registerChannel(DMA_CHANNEL & 3, this);
+        }
+        dmaEnabled = true;
+        dma.registerChannel(DMA_CHANNEL & 3, this);
 
 
-	computer.ioports.requestPorts(this,ioPortsRequested(),"Floppy Controller");
+        computer.ioports.requestPorts(this, ioPortsRequested(), "Floppy Controller");
     }
 
     public int getType() {
         return 1;
     }
 
-    public void callback()
-    {
+    public void callback() {
         stopTransfer((byte) 0x00, (byte) 0x00, (byte) 0x00);
     }
 
-    public DriveType getDriveType(int number)
-    {
+    public DriveType getDriveType(int number) {
         return drives[number].drive;
     }
 
-    public int[] ioPortsRequested()
-    {
+    public int[] ioPortsRequested() {
         return new int[]{IOPORT_BASE + 1, IOPORT_BASE + 2, IOPORT_BASE + 3,
                 IOPORT_BASE + 4, IOPORT_BASE + 5, IOPORT_BASE + 7};
     }
 
-    public byte ioPortReadByte(int address)
-    {
+    public byte ioPortReadByte(int address) {
         switch (address & 0x07) {
             case 0x01:
-                return (byte)readStatusB();
+                return (byte) readStatusB();
             case 0x02:
-                return (byte)readDOR();
+                return (byte) readDOR();
             case 0x03:
-                return (byte)readTape();
+                return (byte) readTape();
             case 0x04:
-                return (byte)readMainStatus();
+                return (byte) readMainStatus();
             case 0x05:
-                return (byte)readData();
+                return (byte) readData();
             case 0x07:
-                return (byte)readDirection();
+                return (byte) readDirection();
             default:
-                return (byte)0xff;
+                return (byte) 0xff;
         }
     }
 
-    public void ioPortWriteByte(int address, byte data)
-    {
+    public void ioPortWriteByte(int address, byte data) {
         switch (address & 0x07) {
             case 0x02:
                 writeDOR(data);
@@ -183,62 +174,56 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
         }
     }
 
-    private void reset(boolean doIRQ)
-    {
+    private void reset(boolean doIRQ) {
         resetIRQ();
         currentDrive = 0;
         dataOffset = 0;
         dataLength = 0;
         dataState = STATE_COMMAND;
         dataDirection = DIRECTION_WRITE;
-        if (drives[0]!=null) drives[0].reset();
-        if (drives[1]!=null) drives[1].reset();
+        if (drives[0] != null) drives[0].reset();
+        if (drives[1] != null) drives[1].reset();
         resetFIFO();
         if (doIRQ)
             raiseIRQ(0xc0);
     }
 
-    private void raiseIRQ(int status)
-    {
+    private void raiseIRQ(int status) {
         if (~(state & CONTROL_INTERRUPT) != 0) {
             irqDevice.setIRQ(INTERRUPT_LEVEL, 1);
             state |= CONTROL_INTERRUPT;
         }
         interruptStatus = status;
 
-	System.out.println("Floppy Raise IRQ called with status "+status);
+        System.out.println("Floppy Raise IRQ called with status " + status);
     }
 
-    private void resetFIFO()
-    {
+    private void resetFIFO() {
         dataDirection = DIRECTION_WRITE;
         dataOffset = 0;
         dataState = (dataState & ~STATE_STATE) | STATE_COMMAND;
     }
 
-    private void resetIRQ()
-    {
+    private void resetIRQ() {
         irqDevice.setIRQ(INTERRUPT_LEVEL, 0);
         state &= ~CONTROL_INTERRUPT;
     }
 
-    private int readStatusB()
-    {
+    private int readStatusB() {
         return 0;
     }
 
-    private int readDOR()
-    {
+    private int readDOR() {
         int retval = 0;
 
         /* Drive motors state indicators */
-        try
-        {
-        if ((getDrive(0).driveFlags & FloppyDrive.MOTOR_ON) != 0)
-            retval |= 1 << 5;
-        if ((getDrive(1).driveFlags & FloppyDrive.MOTOR_ON) != 0)
-            retval |= 1 << 4;
-        }catch(NullPointerException e){}
+        try {
+            if ((getDrive(0).driveFlags & FloppyDrive.MOTOR_ON) != 0)
+                retval |= 1 << 5;
+            if ((getDrive(1).driveFlags & FloppyDrive.MOTOR_ON) != 0)
+                retval |= 1 << 4;
+        } catch (NullPointerException e) {
+        }
         /* DMA enable */
         retval |= dmaEnabled ? 1 << 3 : 0;
         /* Reset indicator */
@@ -249,15 +234,13 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
         return retval;
     }
 
-    private int readTape()
-    {
+    private int readTape() {
         /* Disk boot selection indicator */
         return bootSelect << 2;
-    /* Tape indicators: never allowed */
+        /* Tape indicators: never allowed */
     }
 
-    private int readMainStatus()
-    {
+    private int readMainStatus() {
         int retval = 0;
 
         state &= ~(CONTROL_SLEEP | CONTROL_RESET);
@@ -276,8 +259,7 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
         return retval;
     }
 
-    private int readData()
-    {
+    private int readData() {
         FloppyDrive drive;
 
         drive = getCurrentDrive();
@@ -298,8 +280,8 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
         if (++dataOffset == dataLength) {
             dataOffset = 0;
             /* Switch from transfer mode to status mode
-	     * then from status mode to command mode
-	     */
+             * then from status mode to command mode
+             */
             if ((dataState & STATE_STATE) == STATE_DATA)
                 stopTransfer((byte) 0x20, (byte) 0x00, (byte) 0x00);
             else {
@@ -311,8 +293,7 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
         return retval;
     }
 
-    private int readDirection()
-    {
+    private int readDirection() {
         int retval = 0;
         if (((getDrive(0).driveFlags & FloppyDrive.REVALIDATE) != 0) || ((getDrive(1).driveFlags & FloppyDrive.REVALIDATE) != 0))
             retval |= 0x80;
@@ -323,33 +304,31 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
         return retval;
     }
 
-    private void writeDOR(int data)
-    {
+    private void writeDOR(int data) {
         /* Reset mode */
         if (((state & CONTROL_RESET) != 0) && ((data & 0x04) == 0))
             return;
 
         /* Drive motors state indicators */
-        try
-        {
-        if ((data & 0x20) != 0)
-            getDrive(1).start();
-        else
-            getDrive(1).stop();
+        try {
+            if ((data & 0x20) != 0)
+                getDrive(1).start();
+            else
+                getDrive(1).stop();
 
-        if ((data & 0x10) != 0)
-            getDrive(0).start();
-        else
-            getDrive(0).stop();
-        }catch(NullPointerException e){}
+            if ((data & 0x10) != 0)
+                getDrive(0).start();
+            else
+                getDrive(0).stop();
+        } catch (NullPointerException e) {
+        }
         /* DMA enable */
 
         /* Reset */
         if ((data & 0x04) == 0)
             if ((state & CONTROL_RESET) == 0)
                 state |= CONTROL_RESET;
-        else
-            if ((state & CONTROL_RESET) != 0) {
+            else if ((state & CONTROL_RESET) != 0) {
                 reset(true);
                 state &= ~(CONTROL_RESET | CONTROL_SLEEP);
             }
@@ -357,19 +336,17 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
         currentDrive = data & 1;
     }
 
-    private void writeTape(int data)
-    {
+    private void writeTape(int data) {
         /* Reset mode */
         if ((state & CONTROL_RESET) != 0)
             return;
 
         /* Disk boot selection indicator */
         bootSelect = (data >>> 2) & 1;
-    /* Tape indicators: never allow */
+        /* Tape indicators: never allow */
     }
 
-    private void writeRate(int data)
-    {
+    private void writeRate(int data) {
         /* Reset mode */
         if ((state & CONTROL_RESET) != 0)
             return;
@@ -386,8 +363,7 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
         }
     }
 
-    private void writeData(int data)
-    {
+    private void writeData(int data) {
         FloppyDrive drive = getCurrentDrive();
 
         /* Reset Mode */
@@ -406,8 +382,8 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
                 drive.write(drive.currentSector(), fifo, SECTOR_LENGTH);
 
             /* Switch from transfer mode to status mode
-	     * then from status mode to command mode
-	     */
+             * then from status mode to command mode
+             */
             if ((dataState & STATE_STATE) == STATE_DATA)
                 stopTransfer((byte) 0x20, (byte) 0x00, (byte) 0x00);
             return;
@@ -544,8 +520,7 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
         enqueue(drive, data);
     }
 
-    private void enqueue(FloppyDrive drive, int data)
-    {
+    private void enqueue(FloppyDrive drive, int data) {
         fifo[dataOffset] = (byte) data;
         if (++dataOffset == dataLength) {
             if ((dataState & STATE_FORMAT) != 0) {
@@ -648,8 +623,8 @@ public class Floppy extends IODevice implements DMA.DMATransferCapable
                 case 0x4A:
                     /* XXX: should set main status register to busy */
                     drive.head = (fifo[1] >>> 2) & 1;
- //                   resultTimer.setExpiry(clock.getTime() + (clock.getTickRate() / 50));
-System.out.println("should set timer");
+                    //                   resultTimer.setExpiry(clock.getTime() + (clock.getTickRate() / 50));
+                    System.out.println("should set timer");
                     break;
                 case 0x4C:
                     /* RESTORE */
@@ -681,8 +656,8 @@ System.out.println("should set timer");
                     drive.sectorCount = fifo[3];
 
                     /* Bochs BIOS is buggy and don't send format informations
-		 * for each sector. So, pretend all's done right now...
-		 */
+                     * for each sector. So, pretend all's done right now...
+                     */
                     dataState &= ~STATE_FORMAT;
                     stopTransfer((byte) 0x00, (byte) 0x00, (byte) 0x00);
                     break;
@@ -738,8 +713,7 @@ System.out.println("should set timer");
         }
     }
 
-    private void setFIFO(int fifoLength, boolean doIRQ)
-    {
+    private void setFIFO(int fifoLength, boolean doIRQ) {
         dataDirection = DIRECTION_READ;
         dataLength = fifoLength;
         dataOffset = 0;
@@ -748,32 +722,27 @@ System.out.println("should set timer");
             raiseIRQ(0x00);
     }
 
-    private FloppyDrive getCurrentDrive()
-    {
+    private FloppyDrive getCurrentDrive() {
         return getDrive(currentDrive);
     }
 
-    private FloppyDrive getDrive(int driveNumber)
-    {
+    private FloppyDrive getDrive(int driveNumber) {
         return drives[driveNumber - bootSelect];
     }
 
-    public void changeDisk(Disk disk, int i)
-    {
+    public void changeDisk(Disk disk, int i) {
         getDrive(i).changeDisk(disk);
     }
 
-    private void unimplemented()
-    {
+    private void unimplemented() {
         fifo[0] = (byte) 0x80;
         setFIFO(1, false);
 
-	System.out.println("Unimplemented floppy instruction");
+        System.out.println("Unimplemented floppy instruction");
     }
 
-    private void startTransfer(int direction)
-    {
-	System.out.println("Start transfer called");
+    private void startTransfer(int direction) {
+        System.out.println("Start transfer called");
 
         currentDrive = fifo[1] & 1;
         FloppyDrive drive = getCurrentDrive();
@@ -840,19 +809,18 @@ System.out.println("should set timer");
                 /* No access is allowed until DMA transfer has completed */
                 state |= CONTROL_BUSY;
                 /* Now, we just have to wait for the DMA controller to
-		 * recall us...
-		 */
+                 * recall us...
+                 */
                 dma.holdDmaRequest(DMA_CHANNEL & 3);
                 return;
             }
-	}
+        }
         /* IO based transfer: calculate len */
         raiseIRQ(0x00);
     }
 
-    private void stopTransfer(byte status0, byte status1, byte status2)
-    {
-	System.out.println("Stop transfer called");
+    private void stopTransfer(byte status0, byte status1, byte status2) {
+        System.out.println("Stop transfer called");
 
         FloppyDrive drive = getCurrentDrive();
 
@@ -871,26 +839,22 @@ System.out.println("should set timer");
         setFIFO(7, true);
     }
 
-    private void startTransferDelete(int direction)
-    {
+    private void startTransferDelete(int direction) {
         stopTransfer((byte) 0x60, (byte) 0x00, (byte) 0x00);
     }
 
-    private void formatSector()
-    {
+    private void formatSector() {
     }
 
-    private static int memcmp(byte[] a1, byte[] a2, int offset, int length)
-    {
+    private static int memcmp(byte[] a1, byte[] a2, int offset, int length) {
         for (int i = 0; i < length; i++)
             if (a1[i] != a2[i + offset])
                 return a1[i] - a2[i + offset];
         return 0;
     }
 
-    public int handleTransfer(DMA.DMAChannel channel, int pos, int size)
-    {
-	System.out.println("Handle transfer called");
+    public int handleTransfer(DMA.DMAChannel channel, int pos, int size) {
+        System.out.println("Handle transfer called");
 
         byte status0 = 0x00, status1 = 0x00, status2 = 0x00;
 
@@ -912,7 +876,7 @@ System.out.println("should set timer");
 
         int relativeOffset = dataOffset % SECTOR_LENGTH;
         int startOffset;
-        for (startOffset = dataOffset; dataOffset < size;) {
+        for (startOffset = dataOffset; dataOffset < size; ) {
             int length = Math.min(size - dataOffset, SECTOR_LENGTH - relativeOffset);
             if ((dataDirection != DIRECTION_WRITE) || (length < SECTOR_LENGTH) || (relativeOffset != 0))
                 if (drive.read(drive.currentSector(), fifo, 1) < 0)
@@ -929,40 +893,39 @@ System.out.println("should set timer");
                         return length;
                     }
                     break;
-                default:
-                    {
-                        byte[] tempBuffer = new byte[SECTOR_LENGTH];
-                        channel.readMemory(tempBuffer, 0, dataOffset, length);
-                        int ret = memcmp(tempBuffer, fifo, relativeOffset, length);
-                        if (ret == 0) {
+                default: {
+                    byte[] tempBuffer = new byte[SECTOR_LENGTH];
+                    channel.readMemory(tempBuffer, 0, dataOffset, length);
+                    int ret = memcmp(tempBuffer, fifo, relativeOffset, length);
+                    if (ret == 0) {
+                        status2 = 0x08;
+                        length = dataOffset - startOffset;
+                        if (dataDirection == DIRECTION_SCANE || dataDirection == DIRECTION_SCANL || dataDirection == DIRECTION_SCANH)
                             status2 = 0x08;
-                            length = dataOffset - startOffset;
-                            if (dataDirection == DIRECTION_SCANE || dataDirection == DIRECTION_SCANL || dataDirection == DIRECTION_SCANH)
-                                status2 = 0x08;
-                            if ((dataState & STATE_SEEK) != 0)
-                                status0 |= 0x20;
-                            dataLength -= length;
-                            //    if (dataLength == 0)
-                            stopTransfer(status0, status1, status2);
-                            return length;
+                        if ((dataState & STATE_SEEK) != 0)
+                            status0 |= 0x20;
+                        dataLength -= length;
+                        //    if (dataLength == 0)
+                        stopTransfer(status0, status1, status2);
+                        return length;
 
-                        }
-                        if ((ret < 0 && dataDirection == DIRECTION_SCANL) || (ret > 0 && dataDirection == DIRECTION_SCANH)) {
-                            status2 = 0x00;
-
-                            length = dataOffset - startOffset;
-                            if (dataDirection == DIRECTION_SCANE || dataDirection == DIRECTION_SCANL || dataDirection == DIRECTION_SCANH)
-                                status2 = 0x08;
-                            if ((dataState & STATE_SEEK) != 0)
-                                status0 |= 0x20;
-                            dataLength -= length;
-                            //    if (dataLength == 0)
-                            stopTransfer(status0, status1, status2);
-
-                            return length;
-                        }
                     }
-                    break;
+                    if ((ret < 0 && dataDirection == DIRECTION_SCANL) || (ret > 0 && dataDirection == DIRECTION_SCANH)) {
+                        status2 = 0x00;
+
+                        length = dataOffset - startOffset;
+                        if (dataDirection == DIRECTION_SCANE || dataDirection == DIRECTION_SCANL || dataDirection == DIRECTION_SCANH)
+                            status2 = 0x08;
+                        if ((dataState & STATE_SEEK) != 0)
+                            status0 |= 0x20;
+                        dataLength -= length;
+                        //    if (dataLength == 0)
+                        stopTransfer(status0, status1, status2);
+
+                        return length;
+                    }
+                }
+                break;
             }
             dataOffset += length;
             relativeOffset = dataOffset % SECTOR_LENGTH;
@@ -994,8 +957,7 @@ System.out.println("should set timer");
         return length;
     }
 
-    class FloppyDrive
-    {
+    class FloppyDrive {
         static final int MOTOR_ON = 0x01; // motor on/off
 
         static final int REVALIDATE = 0x02; // Revalidated
@@ -1017,38 +979,33 @@ System.out.println("should set timer");
         int bps;
         int readOnly;
         FloppyFormat format;
-	int id;
-	String name="";
+        int id;
+        String name = "";
 
-        FloppyDrive(int id)
-        {
+        FloppyDrive(int id) {
             this.device = new Disk();
             drive = DriveType.DRIVE_NONE;
             driveFlags = 0;
             perpendicular = 0;
             sectorCount = 0;
             maxTrack = 0;
-		this.id=id;
+            this.id = id;
         }
 
-        private void changeDisk(Disk disk)
-        {
+        private void changeDisk(Disk disk) {
             device = disk;
             revalidate();
         }
 
-        private void start()
-        {
+        private void start() {
             driveFlags |= MOTOR_ON;
         }
 
-        private void stop()
-        {
+        private void stop() {
             driveFlags &= ~MOTOR_ON;
         }
 
-        private int seek(int seekHead, int seekTrack, int seekSector, int enableSeek)
-        {
+        private int seek(int seekHead, int seekTrack, int seekSector, int enableSeek) {
             if ((seekTrack > maxTrack) || (seekHead != 0 && (headCount == 0)))
                 return 2;
 
@@ -1072,18 +1029,15 @@ System.out.println("should set timer");
             return 0;
         }
 
-        private int currentSector()
-        {
+        private int currentSector() {
             return calculateSector(track, head, headCount, sector, sectorCount);
         }
 
-        private int calculateSector(int track, int head, int headCount, int sector, int sectorCount)
-        {
+        private int calculateSector(int track, int head, int headCount, int sector, int sectorCount) {
             return ((((0xff & track) * headCount) + (0xff & head)) * (0xff & sectorCount)) + (0xff & sector) - 1;
         }
 
-        private void recalibrate()
-        {
+        private void recalibrate() {
             head = 0;
             track = 0;
             sector = 1;
@@ -1091,28 +1045,24 @@ System.out.println("should set timer");
             readWrite = 0;
         }
 
-        private int read(int sector, byte[] buffer, int length)
-        {
-		if(computer.diskGUI[id]!=null) computer.diskGUI[id].read(sector);
-		if(computer.sectorGUI[id]!=null) computer.sectorGUI[id].read(sector);
+        private int read(int sector, byte[] buffer, int length) {
+            if (computer.diskGUI[id] != null) computer.diskGUI[id].read(sector);
+            if (computer.sectorGUI[id] != null) computer.sectorGUI[id].read(sector);
             return device.read(sector, buffer, length);
         }
 
-        private int write(int sector, byte[] buffer, int length)
-        {
-		if(computer.diskGUI[id]!=null) computer.diskGUI[id].write(sector);
-		if(computer.sectorGUI[id]!=null) computer.sectorGUI[id].write(sector);
+        private int write(int sector, byte[] buffer, int length) {
+            if (computer.diskGUI[id] != null) computer.diskGUI[id].write(sector);
+            if (computer.sectorGUI[id] != null) computer.sectorGUI[id].write(sector);
             return device.write(sector, buffer, length);
         }
 
-        private void reset()
-        {
+        private void reset() {
             stop();
             recalibrate();
         }
 
-        private void revalidate()
-        {
+        private void revalidate() {
             driveFlags &= ~REVALIDATE;
             if (device != null && device.isInserted()) {
                 format = FloppyFormat.findFormat(device.getTotalSize(), drive);
@@ -1132,141 +1082,135 @@ System.out.println("should set timer");
             }
             driveFlags |= REVALIDATE;
 
-		refreshGUI();
-       }
+            refreshGUI();
+        }
 
-	public void refreshGUI()
-	{
-		if (format==null) return;
-		if (format.disk==FloppyFormat.DiskType.DISK_144 || format.disk==FloppyFormat.DiskType.DISK_720)
-			name="3 1/2 Floppy Disk ";
-		else
-			name="5 1/4 Floppy Disk ";
-		if (id==0)
-			name+="A:";
-		else
-			name+="B:";
-		if(computer.diskGUI[id]!=null)  computer.diskGUI[id].redraw(name,format.tracks(),format.heads(),format.sectors(),device);
-		if(computer.sectorGUI[id]!=null)  computer.sectorGUI[id].redraw(name,format.tracks(),format.heads(),format.sectors(),device);
-	}
+        public void refreshGUI() {
+            if (format == null) return;
+            if (format.disk == FloppyFormat.DiskType.DISK_144 || format.disk == FloppyFormat.DiskType.DISK_720)
+                name = "3 1/2 Floppy Disk ";
+            else
+                name = "5 1/4 Floppy Disk ";
+            if (id == 0)
+                name += "A:";
+            else
+                name += "B:";
+            if (computer.diskGUI[id] != null)
+                computer.diskGUI[id].redraw(name, format.tracks(), format.heads(), format.sectors(), device);
+            if (computer.sectorGUI[id] != null)
+                computer.sectorGUI[id].redraw(name, format.tracks(), format.heads(), format.sectors(), device);
+        }
     }
 
-enum FloppyFormat
-{
-    /* First entry is default format */
-    /* 1.44 MB 3"1/2 floppy disks */
-    DS_1440_312(DriveType.DRIVE_144, DiskType.DISK_144, 18, 80, 1, "1.44 MB 3\"1/2"),
-    DS_1600_312(DriveType.DRIVE_144, DiskType.DISK_144, 20, 80, 1,  "1.6 MB 3\"1/2" ),
-    DS_1680_312(DriveType.DRIVE_144, DiskType.DISK_144, 21, 80, 1, "1.68 MB 3\"1/2" ),
-    DS_1722_312(DriveType.DRIVE_144, DiskType.DISK_144, 21, 82, 1, "1.72 MB 3\"1/2" ),
-    DS_1743_312(DriveType.DRIVE_144, DiskType.DISK_144, 21, 83, 1, "1.74 MB 3\"1/2" ),
-    DS_1760_312(DriveType.DRIVE_144, DiskType.DISK_144, 22, 80, 1, "1.76 MB 3\"1/2" ),
-    DS_1840_312(DriveType.DRIVE_144, DiskType.DISK_144, 23, 80, 1, "1.84 MB 3\"1/2" ),
-    DS_1920_312(DriveType.DRIVE_144, DiskType.DISK_144, 24, 80, 1, "1.92 MB 3\"1/2" ),
-    /* 2.88 MB 3"1/2 floppy disks */
-    DS_2880_312(DriveType.DRIVE_288, DiskType.DISK_288, 36, 80, 1, "2.88 MB 3\"1/2" ),
-    DS_3120_312(DriveType.DRIVE_288, DiskType.DISK_288, 39, 80, 1, "3.12 MB 3\"1/2" ),
-    DS_3200_312(DriveType.DRIVE_288, DiskType.DISK_288, 40, 80, 1,  "3.2 MB 3\"1/2" ),
-    DS_3520_312(DriveType.DRIVE_288, DiskType.DISK_288, 44, 80, 1, "3.52 MB 3\"1/2" ),
-    DS_3840_312(DriveType.DRIVE_288, DiskType.DISK_288, 48, 80, 1, "3.84 MB 3\"1/2" ),
-    /* 720 kB 3"1/2 floppy disks */
-    DS_720_312(DriveType.DRIVE_144, DiskType.DISK_720, 9, 80, 1,  "720 kB 3\"1/2" ),
-    DS_800_312(DriveType.DRIVE_144, DiskType.DISK_720, 10, 80, 1,  "800 kB 3\"1/2" ),
-    DS_820_312(DriveType.DRIVE_144, DiskType.DISK_720, 10, 82, 1,  "820 kB 3\"1/2" ),
-    DS_830_312(DriveType.DRIVE_144, DiskType.DISK_720, 10, 83, 1,  "830 kB 3\"1/2" ),
-    DS_1040_312(DriveType.DRIVE_144, DiskType.DISK_720, 13, 80, 1, "1.04 MB 3\"1/2" ),
-    DS_1120_312(DriveType.DRIVE_144, DiskType.DISK_720, 14, 80, 1, "1.12 MB 3\"1/2" ),
-    /* 1.2 MB 5"1/4 floppy disks */
-    DS_1200_514(DriveType.DRIVE_120, DiskType.DISK_288, 15, 80, 1,  "1.2 kB 5\"1/4" ),
-    DS_1440_514(DriveType.DRIVE_120, DiskType.DISK_288, 18, 80, 1, "1.44 MB 5\"1/4" ),
-    DS_1476_514(DriveType.DRIVE_120, DiskType.DISK_288, 18, 82, 1, "1.48 MB 5\"1/4" ),
-    DS_1494_514(DriveType.DRIVE_120, DiskType.DISK_288, 18, 83, 1, "1.49 MB 5\"1/4" ),
-    DS_1600_514(DriveType.DRIVE_120, DiskType.DISK_288, 20, 80, 1,  "1.6 MB 5\"1/4" ),
-    /* 720 kB 5"1/4 floppy disks */
-    DS_720_514(DriveType.DRIVE_120, DiskType.DISK_288, 9, 80, 1,  "720 kB 5\"1/4" ),
-    DS_880_514(DriveType.DRIVE_120, DiskType.DISK_288, 11, 80, 1,  "880 kB 5\"1/4" ),
-    /* 360 kB 5"1/4 floppy disks */
-    DS_360_514(DriveType.DRIVE_120, DiskType.DISK_288, 9, 40, 1,  "360 kB 5\"1/4" ),
-    SS_180_514(DriveType.DRIVE_120, DiskType.DISK_288, 9, 40, 0,  "180 kB 5\"1/4" ),
-    DS_410_514(DriveType.DRIVE_120, DiskType.DISK_288, 10, 41, 1,  "410 kB 5\"1/4" ),
-    DS_420_514(DriveType.DRIVE_120, DiskType.DISK_288, 10, 42, 1,  "420 kB 5\"1/4" ),
-    /* 320 kB 5"1/4 floppy disks */ 
-    DS_320_514(DriveType.DRIVE_120, DiskType.DISK_288, 8, 40, 1,  "320 kB 5\"1/4" ),
-    SS_160_514(DriveType.DRIVE_120, DiskType.DISK_288, 8, 40, 0,  "160 kB 5\"1/4" ),
-    /* 360 kB must match 5"1/4 better than 3"1/2... */
-    SS_360_312(DriveType.DRIVE_144, DiskType.DISK_720, 9, 80, 0,  "360 kB 3\"1/2" ),
-    /* end */
-    EMPTY(DriveType.DRIVE_NONE, DiskType.DISK_NONE, -1, -1, 0, "" );
-    
-    public static enum DiskType {DISK_288, DISK_144, DISK_720, DISK_USER, DISK_NONE};
-    
-    private final DriveType drive;
-    public final DiskType disk;
-    private final int lastSector;
-    private final int maxTrack;
-    private final int maxHead;
-    private final String description;
-    
-    private FloppyFormat(DriveType drive, DiskType disk, int lastSector, int maxTrack, int maxHead, String description)
-    {
-	this.drive = drive;
-	this.disk = disk;
-	this.lastSector = lastSector;
-	this.maxTrack = maxTrack;
-	this.maxHead = maxHead;
-	this.description = description;
-    }
+    enum FloppyFormat {
+        /* First entry is default format */
+        /* 1.44 MB 3"1/2 floppy disks */
+        DS_1440_312(DriveType.DRIVE_144, DiskType.DISK_144, 18, 80, 1, "1.44 MB 3\"1/2"),
+        DS_1600_312(DriveType.DRIVE_144, DiskType.DISK_144, 20, 80, 1, "1.6 MB 3\"1/2"),
+        DS_1680_312(DriveType.DRIVE_144, DiskType.DISK_144, 21, 80, 1, "1.68 MB 3\"1/2"),
+        DS_1722_312(DriveType.DRIVE_144, DiskType.DISK_144, 21, 82, 1, "1.72 MB 3\"1/2"),
+        DS_1743_312(DriveType.DRIVE_144, DiskType.DISK_144, 21, 83, 1, "1.74 MB 3\"1/2"),
+        DS_1760_312(DriveType.DRIVE_144, DiskType.DISK_144, 22, 80, 1, "1.76 MB 3\"1/2"),
+        DS_1840_312(DriveType.DRIVE_144, DiskType.DISK_144, 23, 80, 1, "1.84 MB 3\"1/2"),
+        DS_1920_312(DriveType.DRIVE_144, DiskType.DISK_144, 24, 80, 1, "1.92 MB 3\"1/2"),
+        /* 2.88 MB 3"1/2 floppy disks */
+        DS_2880_312(DriveType.DRIVE_288, DiskType.DISK_288, 36, 80, 1, "2.88 MB 3\"1/2"),
+        DS_3120_312(DriveType.DRIVE_288, DiskType.DISK_288, 39, 80, 1, "3.12 MB 3\"1/2"),
+        DS_3200_312(DriveType.DRIVE_288, DiskType.DISK_288, 40, 80, 1, "3.2 MB 3\"1/2"),
+        DS_3520_312(DriveType.DRIVE_288, DiskType.DISK_288, 44, 80, 1, "3.52 MB 3\"1/2"),
+        DS_3840_312(DriveType.DRIVE_288, DiskType.DISK_288, 48, 80, 1, "3.84 MB 3\"1/2"),
+        /* 720 kB 3"1/2 floppy disks */
+        DS_720_312(DriveType.DRIVE_144, DiskType.DISK_720, 9, 80, 1, "720 kB 3\"1/2"),
+        DS_800_312(DriveType.DRIVE_144, DiskType.DISK_720, 10, 80, 1, "800 kB 3\"1/2"),
+        DS_820_312(DriveType.DRIVE_144, DiskType.DISK_720, 10, 82, 1, "820 kB 3\"1/2"),
+        DS_830_312(DriveType.DRIVE_144, DiskType.DISK_720, 10, 83, 1, "830 kB 3\"1/2"),
+        DS_1040_312(DriveType.DRIVE_144, DiskType.DISK_720, 13, 80, 1, "1.04 MB 3\"1/2"),
+        DS_1120_312(DriveType.DRIVE_144, DiskType.DISK_720, 14, 80, 1, "1.12 MB 3\"1/2"),
+        /* 1.2 MB 5"1/4 floppy disks */
+        DS_1200_514(DriveType.DRIVE_120, DiskType.DISK_288, 15, 80, 1, "1.2 kB 5\"1/4"),
+        DS_1440_514(DriveType.DRIVE_120, DiskType.DISK_288, 18, 80, 1, "1.44 MB 5\"1/4"),
+        DS_1476_514(DriveType.DRIVE_120, DiskType.DISK_288, 18, 82, 1, "1.48 MB 5\"1/4"),
+        DS_1494_514(DriveType.DRIVE_120, DiskType.DISK_288, 18, 83, 1, "1.49 MB 5\"1/4"),
+        DS_1600_514(DriveType.DRIVE_120, DiskType.DISK_288, 20, 80, 1, "1.6 MB 5\"1/4"),
+        /* 720 kB 5"1/4 floppy disks */
+        DS_720_514(DriveType.DRIVE_120, DiskType.DISK_288, 9, 80, 1, "720 kB 5\"1/4"),
+        DS_880_514(DriveType.DRIVE_120, DiskType.DISK_288, 11, 80, 1, "880 kB 5\"1/4"),
+        /* 360 kB 5"1/4 floppy disks */
+        DS_360_514(DriveType.DRIVE_120, DiskType.DISK_288, 9, 40, 1, "360 kB 5\"1/4"),
+        SS_180_514(DriveType.DRIVE_120, DiskType.DISK_288, 9, 40, 0, "180 kB 5\"1/4"),
+        DS_410_514(DriveType.DRIVE_120, DiskType.DISK_288, 10, 41, 1, "410 kB 5\"1/4"),
+        DS_420_514(DriveType.DRIVE_120, DiskType.DISK_288, 10, 42, 1, "420 kB 5\"1/4"),
+        /* 320 kB 5"1/4 floppy disks */
+        DS_320_514(DriveType.DRIVE_120, DiskType.DISK_288, 8, 40, 1, "320 kB 5\"1/4"),
+        SS_160_514(DriveType.DRIVE_120, DiskType.DISK_288, 8, 40, 0, "160 kB 5\"1/4"),
+        /* 360 kB must match 5"1/4 better than 3"1/2... */
+        SS_360_312(DriveType.DRIVE_144, DiskType.DISK_720, 9, 80, 0, "360 kB 3\"1/2"),
+        /* end */
+        EMPTY(DriveType.DRIVE_NONE, DiskType.DISK_NONE, -1, -1, 0, "");
 
-    public int heads()
-    {
-	return maxHead + 1;
-    }
+        public static enum DiskType {DISK_288, DISK_144, DISK_720, DISK_USER, DISK_NONE}
 
-    public int tracks()
-    {
-	return maxTrack;
-    }
+        ;
 
-    public int sectors()
-    {
-	return lastSector;
-    }
+        private final DriveType drive;
+        public final DiskType disk;
+        private final int lastSector;
+        private final int maxTrack;
+        private final int maxHead;
+        private final String description;
 
-    public DriveType drive()
-    {
-	return drive;
-    }
+        private FloppyFormat(DriveType drive, DiskType disk, int lastSector, int maxTrack, int maxHead, String description) {
+            this.drive = drive;
+            this.disk = disk;
+            this.lastSector = lastSector;
+            this.maxTrack = maxTrack;
+            this.maxHead = maxHead;
+            this.description = description;
+        }
 
-    public long length()
-    {
-	return heads() * tracks() * sectors() * 512L;
-    }
+        public int heads() {
+            return maxHead + 1;
+        }
 
-    public String toString()
-    {
-	return description;
-    }
+        public int tracks() {
+            return maxTrack;
+        }
 
-    public static FloppyFormat findFormat(long size, DriveType drive)
-    {
-	FloppyFormat firstMatch = null;
-        for (FloppyFormat f : values()) {
-	    if (f.drive() == DriveType.DRIVE_NONE)
-		break;
-	    if ((drive == f.drive()) || (drive == DriveType.DRIVE_NONE)) {
-		if (f.length() == size) {
-		    return f;
-		}
-		if (firstMatch == null)
-		    firstMatch = f;
-		
-	    }
-	}
-	if (firstMatch == null)
-	    return values()[0]; // Should this return the NULL format?
-	else
-	    return firstMatch;
+        public int sectors() {
+            return lastSector;
+        }
+
+        public DriveType drive() {
+            return drive;
+        }
+
+        public long length() {
+            return heads() * tracks() * sectors() * 512L;
+        }
+
+        public String toString() {
+            return description;
+        }
+
+        public static FloppyFormat findFormat(long size, DriveType drive) {
+            FloppyFormat firstMatch = null;
+            for (FloppyFormat f : values()) {
+                if (f.drive() == DriveType.DRIVE_NONE)
+                    break;
+                if ((drive == f.drive()) || (drive == DriveType.DRIVE_NONE)) {
+                    if (f.length() == size) {
+                        return f;
+                    }
+                    if (firstMatch == null)
+                        firstMatch = f;
+
+                }
+            }
+            if (firstMatch == null)
+                return values()[0]; // Should this return the NULL format?
+            else
+                return firstMatch;
+        }
     }
-}
 
 }

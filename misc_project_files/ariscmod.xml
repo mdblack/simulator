@@ -1,6 +1,0 @@
-<module>
-<datapath>/home/mblack/eclipse/simulator/risc2.xml</datapath>
-<control>/home/mblack/eclipse/simulator/riscctrl.xml</control>
-<output pin> <number>187</number> <name>pc</name> <bits>8</bits> <xcoordinate>600</xcoordinate> <ycoordinate>294</ycoordinate> <xcoordinate2>613</xcoordinate2> <ycoordinate2>304</ycoordinate2> </output pin>
-<output pin> <number>189</number> <name>opcode</name> <bits>4</bits> <xcoordinate>213</xcoordinate> <ycoordinate>519</ycoordinate> <xcoordinate2>226</xcoordinate2> <ycoordinate2>529</ycoordinate2> </output pin>
-</module>
