@@ -1,6 +1,0 @@
-<module>
-<datapath>/home/mblack/eclipse/simulator/c.xml</datapath>
-<control>/home/mblack/eclipse/simulator/cctrl.xml</control>
-<input pin> <number>9</number> <name>thingtoadd</name> <bits>8</bits> <xcoordinate>222</xcoordinate> <ycoordinate>648</ycoordinate> <xcoordinate2>235</xcoordinate2> <ycoordinate2>658</ycoordinate2> </input pin>
-<output pin> <number>10</number> <name>count</name> <bits>8</bits> <xcoordinate>270</xcoordinate> <ycoordinate>741</ycoordinate> <xcoordinate2>283</xcoordinate2> <ycoordinate2>751</ycoordinate2> </output pin>
-</module>
