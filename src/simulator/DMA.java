@@ -13,8 +13,7 @@ Simulates the DMA controller
 
 package simulator;
 
-public class DMA extends IODevice
-{
+public class DMA extends IODevice {
     private static final int pagePortList0 = 0x1;
     private static final int pagePortList1 = 0x2;
     private static final int pagePortList2 = 0x3;
@@ -44,7 +43,7 @@ public class DMA extends IODevice
     private int mask;
     private boolean flipFlop;
     private int dShift;
-    private int ioBase,  pageLowBase,  pageHighBase;
+    private int ioBase, pageLowBase, pageHighBase;
     private int controllerNumber;
     private PhysicalMemory memory;
     private DMAChannel[] dmaChannels;
@@ -55,13 +54,13 @@ public class DMA extends IODevice
      * Constructs a DMA controller.  If
      * <code>highPageEnable</code> is true then 32 bit addressing is possible,
      * otherwise the controller is limited to 24 bits.
+     *
      * @param highPageEnable <code>true</code> if 32bit addressing required.
      */
-    public DMA(Computer computer, boolean highPageEnable, boolean primary)
-    {
-    	this.computer=computer;
-    	cpu=computer.processor;
-    	memory=computer.physicalMemory;
+    public DMA(Computer computer, boolean highPageEnable, boolean primary) {
+        this.computer = computer;
+        cpu = computer.processor;
+        memory = computer.physicalMemory;
 
         dShift =
                 primary ? 0 : 1;
@@ -80,18 +79,16 @@ public class DMA extends IODevice
 
         this.writeController(0x0d << this.dShift, 0);
 
-        computer.ioports.requestPorts(this,ioPortsRequested(),"DMA");
+        computer.ioports.requestPorts(this, ioPortsRequested(), "DMA");
     }
 
 
-	//only a primary controller is implemented
-    public boolean isPrimary()
-    {
+    //only a primary controller is implemented
+    public boolean isPrimary() {
         return (this.dShift == 0);
     }
 
-    private void writeChannel(int portNumber, int data)
-    {
+    private void writeChannel(int portNumber, int data) {
         int port = (portNumber >>> dShift) & 0x0f;
         int channelNumber = port >>> 1;
         DMAChannel r = dmaChannels[channelNumber];
@@ -107,8 +104,7 @@ public class DMA extends IODevice
             r.baseWordCount = (r.baseWordCount & 0xff00) | (data & 0xff);
     }
 
-    private void writeController(int portNumber, int data)
-    {
+    private void writeController(int portNumber, int data) {
         int port = (portNumber >>> this.dShift) & 0x0f;
         switch (port) {
             case ADDRESS_WRITE_COMMAND: /* command */
@@ -161,26 +157,24 @@ public class DMA extends IODevice
         }
 
     }
+
     private static final int[] channels = new int[]{-1, 2, 3, 1, -1, -1, -1, 0};
 
-    private void writePageLow(int portNumber, int data)
-    {
+    private void writePageLow(int portNumber, int data) {
         int channelNumber = channels[portNumber & 7];
         if (-1 == channelNumber)
             return;
         dmaChannels[channelNumber].pageLow = 0xff & data;
     }
 
-    private void writePageHigh(int portNumber, int data)
-    {
+    private void writePageHigh(int portNumber, int data) {
         int channelNumber = channels[portNumber & 7];
         if (-1 == channelNumber)
             return;
         dmaChannels[channelNumber].pageHigh = 0x7f & data;
     }
 
-    private int readChannel(int portNumber)
-    {
+    private int readChannel(int portNumber) {
         int port = (portNumber >>> dShift) & 0x0f;
         int channelNumber = port >>> 1;
         int registerNumber = port & 1;
@@ -197,8 +191,7 @@ public class DMA extends IODevice
         return (val >>> (dShift + (flipflop ? 0x8 : 0x0))) & 0xff;
     }
 
-    private int readController(int portNumber)
-    {
+    private int readController(int portNumber) {
         int val;
         int port = (portNumber >>> dShift) & 0x0f;
         switch (port) {
@@ -218,24 +211,21 @@ public class DMA extends IODevice
         return val;
     }
 
-    private int readPageLow(int portNumber)
-    {
+    private int readPageLow(int portNumber) {
         int channelNumber = channels[portNumber & 7];
         if (-1 == channelNumber)
             return 0;
         return dmaChannels[channelNumber].pageLow;
     }
 
-    private int readPageHigh(int portNumber)
-    {
+    private int readPageHigh(int portNumber) {
         int channelNumber = channels[portNumber & 7];
         if (-1 == channelNumber)
             return 0;
         return dmaChannels[channelNumber].pageHigh;
     }
 
-    public void ioPortWriteByte(int address, byte data)
-    {
+    public void ioPortWriteByte(int address, byte data) {
         switch ((address - ioBase) >>> dShift) {
             case 0x0:
             case 0x1:
@@ -285,8 +275,7 @@ public class DMA extends IODevice
 
     }
 
-    public byte ioPortReadByte(int address)
-    {
+    public byte ioPortReadByte(int address) {
         switch ((address - ioBase) >>> dShift) {
             case 0x0:
             case 0x1:
@@ -296,7 +285,7 @@ public class DMA extends IODevice
             case 0x5:
             case 0x6:
             case 0x7:
-                return (byte)readChannel(address);
+                return (byte) readChannel(address);
             case 0x8:
             case 0x9:
             case 0xa:
@@ -305,7 +294,7 @@ public class DMA extends IODevice
             case 0xd:
             case 0xe:
             case 0xf:
-                return (byte)readController(address);
+                return (byte) readController(address);
             default:
                 break;
         }
@@ -315,7 +304,7 @@ public class DMA extends IODevice
             case pagePortList1:
             case pagePortList2:
             case pagePortList3:
-                return (byte)readPageLow(address);
+                return (byte) readPageLow(address);
             default:
                 break;
         }
@@ -325,16 +314,15 @@ public class DMA extends IODevice
             case pagePortList1:
             case pagePortList2:
             case pagePortList3:
-                return (byte)readPageHigh(address);
+                return (byte) readPageHigh(address);
             default:
                 break;
         }
 
-        return (byte)0xff;
+        return (byte) 0xff;
     }
 
-    public int[] ioPortsRequested()
-    {
+    public int[] ioPortsRequested() {
         int[] temp;
         if (pageHighBase >= 0)
             temp = new int[16 + (2 * pagePortList.length)];
@@ -360,61 +348,53 @@ public class DMA extends IODevice
         return temp;
     }
 
-    private boolean getFlipFlop()
-    {
+    private boolean getFlipFlop() {
         boolean ff = flipFlop;
         flipFlop =
                 !ff;
         return ff;
     }
 
-    private void initChannel(int channelNumber)
-    {
+    private void initChannel(int channelNumber) {
         DMAChannel r = dmaChannels[channelNumber];
         r.currentAddress = r.baseAddress << dShift;
         r.currentWordCount = 0;
     }
 
-    private static int numberOfTrailingZeros(int i) 
-    {
-	int y;
-	if (i == 0) 
+    private static int numberOfTrailingZeros(int i) {
+        int y;
+        if (i == 0)
             return 32;
-	int n = 31;
+        int n = 31;
 
-	y = i << 16; 
-        if (y != 0) 
-        { 
-            n = n - 16; 
-            i = y; 
+        y = i << 16;
+        if (y != 0) {
+            n = n - 16;
+            i = y;
         }
 
-	y = i << 8; 
-        if (y != 0) 
-        { 
-            n = n - 8; 
-            i = y; 
+        y = i << 8;
+        if (y != 0) {
+            n = n - 8;
+            i = y;
         }
-	
-        y = i << 4; 
-        if (y != 0) 
-        { 
-            n = n - 4; 
-            i = y; 
+
+        y = i << 4;
+        if (y != 0) {
+            n = n - 4;
+            i = y;
         }
-	
-        y = i << 2; 
-        if (y != 0) 
-        { 
-            n = n - 2; 
-            i = y; 
+
+        y = i << 2;
+        if (y != 0) {
+            n = n - 2;
+            i = y;
         }
-	
+
         return n - ((i << 1) >>> 31);
     }
- 
-    private void runTransfers()
-    {
+
+    private void runTransfers() {
         int value = ~mask & (status >>> 4) & 0xf;
         if (value == 0)
             return;
@@ -431,11 +411,11 @@ public class DMA extends IODevice
 
     /**
      * Returns the mode register of the given DMA channel.
+     *
      * @param channel channel index.
      * @return mode register value.
      */
-    public int getChannelMode(int channel)
-    {
+    public int getChannelMode(int channel) {
         return dmaChannels[channel].mode;
     }
 
@@ -443,10 +423,10 @@ public class DMA extends IODevice
      * Request a DMA transfer operation to occur on the specified channel.
      * <p>
      * This is equivalent to pulling the DREQ line high on the controller.
+     *
      * @param channel channel index.
      */
-    public void holdDmaRequest(int channel)
-    {
+    public void holdDmaRequest(int channel) {
         status |= 1 << (channel + 4);
         runTransfers();
     }
@@ -455,10 +435,10 @@ public class DMA extends IODevice
      * Request the DMA transfer in operation on the specified channel to stop.
      * <p>
      * This is equivalent to pulling the DREQ line low on the controller.
+     *
      * @param channel channel index.
      */
-    public void releaseDmaRequest(int channel)
-    {
+    public void releaseDmaRequest(int channel) {
         status &= ~(1 << (channel + 4));
     }
 
@@ -468,106 +448,99 @@ public class DMA extends IODevice
      * <p>
      * Subsequent DMA requests on this channel will call the
      * <code>handleTransfer</code> method on <code>device</code>.
+     *
      * @param channel channel index.
-     * @param device target of transfers.
+     * @param device  target of transfers.
      */
-    public void registerChannel(int channel, DMATransferCapable device)
-    {
+    public void registerChannel(int channel, DMATransferCapable device) {
         dmaChannels[channel].transferDevice = device;
     }
 
 
-	public class DMAChannel
-	{
-		private static final int MODE_CHANNEL_SELECT = 0x03;
-		private static final int MODE_ADDRESS_INCREMENT = 0x20;
-		public static final int ADDRESS = 0;
-		public static final int COUNT = 1;
-		public int currentAddress,  currentWordCount;
-		public int baseAddress,  baseWordCount;
-		public int mode;
-		public int dack,  eop;
-		public DMATransferCapable transferDevice;
-		public int pageLow,  pageHigh;
+    public class DMAChannel {
+        private static final int MODE_CHANNEL_SELECT = 0x03;
+        private static final int MODE_ADDRESS_INCREMENT = 0x20;
+        public static final int ADDRESS = 0;
+        public static final int COUNT = 1;
+        public int currentAddress, currentWordCount;
+        public int baseAddress, baseWordCount;
+        public int mode;
+        public int dack, eop;
+        public DMATransferCapable transferDevice;
+        public int pageLow, pageHigh;
 
-		public DMAChannel()
-		{
-		    //reset channel to empty
-		    transferDevice = null;
-		    currentAddress = currentWordCount = mode = 0;
-		    baseAddress = baseWordCount = 0;
-		    pageLow = pageHigh = dack = eop = 0;
-		}
+        public DMAChannel() {
+            //reset channel to empty
+            transferDevice = null;
+            currentAddress = currentWordCount = mode = 0;
+            baseAddress = baseWordCount = 0;
+            pageLow = pageHigh = dack = eop = 0;
+        }
 
-		 /**
-		 * Reads memory from this channel.
-		 * <p>
-		 * Allows a <code>DMATransferCapable</code> device to read the section of
-		 * memory currently pointed to by this channels internal registers.
-		 * @param buffer byte[] to save data in.
-		 * @param offset offset into <code>buffer</code>.
-		 * @param position offset into channel's memory.
-		 * @param length number of bytes to read.
-		 */
-		public void readMemory(byte[] buffer, int offset, int position, int length)
-		{
-		    int address = (pageHigh << 24) | (pageLow << 16) | currentAddress;
+        /**
+         * Reads memory from this channel.
+         * <p>
+         * Allows a <code>DMATransferCapable</code> device to read the section of
+         * memory currently pointed to by this channels internal registers.
+         *
+         * @param buffer   byte[] to save data in.
+         * @param offset   offset into <code>buffer</code>.
+         * @param position offset into channel's memory.
+         * @param length   number of bytes to read.
+         */
+        public void readMemory(byte[] buffer, int offset, int position, int length) {
+            int address = (pageHigh << 24) | (pageLow << 16) | currentAddress;
 
-		    if ((mode & DMAChannel.MODE_ADDRESS_INCREMENT) != 0) {
-			int j=offset;
-			for (int i=address-position-1; i>=address-position-length; i--)
-				buffer[j++]=memory.getByte(i);
+            if ((mode & DMAChannel.MODE_ADDRESS_INCREMENT) != 0) {
+                int j = offset;
+                for (int i = address - position - 1; i >= address - position - length; i--)
+                    buffer[j++] = memory.getByte(i);
 
-		        }
-		    else
-			{
-				int j=offset;
-				for (int i=address+position; i<address+position+length; i++)
-					buffer[j++]=memory.getByte(i);
-			}
-		}
+            } else {
+                int j = offset;
+                for (int i = address + position; i < address + position + length; i++)
+                    buffer[j++] = memory.getByte(i);
+            }
+        }
 
- 	       /**
-		 * Writes data to this channel.
-		 * <p>
-		 * Allows a <code>DMATransferCapable</code> device to write to the section of
-		 * memory currently pointed to by this channels internal registers.
-		 * @param buffer byte[] containing data.
-		 * @param offset offset into <code>buffer</code>.
-		 * @param position offset into channel's memory.
-		 * @param length number of bytes to write.
-		 */
-		public void writeMemory(byte[] buffer, int offset, int position, int length)
-		{
-		    int address = (pageHigh << 24) | (pageLow << 16) | currentAddress;
+        /**
+         * Writes data to this channel.
+         * <p>
+         * Allows a <code>DMATransferCapable</code> device to write to the section of
+         * memory currently pointed to by this channels internal registers.
+         *
+         * @param buffer   byte[] containing data.
+         * @param offset   offset into <code>buffer</code>.
+         * @param position offset into channel's memory.
+         * @param length   number of bytes to write.
+         */
+        public void writeMemory(byte[] buffer, int offset, int position, int length) {
+            int address = (pageHigh << 24) | (pageLow << 16) | currentAddress;
 
-		    if ((mode & DMAChannel.MODE_ADDRESS_INCREMENT) != 0) {
-		        //This may be broken for 16bit DMA
-		        //Should really decremented address with each byte write, so instead we reverse the array order now
-			int j=offset;
-			for (int i=address-position-1; i>=address-position-length; i--)
-				memory.setByte(i,buffer[j++]);
+            if ((mode & DMAChannel.MODE_ADDRESS_INCREMENT) != 0) {
+                //This may be broken for 16bit DMA
+                //Should really decremented address with each byte write, so instead we reverse the array order now
+                int j = offset;
+                for (int i = address - position - 1; i >= address - position - length; i--)
+                    memory.setByte(i, buffer[j++]);
 
-		    } else
-			{
-				int j=offset;
-				for (int i=address+position; i<address+position+length; i++)
-					memory.setByte(i,buffer[j++]);
-			}
-		}
+            } else {
+                int j = offset;
+                for (int i = address + position; i < address + position + length; i++)
+                    memory.setByte(i, buffer[j++]);
+            }
+        }
 
-		private void doTransfer()
-		{
-		    int n = transferDevice.handleTransfer(this, currentWordCount, (baseWordCount + 1) << controllerNumber);
-		    currentWordCount = n;
-		}
+        private void doTransfer() {
+            int n = transferDevice.handleTransfer(this, currentWordCount, (baseWordCount + 1) << controllerNumber);
+            currentWordCount = n;
+        }
 
-	}
+    }
 
-	//all classes that want to use the DMA must implement this
-	public static interface DMATransferCapable
-	{
-		public int handleTransfer(DMAChannel channel, int position, int size);
-	}
+    //all classes that want to use the DMA must implement this
+    public static interface DMATransferCapable {
+        public int handleTransfer(DMAChannel channel, int position, int size);
+    }
 }
 

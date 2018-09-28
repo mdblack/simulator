@@ -1,0 +1,13 @@
+*.class
+*.iml
+*.img
+bin/
+.project
+.project/
+.classpath
+.idea/
+out/
+simulator.iml
+.settings/
+settings.txt
+simulator.jar
