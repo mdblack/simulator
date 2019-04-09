@@ -5,57 +5,49 @@ Michael Black, 6/10
 Simulates the system clock.
 */
 package simulator;
-public class Clock
-{
-	public static final long INSTRUCTIONS_PER_SECOND=40000000;
 
-	private static final int MAX_DEVICES=100;
+public class Clock {
+    public static final long INSTRUCTIONS_PER_SECOND = 40000000;
 
-	long ticks;
+    private static final int MAX_DEVICES = 100;
 
-	ClockedDevice[] devices = new ClockedDevice[MAX_DEVICES];
-	int validDevices=0;
+    long ticks;
 
-	public Clock()
-	{
-		ticks=0;
-	}
-	
-	public String saveState()
-	{
-		return ""+ticks;
-	}
-	
-	public void loadState(String state)
-	{
-		ticks=Long.parseLong(state);
-	}
+    ClockedDevice[] devices = new ClockedDevice[MAX_DEVICES];
+    int validDevices = 0;
 
-	//called on each instruction
-	public void cycle()
-	{
-		ticks++;
-		for (int i=0; i<validDevices; i++)
-			devices[i].onClockTick(ticks);
-	}
+    public Clock() {
+        ticks = 0;
+    }
 
-	public void registerDevice(ClockedDevice device)
-	{
-		devices[validDevices++]=device;
-	}
+    public String saveState() {
+        return "" + ticks;
+    }
 
-	public long getTime()
-	{
-		return ticks;
-	}
+    public void loadState(String state) {
+        ticks = Long.parseLong(state);
+    }
 
-	public long getTickRate()
-	{
-		return INSTRUCTIONS_PER_SECOND;
-	}
+    //called on each instruction
+    public void cycle() {
+        ticks++;
+        for (int i = 0; i < validDevices; i++)
+            devices[i].onClockTick(ticks);
+    }
 
-	public static interface ClockedDevice
-	{
-		public void onClockTick(long ticks);
-	}
+    public void registerDevice(ClockedDevice device) {
+        devices[validDevices++] = device;
+    }
+
+    public long getTime() {
+        return ticks;
+    }
+
+    public long getTickRate() {
+        return INSTRUCTIONS_PER_SECOND;
+    }
+
+    public static interface ClockedDevice {
+        public void onClockTick(long ticks);
+    }
 }

@@ -2,420 +2,478 @@ package simulator;
 
 import java.awt.*;
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.event.InternalFrameEvent;
 import javax.swing.event.InternalFrameListener;
 
 import java.awt.event.*;
 
-public abstract class AbstractGUI extends JInternalFrame
-{
-	public static final int STATUSSIZE=50;
-	public static final int BUTTONROWSIZE=30;
-	public static final int MARGIN=20;
-	public static final int MAX_X=10000,MAX_Y=7000;
+//TODO: there is a scrollpane (bool) and scrollPane (JScrollPane)
 
-	int frameX, frameY;		//size of the display area
-	int canvasX, canvasY;	//size of the full canvas
-	
-	public GUIComponent guiComponent;
-	public StatusComponent statusComponent;
-	public ButtonRowComponent buttonRowComponent;
-	public JScrollPane scrollPane;
+public abstract class AbstractGUI extends JInternalFrame {
+    public static int STATUSSIZE = 40;
+    public static final int BUTTONROWSIZE = 30;
+    public static final int MARGIN = 20;
+    public static final int MAX_X = 10000, MAX_Y = 7000;
 
-	public boolean slowMode=false;
-	public int slowModeSleepDuration=300;
+    int frameX, frameY;        //size of the display area
+    int canvasX, canvasY;    //size of the full canvas
 
-	private boolean scrollpane, statusbar, buttonrow;
-	public boolean bigScreen;
-	
-	protected Computer computer;
-	private AbstractGUI thisgui=this;
+    public GUIComponent guiComponent;
+    public StatusComponent statusComponent;
+    public ButtonRowComponent buttonRowComponent;
+    public JScrollPane scrollPane;
 
-	public AbstractGUI(Computer computer, String title, int canvaswidth, int canvasheight, boolean statusbar, boolean scrollpane, boolean buttonrow, boolean bigScreen)
-	{
-		this.computer=computer;
-	
-		canvasX=canvaswidth;
-		canvasY=canvasheight;
-		
-		this.scrollpane=scrollpane;
-		this.statusbar=statusbar;
-		this.buttonrow=buttonrow;
-		this.bigScreen=bigScreen;
+    public boolean slowMode = false;
+    public int slowModeSleepDuration = 300;
 
-		frameX=(canvasX+10<=MAX_X? canvasX+10:MAX_X);
-		frameY=(canvasY+STATUSSIZE<=MAX_Y? canvasY+STATUSSIZE:MAX_Y);
-//		if (computer.computerGUI.singleFrame)
-//		{
-//			frameX=computer.computerGUI.getW(this);
-//			frameY=computer.computerGUI.getH(this);
-//		}
-		if (frameX>computer.computerGUI.XSIZE-MARGIN)
-			frameX=ComputerGUI.XSIZE-MARGIN;
-		if (frameY>computer.computerGUI.MAINSIZE-MARGIN)
-			frameY=ComputerGUI.MAINSIZE-MARGIN;
+    private boolean scrollpane, statusbar, buttonrow;
+    public boolean bigScreen;
 
-		setTitle(title);
-		setSize(frameX+10,frameY);
-		addInternalFrameListener(new GUIWindowListener());
-		addComponentListener(new GUIWindowListener());
-		this.iconable=true;
-		this.closable=true;
-		this.resizable=true;
-		setLayout(null);
+    protected Computer computer;
+    private AbstractGUI thisgui = this;
 
+    public AbstractWindow resolution;
 
-		if (statusbar)
-		{
-			int topy=frameY-STATUSSIZE;
-			statusComponent = new StatusComponent();
-			statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
-			statusComponent.setLabel("");
-			add(statusComponent);
-		}
-	}
+    /*
+     * All GUI windows need to be able to handle additional screen resolutions.  This
+     * is part of an ongoing project. Therefore, we're overloading the constructor
+     * to accommodate the old style of creating the GUI and the new style (with a
+     * resolution parameter).
+     */
+    public AbstractGUI(Computer computer, String title, int canvaswidth, int canvasheight, boolean statusbar, boolean scrollpane, boolean buttonrow, boolean bigScreen) {
+        this(computer, title, statusbar, scrollpane, buttonrow, bigScreen, new AbstractWindow(canvaswidth, canvasheight));
+    }
 
-	//override these methods
-	public void constructGUI(GUIComponent guiComponent) { }
-	public void doPaint(Graphics g) { }
-	public int width() { return canvasX; }
-	public int height() { return canvasY; }
-	public void mouseMove(MouseEvent e) { }
-	public void mouseDrag(MouseEvent e) { }
-	public void mouseClick(MouseEvent e) { }
-	public void mousePress(MouseEvent e) { }
-	public void mouseRelease(MouseEvent e) { }
-	public void mouseExit() { }
-	public void statusEdited(String keys) { }
-	public void reSize(int width, int height){ }
-	public abstract void closeGUI();
+    public AbstractGUI(Computer computer, String title, boolean statusbar, boolean scrollpane, boolean buttonrow, boolean bigScreen, AbstractWindow resolution) {
+        super(title, true, true, true, true);
 
-	//these methods are called externally
-	public void repaint()
-	{
+        int canvaswidth = resolution.width;
+        int canvasheight = resolution.height;
+        this.computer = computer;
+        this.resolution = resolution;
+        this.STATUSSIZE = computer.resolution.desktop.getStatusBarThickness();
+        this.scrollpane = scrollpane;
+        this.statusbar = statusbar;
+        this.buttonrow = buttonrow;
+        this.bigScreen = bigScreen;
+
+        setCanvasCoordinates(canvaswidth, canvasheight);
+        setFrameCoordinates(canvasX, canvasY);
+
+        if (frameX > computer.resolution.desktop.width - MARGIN)
+            frameX = computer.resolution.desktop.width - MARGIN;
+
+        if (frameY > computer.resolution.desktop.height - MARGIN)
+            frameY = computer.resolution.desktop.height - MARGIN;
+
+        setSize(frameX, frameY);
+        addInternalFrameListener(new GUIWindowListener());
+        addComponentListener(new GUIWindowListener());
+
+        setLayout(null);
+
+        if (statusbar) {
+            int topy = frameY - STATUSSIZE;
+
+            statusComponent = new StatusComponent();
+            statusComponent.setBounds(0, topy, frameX, STATUSSIZE);
+            statusComponent.setFont(new Font("Dialog", Font.ITALIC, computer.resolution.desktop.getFontSize()));
+
+            statusComponent.setLabel("");
+            add(statusComponent);
+        }
+
+        /*
+         * The borders might be different on various devices so instead of using whatever the
+         * default it, force it to be a line border.
+         */
+
+        try {
+            Border frameBorder = getBorder();
+
+            frameBorder = ((javax.swing.border.CompoundBorder) frameBorder).getInsideBorder();
+            setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.black, 1), frameBorder));
+        } catch (ClassCastException e) {
+            setBorder(BorderFactory.createLineBorder(Color.black, 1));
+        }
+
+    }
+
+    public void setCanvasCoordinates(int canvaswidth, int canvasheight) {
+        canvasX = canvaswidth;
+        canvasY = canvasheight;
+    }
+
+    public void setFrameCoordinates(int canvasX, int canvasY) {
+        frameX = (canvasX <= MAX_X - 10 ? canvasX : MAX_X - 10);
+        frameY = (canvasY + STATUSSIZE <= MAX_Y ? canvasY + STATUSSIZE : MAX_Y);
+    }
+
+    //override these methods
+    public void constructGUI(GUIComponent guiComponent) {
+    }
+
+    public void doPaint(Graphics g) {
+    }
+
+    public int width() {
+        return canvasX;
+    }
+
+    public int height() {
+        return canvasY;
+    }
+
+    public void mouseMove(MouseEvent e) {
+    }
+
+    public void mouseDrag(MouseEvent e) {
+    }
+
+    public void mouseClick(MouseEvent e) {
+    }
+
+    public void mousePress(MouseEvent e) {
+    }
+
+    public void mouseRelease(MouseEvent e) {
+    }
+
+    public void mouseExit() {
+    }
+
+    public void statusEdited(String keys) {
+    }
+
+    public void reSize(int width, int height) {
+    }
+
+    public abstract void closeGUI();
+
+    //these methods are called externally
+    public void repaint() {
 //		if (!computer.updateGUIOnPlay && !computer.debugMode && !(this instanceof VideoGUI))
 //			return;
-		if (guiComponent!=null)
-		{
-			if (!slowMode)
-				guiComponent.repaint();
-			else
-				guiComponent.paintImmediately(0,0,canvasX,canvasY);
-		}
-		sleep();
-	}
-	public void refresh()
-	{
-		setSize(frameX+10,frameY);
-		guiComponent=new GUIComponent();
-		add(guiComponent);
-		int topy=0;
-		int height=statusbar? frameY-topy-STATUSSIZE:frameY-topy;
-		if (scrollpane)
-		{
-			scrollPane = new JScrollPane(guiComponent);
-			scrollPane.setBounds(0,topy,frameX,height);
-			add(scrollPane);
-		}
-		else
-		{
-			guiComponent.setBounds(0,topy,frameX,height);
-			add(guiComponent);
-		}
-		guiComponent.addMouseListener(new GUIMouseListener());
-		guiComponent.addMouseMotionListener(new GUIMouseMotionListener());
-		guiComponent.repaint();
+        if (guiComponent != null) {
+            if (!slowMode)
+                guiComponent.repaint();
+            else
+                guiComponent.paintImmediately(0, 0, canvasX, canvasY);
+        }
+        sleep();
+    }
 
-		computer.computerGUI.addComponent(this);
+    public void refresh() {
+        setSize(frameX + 10, frameY);
+        guiComponent = new GUIComponent();
+        add(guiComponent);
+        int topy = 0;
+        int height = statusbar ? frameY - topy - STATUSSIZE : frameY - topy;
+        if (scrollpane) {
+            scrollPane = new JScrollPane(guiComponent);
+            scrollPane.setBounds(0, topy, frameX, height);
+            add(scrollPane);
+        } else {
+            guiComponent.setBounds(0, topy, frameX, height);
+            add(guiComponent);
+        }
+        guiComponent.addMouseListener(new GUIMouseListener());
+        guiComponent.addMouseMotionListener(new GUIMouseMotionListener());
+        guiComponent.repaint();
 
-		guiComponent.paintImmediately(0,0,canvasX,canvasY);
-		if (statusbar) guiComponent.addKeyListener(statusComponent.getKeyListener());
-		guiComponent.requestFocus();
-	}
-	public void sleep()
-	{
-		if (slowMode)
-		{
-			try { Thread.sleep(slowModeSleepDuration); } catch(Exception e) { }
-		}
-	}
-	public void setStatusLabel(String label)
-	{
-		if(statusComponent!=null)
-			statusComponent.setLabel(label);
-	}
+        computer.computerGUI.addComponent(this);
 
-	public void statusEdit(String baselabel, int exactlength, boolean hexonly)
-	{
-		statusComponent.edit(baselabel,exactlength,hexonly);
-	}
-	public void statusEdit(String baselabel, boolean hexonly)
-	{
-		statusComponent.edit(baselabel,-1,hexonly);
-	}
-	public void statusEdit(String baselabel)
-	{
-		statusComponent.edit(baselabel,-1,false);
-	}
+        guiComponent.paintImmediately(0, 0, canvasX, canvasY);
+        if (statusbar) guiComponent.addKeyListener(statusComponent.getKeyListener());
+        guiComponent.requestFocus();
+    }
 
-	public class GUIComponent extends JComponent
-	{
-		public GUIComponent()
-		{
-			super();
-			constructGUI(this);
-		}
-		public Dimension getPreferredSize()
-		{
-			return new Dimension(width(),height());
-		}
-		public void paintComponent(Graphics g)
-		{
-			g.setColor(Color.WHITE);
+    public void sleep() {
+        if (slowMode) {
+            try {
+                Thread.sleep(slowModeSleepDuration);
+            } catch (Exception e) {
+            }
+        }
+    }
+
+    public void setStatusLabel(String label) {
+        if (statusComponent != null) {
+            statusComponent.setFont(new Font("Dialog", Font.ITALIC, 20));//computer.resolution.desktop.getFontSize()));
+            statusComponent.setLabel(label);
+        }
+    }
+
+    public void statusEdit(String baselabel, int exactlength, boolean hexonly) {
+        statusComponent.edit(baselabel, exactlength, hexonly);
+    }
+
+    public void statusEdit(String baselabel, boolean hexonly) {
+        statusComponent.edit(baselabel, -1, hexonly);
+    }
+
+    public void statusEdit(String baselabel) {
+        statusComponent.edit(baselabel, -1, false);
+    }
+
+    public class GUIComponent extends JComponent {
+        public GUIComponent() {
+            super();
+            constructGUI(this);
+        }
+
+        public Dimension getPreferredSize() {
+            return new Dimension(width(), height());
+        }
+
+        public void paintComponent(Graphics g) {
+            g.setColor(Color.WHITE);
 //			g.fillRect(0,0,canvasX,canvasY);
-			g.fillRect(0,0,width(),height());
-			doPaint(g);
-		}
-	}
+            g.fillRect(0, 0, width(), height());
+            doPaint(g);
+        }
+    }
 
-	public class GUIMouseListener implements MouseListener
-	{
-		public void mouseEntered(MouseEvent e) { }
-		public void mousePressed(MouseEvent e)
-		{
-			mousePress(e);
-		}
-		public void mouseReleased(MouseEvent e)
-		{
-			mouseRelease(e);
-		}
-		public void mouseClicked(MouseEvent e)
-		{
-			guiComponent.requestFocus();
-			mouseClick(e);
-		}
-		public void mouseExited(MouseEvent e)
-		{
-			mouseExit();
-		}
-	}
+    public class GUIMouseListener implements MouseListener {
+        public void mouseEntered(MouseEvent e) {
+        }
 
-	public class GUIMouseMotionListener implements MouseMotionListener
-	{
-		public void mouseMoved(MouseEvent e)
-		{
-			mouseMove(e);
-		}
-		public void mouseDragged(MouseEvent e) 
-		{ 
-			mouseDrag(e);
-		}
-	}
+        public void mousePressed(MouseEvent e) {
+            mousePress(e);
+        }
 
-	public class ButtonRowComponent extends JComponent
-	{
-		JButton closeButton,slowButton;
-		public static final int BUTTONWIDTH=150;
+        public void mouseReleased(MouseEvent e) {
+            mouseRelease(e);
+        }
 
-		public ButtonRowComponent()
-		{
-			super();
-			closeButton=new JButton("Close");
-			closeButton.setBounds(10,5,(frameX-30)/2,BUTTONROWSIZE-10);
-			closeButton.addActionListener(new ButtonListener());
+        public void mouseClicked(MouseEvent e) {
+            guiComponent.requestFocus();
+            mouseClick(e);
+        }
 
-			this.add(closeButton);
-			slowButton=new JButton("Slow speed");
-			slowButton.setBounds(frameX/2+10,5,(frameX-30)/2,BUTTONROWSIZE-10);
-			slowButton.addActionListener(new ButtonListener());
+        public void mouseExited(MouseEvent e) {
+            mouseExit();
+        }
+    }
 
-			this.add(slowButton);
-		}
+    public class GUIMouseMotionListener implements MouseMotionListener {
+        public void mouseMoved(MouseEvent e) {
+            mouseMove(e);
+        }
 
-		public void paintComponent(Graphics g)
-		{
-			g.setColor(Color.WHITE);
-			g.fillRect(0,0,frameX,BUTTONROWSIZE);
-			g.setColor(Color.BLACK);
-			g.drawLine(0,BUTTONROWSIZE-1,frameX,BUTTONROWSIZE-1);
-		}
+        public void mouseDragged(MouseEvent e) {
+            mouseDrag(e);
+        }
+    }
 
-		private class ButtonListener implements ActionListener
-		{
-			public void actionPerformed(ActionEvent e)
-			{
-				if (e.getActionCommand().equals("Close"))
-				{
-					close();
-				}
-				else if (e.getActionCommand().equals("Slow speed"))
-				{
-					buttonRowComponent.slowButton.setText("Normal speed");
-					slowMode=true;
-					guiComponent.requestFocus();
-				}
-				else if (e.getActionCommand().equals("Normal speed"))
-				{
-					buttonRowComponent.slowButton.setText("Slow speed");
-					slowMode=false;
-					guiComponent.requestFocus();
-				}
-			}
-		}
-	}
-	
-	public void close()
-	{
-		if (!computer.debugMode) computer.cycleEndLock.lockWait();
-		closeGUI();
+    public class ButtonRowComponent extends JComponent {
+        JButton closeButton, slowButton;
+        public static final int BUTTONWIDTH = 150;
 
-		computer.computerGUI.removeComponent(this);
-	}
+        public ButtonRowComponent() {
+            super();
+            closeButton = new JButton("Close");
+            closeButton.setBounds(10, 5, (frameX - 30) / 2, BUTTONROWSIZE - 10);
+            closeButton.addActionListener(new ButtonListener());
 
-	public class StatusComponent extends JComponent
-	{
-		private String statusLabel="";
-		private String baseLabel="";
-		private String keys="";
-		private boolean keyListen,hexonly;
-		private int exactlength;
+            this.add(closeButton);
+            slowButton = new JButton("Slow speed");
+            slowButton.setBounds(frameX / 2 + 10, 5, (frameX - 30) / 2, BUTTONROWSIZE - 10);
+            slowButton.addActionListener(new ButtonListener());
 
-		public StatusComponent()
-		{
-			keyListen=false;
-		}
+            this.add(slowButton);
+        }
 
-		public void setLabel(String label)
-		{
-			if(!keyListen)
-			{
-				statusLabel=label;
-				if (!computer.updateGUIOnPlay && !computer.debugMode)
-					return;
-				this.repaint();
-			}
-		}
-		public void paintComponent(Graphics g)
-		{
-			g.setColor(Color.WHITE);
-			g.fillRect(0,0,frameX,STATUSSIZE);
-			g.setColor(Color.BLACK);
-			g.drawLine(0,0,frameX,0);
+        public void paintComponent(Graphics g) {
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, frameX, BUTTONROWSIZE);
+            g.setColor(Color.BLACK);
+            g.drawLine(0, BUTTONROWSIZE - 1, frameX, BUTTONROWSIZE - 1);
+        }
 
-			int fontSize=12;
-			g.setFont(new Font("Dialog",Font.BOLD,fontSize));
-			g.drawString(statusLabel,STATUSSIZE-MARGIN,fontSize);
-		}
+        private class ButtonListener implements ActionListener {
+            public void actionPerformed(ActionEvent e) {
+                if (e.getActionCommand().equals("Close")) {
+                    close();
+                } else if (e.getActionCommand().equals("Slow speed")) {
+                    buttonRowComponent.slowButton.setText("Normal speed");
+                    slowMode = true;
+                    guiComponent.requestFocus();
+                } else if (e.getActionCommand().equals("Normal speed")) {
+                    buttonRowComponent.slowButton.setText("Slow speed");
+                    slowMode = false;
+                    guiComponent.requestFocus();
+                }
+            }
+        }
+    }
 
-		public void edit(String baseLabel, int exactlength, boolean hexonly)
-		{
-			this.baseLabel=baseLabel;
-			this.exactlength=exactlength;
-			this.hexonly=hexonly;
-			keyListen=true;
-			statusLabel=baseLabel;
-			keys="";
-			this.repaint();
-			guiComponent.requestFocus();
-		}
+    public void close() {
+        if (!computer.debugMode) computer.cycleEndLock.lockWait();
+        closeGUI();
 
-		public void cancelEdit()
-		{
-			statusLabel="";
-			this.repaint();
-		}
+        computer.computerGUI.removeComponent(this);
+    }
 
-		public void commitEdit()
-		{
-			statusLabel="";
-			this.repaint();
-			statusEdited(keys);
-		}
+    public class StatusComponent extends JComponent {
+        private String statusLabel = "";
+        private String baseLabel = "";
+        private String keys = "";
+        private boolean keyListen, hexonly;
+        private int exactlength;
 
-		public StatusKeyListener getKeyListener()
-		{
-			return new StatusKeyListener();
-		}
+        public StatusComponent() {
+            keyListen = false;
+        }
 
-		public class StatusKeyListener implements KeyListener
-		{
-			public void keyPressed(KeyEvent e) { }
-			public void keyReleased(KeyEvent e) { }
-			public void keyTyped(KeyEvent e)
-			{
-				if(!keyListen) return;
-				keyListen=false;
+        public void setLabel(String label) {
+            if (!keyListen) {
+                statusLabel = label;
+                if (!computer.updateGUIOnPlay && !computer.debugMode)
+                    return;
+                this.repaint();
+            }
+        }
 
-				char key=e.getKeyChar();
+        public void paintComponent(Graphics g) {
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, frameX, STATUSSIZE);
+            g.setColor(Color.BLACK);
+            g.drawLine(0, 0, frameX, 0);
 
-				if(((byte)key)==27)
-					cancelEdit();
-				else if(((byte)key)==10)
-				{
-					if (exactlength!=-1 && keys.length()<exactlength)
-						cancelEdit();
-					else
-						commitEdit();
-				}
-				else if (((byte)key)==8)
-				{
-					keyListen=true;
-					if(keys.length()>0)
-					{
-						keys=keys.substring(0,keys.length()-1);
-						statusLabel=baseLabel+keys;
-						repaint();
-					}
-				}
-				else
-				{
-					keyListen=true;
-					if (exactlength==-1 || keys.length()<exactlength)
-					{
-						if(!hexonly || ((key>='0' && key<='9')||(key>='A' && key<='F')||(key>='a'&&key<='f')))
-						{
-							keys=keys+key;
-							statusLabel=baseLabel+keys;
-							repaint();
-						}
-					}
-				}
-			}
-		}
-	}
+            int fontSize = computer.resolution.desktop.getFontSize();
+            g.setFont(new Font("Dialog", Font.BOLD, fontSize));
+            g.drawString(statusLabel, STATUSSIZE - MARGIN, fontSize);
+        }
 
-	public class GUIWindowListener implements InternalFrameListener, ComponentListener
-	{
-		public void internalFrameActivated(InternalFrameEvent e) {}
-		public void internalFrameClosed(InternalFrameEvent e) 
-		{
-			close();	
-		}
-		public void internalFrameClosing(InternalFrameEvent e) {}
-		public void internalFrameDeactivated(InternalFrameEvent e) {}
-		public void internalFrameDeiconified(InternalFrameEvent e) {}
-		public void internalFrameIconified(InternalFrameEvent e) {}
-		public void internalFrameOpened(InternalFrameEvent e) {}
-		public void componentHidden(ComponentEvent e) {}
-		public void componentMoved(ComponentEvent e) {}
-		public void componentResized(ComponentEvent e) 
-		{
-			frameX=thisgui.getWidth();
-			frameY=thisgui.getHeight();
-			if (scrollpane)
-			{
-				int topy=0,height=statusbar? frameY-topy-STATUSSIZE:frameY-topy;
-				
-				scrollPane.setBounds(0,topy,frameX-scrollPane.getVerticalScrollBar().getWidth()-5,height-scrollPane.getHorizontalScrollBar().getHeight()-MARGIN);
-			}
-			if (statusbar)
-			{
-				int topy=frameY-STATUSSIZE;
-				statusComponent.setBounds(0,topy,frameX,STATUSSIZE);
-			}
-			reSize(frameX,frameY);
-			thisgui.repaint();
-		}
-		public void componentShown(ComponentEvent e) {}
-	}	
+        public void edit(String baseLabel, int exactlength, boolean hexonly) {
+            this.baseLabel = baseLabel;
+            this.exactlength = exactlength;
+            this.hexonly = hexonly;
+            keyListen = true;
+            statusLabel = baseLabel;
+            keys = "";
+            this.repaint();
+            guiComponent.requestFocus();
+        }
+
+        public void cancelEdit() {
+            statusLabel = "";
+            this.repaint();
+        }
+
+        public void commitEdit() {
+            statusLabel = "";
+            this.repaint();
+            statusEdited(keys);
+        }
+
+        public StatusKeyListener getKeyListener() {
+            return new StatusKeyListener();
+        }
+
+        public class StatusKeyListener implements KeyListener {
+            public void keyPressed(KeyEvent e) {
+            }
+
+            public void keyReleased(KeyEvent e) {
+            }
+
+            public void keyTyped(KeyEvent e) {
+                if (!keyListen) return;
+                keyListen = false;
+
+                char key = e.getKeyChar();
+
+                if (((byte) key) == 27)
+                    cancelEdit();
+                else if (((byte) key) == 10) {
+                    if (exactlength != -1 && keys.length() < exactlength)
+                        cancelEdit();
+                    else
+                        commitEdit();
+                } else if (((byte) key) == 8) {
+                    keyListen = true;
+                    if (keys.length() > 0) {
+                        keys = keys.substring(0, keys.length() - 1);
+                        statusLabel = baseLabel + keys;
+                        repaint();
+                    }
+                } else {
+                    keyListen = true;
+                    if (exactlength == -1 || keys.length() < exactlength) {
+                        if (!hexonly || ((key >= '0' && key <= '9') || (key >= 'A' && key <= 'F') || (key >= 'a' && key <= 'f'))) {
+                            keys = keys + key;
+                            statusLabel = baseLabel + keys;
+                            repaint();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public class GUIWindowListener implements InternalFrameListener, ComponentListener {
+        public void internalFrameActivated(InternalFrameEvent e) {
+        }
+
+        public void internalFrameClosed(InternalFrameEvent e) {
+            close();
+        }
+
+        public void internalFrameClosing(InternalFrameEvent e) {
+        }
+
+        public void internalFrameDeactivated(InternalFrameEvent e) {
+        }
+
+        public void internalFrameDeiconified(InternalFrameEvent e) {
+        }
+
+        public void internalFrameIconified(InternalFrameEvent e) {
+        }
+
+        public void internalFrameOpened(InternalFrameEvent e) {
+        }
+
+        public void componentHidden(ComponentEvent e) {
+        }
+
+        public void componentMoved(ComponentEvent e) {
+        }
+
+        public void componentResized(ComponentEvent e) {
+            frameX = thisgui.getWidth();
+            frameY = thisgui.getHeight();
+            Boolean isMax = ((JInternalFrame) e.getComponent()).isMaximum();
+
+            if (isMax) {
+                frameX = thisgui.getParent().getWidth() - 25;
+                thisgui.setSize(new Dimension(frameX, frameY));
+            }
+            /*
+             * As the window components are being created, this method will be called to resize
+             * based on the components.  This means that some components might not yet exist so
+             * we need to check before doing anything with them.
+             */
+            if (scrollpane) {
+                int topy = 0, height = statusbar ? frameY - topy - STATUSSIZE : frameY - topy;
+                if (scrollPane != null) {
+                    scrollPane.setBounds(0, topy, frameX - scrollPane.getVerticalScrollBar().getWidth() - 5, height - scrollPane.getHorizontalScrollBar().getHeight() - MARGIN);
+                }
+            }
+            if (statusbar && statusComponent != null)   // Make sure we have a status bar AND the pane exists
+            {
+                int topy = frameY - STATUSSIZE;
+                statusComponent.setBounds(0, topy, frameX, STATUSSIZE);
+            }
+
+            reSize(frameX, frameY);
+            thisgui.repaint();
+        }
+
+        public void componentShown(ComponentEvent e) {
+        }
+    }
 }
