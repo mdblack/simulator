@@ -1,6 +1,6 @@
 /*
 Processor.java
-Michael Black, 6/10
+
 
 Simulates the x86 processor
 */
