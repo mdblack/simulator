@@ -1,6 +1,6 @@
 /*
 IOPorts.java
-Michael Black, 6/10
+
 
 Handles communication between the processor and the IO devices
 */
