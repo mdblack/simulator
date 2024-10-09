@@ -1,6 +1,5 @@
 /*
 Clock.java
-Michael Black, 6/10
 
 Simulates the system clock.
 */
