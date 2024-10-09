@@ -1,6 +1,5 @@
 /*
 InterruptController.java
-Michael Black, 6/10
 
 This file is mostly taken from JPC (InterruptController.java, author Chris Dennis)
     JPC: A x86 PC Hardware Emulator for a pure Java Virtual Machine
