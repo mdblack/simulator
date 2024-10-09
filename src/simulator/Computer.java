@@ -1,6 +1,5 @@
 /*
 Computer.java
-Michael Black, 6/10
 
 
 Computer builds the PC, starts it running
