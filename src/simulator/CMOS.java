@@ -1,6 +1,5 @@
 /*
 CMOS.java
-Michael Black, 6/10
 
 Simulates the CMOS and Real Time Clock
 */
