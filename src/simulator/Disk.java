@@ -1,6 +1,6 @@
 /*
 Disk.java
-Michael Black, 6/10
+
 
 Loads and handles a disk image
 */
