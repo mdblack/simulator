@@ -1,4 +1,3 @@
-//Michael Black
 //12/2011
 //Handles a database of past operations
 
