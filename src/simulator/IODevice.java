@@ -1,6 +1,5 @@
 /*
 IODevice.java
-Michael Black, 6/10
 
 Template of a device attached to an IO port
 */
