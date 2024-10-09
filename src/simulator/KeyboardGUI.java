@@ -1,6 +1,6 @@
 /*
 KeyboardGUI.java
-Michael Black, 6/10
+
 
 Visual representation of a keyboard
 */
